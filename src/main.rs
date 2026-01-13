@@ -36,8 +36,30 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
 
     // 2. NETWORK SETUP
+    // --- Network Setup with Dynamic Port Hunting ---
     let mut swarm = network::init_network().await?;
-    swarm.listen_on("/ip4/0.0.0.0/tcp/6000".parse()?)?;
+
+    let mut current_port: u16 = 6000;
+    let max_port: u16 = 6010;
+
+    loop {
+        let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", current_port).parse()?;
+        match swarm.listen_on(addr.clone()) {
+            Ok(_) => {
+                println!("🌐 Node successfully bound to port: {}", current_port);
+                break;
+            }
+            Err(e) => {
+                if current_port < max_port {
+                    println!("⚠️  Port {} busy. Trying {}...", current_port, current_port + 1);
+                    current_port += 1;
+                } else {
+                    println!("❌ Critical Error: No available ports found in range 6000-6010.");
+                    return Err(e.into());
+                }
+            }
+        }
+    }
 
     // Subscribe to gossip topics used for block propagation and chain sync
     let blocks_topic = gossipsub::IdentTopic::new("timechain-blocks");
