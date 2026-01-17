@@ -307,8 +307,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
                     let mut nonce = 0u64;
                     let mut found = false;
+                    let max_attempts = if tc.blocks.len() <= 2 {
+                        1000000 // More attempts for early blocks
+                    } else {
+                        100000
+                    };
 
-                    while !found && nonce < 100000 {
+                    while !found && nonce < max_attempts {
                         let candidate = Block {
                             parent: parent_hash,
                             slot: current_slot,
@@ -331,6 +336,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             found = true;
                         }
                         nonce += 1;
+                    }
+
+                    // If mining failed, adjust difficulty for next attempt
+                    if !found {
+                        if tc.difficulty > 10 {
+                            tc.difficulty = tc.difficulty.saturating_sub(10);
+                            println!("⚠️  Mining failed, reducing difficulty to {}", tc.difficulty);
+                        } else {
+                            println!("⚠️  Mining failed at minimum difficulty. Check system performance.");
+                        }
                     }
                 }
             }
