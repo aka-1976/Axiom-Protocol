@@ -3,16 +3,18 @@
 
 mod block; mod transaction; mod chain; mod network; mod storage; 
 mod main_helper; mod genesis; mod circuit; mod bridge; mod vdf; mod ai_engine;
+mod state; mod economics; mod wallet;
 
 use block::Block;
 use chain::Timechain;
+use transaction::Transaction;
 use ai_engine::NeuralGuardian;
 use main_helper::{Wallet, compute_vdf};
 use libp2p::{gossipsub, swarm::SwarmEvent, futures::StreamExt, Multiaddr, PeerId};
 use std::time::{Duration, Instant};
 use tokio::time;
 use std::error::Error;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 #[tokio::main]
@@ -28,6 +30,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("📁 Wallet file: ./wallet.dat (keep safe!)");
     let ai_guardian = Arc::new(Mutex::new(NeuralGuardian::new()));
     let mut peer_message_counts: HashMap<PeerId, u32> = HashMap::new();
+
+    // Transaction mempool
+    let mut mempool: VecDeque<Transaction> = VecDeque::new();
 
     let mut tc = if let Some(saved_blocks) = storage::load_chain() {
         let mut chain = Timechain::new(genesis::genesis());
@@ -67,9 +72,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let blocks_topic = gossipsub::IdentTopic::new("timechain-blocks");
     let req_topic = gossipsub::IdentTopic::new("timechain-requests");
     let chain_topic = gossipsub::IdentTopic::new("timechain-chain");
+    let tx_topic = gossipsub::IdentTopic::new("timechain-transactions");
     let _ = swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic);
     let _ = swarm.behaviour_mut().gossipsub.subscribe(&req_topic);
     let _ = swarm.behaviour_mut().gossipsub.subscribe(&chain_topic);
+    let _ = swarm.behaviour_mut().gossipsub.subscribe(&tx_topic);
 
     // Ask the network for peers' chains so we can self-heal/sync on startup
     let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
@@ -79,6 +86,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut vdf_loop = time::interval(Duration::from_millis(100));
     let mut dashboard_timer = time::interval(Duration::from_secs(10));
     let mut throttle_reset = time::interval(Duration::from_secs(60));
+    let mut tx_broadcast_timer = time::interval(Duration::from_secs(30));
 
     loop {
         tokio::select! {
@@ -98,6 +106,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                         if message.data == b"REQ_CHAIN" {
                             if let Ok(encoded) = bincode::serialize(&tc.blocks) {
                                 let _ = swarm.behaviour_mut().gossipsub.publish(chain_topic.clone(), encoded);
+                            }
+                        }
+                        // 2) If this is a block, validate and add it
+                        else if message.topic == blocks_topic.hash() {
+                            if let Ok(block) = bincode::deserialize::<Block>(&message.data) {
+                                let elapsed = last_vdf.elapsed().as_secs();
+                                if tc.add_block(block, elapsed).is_ok() {
+                                    println!("✅ Block accepted and added to chain");
+                                    storage::save_chain(&tc.blocks);
+                                }
+                            }
+                        }
+                        // 3) If this is a transaction, validate and add to mempool
+                        else if message.topic == tx_topic.hash() {
+                            if let Ok(tx) = bincode::deserialize::<Transaction>(&message.data) {
+                                if tc.validate_transaction(&tx).is_ok() && !mempool.contains(&tx) {
+                                    mempool.push_back(tx);
+                                    println!("✅ Transaction added to mempool");
+                                }
                             }
                         }
 
@@ -164,19 +191,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 },
 
                 // When identify events occur (new peers), ask them for their chain
-                SwarmEvent::Behaviour(network::TimechainBehaviourEvent::Identify(ev)) => {
-                    match ev {
-                        libp2p::identify::Event::Received { peer_id, info } => {
-                            println!("👋 Identified peer: {} ({:?})", peer_id, info.agent_version);
-                            let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
-                            // Also send a direct request-response asking for missing blocks
-                            let _ = swarm.behaviour_mut().request_response.send_request(
-                                &peer_id,
-                                network::ChainRequest { start_height: tc.blocks.len() as u64 },
-                            );
-                        }
-                        _ => {}
-                    }
+                SwarmEvent::Behaviour(network::TimechainBehaviourEvent::Identify(libp2p::identify::Event::Received { peer_id, info })) => {
+                    println!("👋 Identified peer: {} ({:?})", peer_id, info.agent_version);
+                    let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
+                    // Also send a direct request-response asking for missing blocks
+                    let _ = swarm.behaviour_mut().request_response.send_request(
+                        &peer_id,
+                        network::ChainRequest { start_height: tc.blocks.len() as u64 },
+                    );
                 },
                 SwarmEvent::Behaviour(network::TimechainBehaviourEvent::RequestResponse(ev)) => {
                     match ev {
@@ -216,10 +238,27 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 peer_message_counts.clear();
             },
 
+            // --- BROADCAST PENDING TRANSACTIONS ---
+            _ = tx_broadcast_timer.tick() => {
+                if let Ok(tx_data) = std::fs::read("pending_tx.dat") {
+                    if let Ok(tx) = bincode::deserialize::<Transaction>(&tx_data) {
+                        if tc.validate_transaction(&tx).is_ok() {
+                            let encoded = bincode::serialize(&tx).unwrap();
+                            let _ = swarm.behaviour_mut().gossipsub.publish(
+                                gossipsub::IdentTopic::new("timechain-transactions"), encoded
+                            );
+                            println!("📤 Transaction broadcasted");
+                            // Remove the pending transaction file
+                            let _ = std::fs::remove_file("pending_tx.dat");
+                        }
+                    }
+                }
+            },
+
             // --- DASHBOARD: RESOLVING UNUSED WARNINGS ---
             _ = dashboard_timer.tick() => {
                 let elapsed = last_vdf.elapsed().as_secs();
-                let remaining = if elapsed < 3600 { 3600 - elapsed } else { 0 };
+                let remaining = 3600u64.saturating_sub(elapsed);
                 
                 // Using last_diff to calculate and show the difficulty trend
                 let trend = if tc.difficulty > last_diff { "UP ⬆️" } else if tc.difficulty < last_diff { "DOWN ⬇️" } else { "STABLE ↔️" };
@@ -250,6 +289,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     let vdf_proof = compute_vdf(vdf_seed, tc.difficulty as u32);
                     let zk_pass = genesis::generate_zk_pass(&wallet, parent_hash);
 
+                    // Select transactions from mempool (up to some limit)
+                    let mut selected_txs = Vec::new();
+                    let max_txs_per_block = 100;
+                    while let Some(tx) = mempool.front() {
+                        if selected_txs.len() >= max_txs_per_block {
+                            break;
+                        }
+                        // Double-check transaction is still valid
+                        if tc.validate_transaction(tx).is_ok() {
+                            selected_txs.push(mempool.pop_front().unwrap());
+                        } else {
+                            // Remove invalid transaction
+                            mempool.pop_front();
+                        }
+                    }
+
                     let mut nonce = 0u64;
                     let mut found = false;
 
@@ -258,23 +313,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             parent: parent_hash,
                             slot: current_slot,
                             miner: wallet.address,
-                            transactions: vec![],
+                            transactions: selected_txs.clone(),
                             vdf_proof,
                             zk_proof: zk_pass.clone(),
                             nonce,
                         };
 
-                        if candidate.meets_difficulty(tc.difficulty) {
-                            if tc.add_block(candidate.clone(), elapsed).is_ok() {
-                                println!("✨ MINED: H-{} | Nonce: {}", tc.blocks.len(), nonce);
-                                let encoded = bincode::serialize(&candidate).unwrap();
-                                let _ = swarm.behaviour_mut().gossipsub.publish(
-                                    gossipsub::IdentTopic::new("timechain-blocks"), encoded
-                                );
-                                storage::save_chain(&tc.blocks);
-                                last_vdf = Instant::now();
-                                found = true;
-                            }
+                        if candidate.meets_difficulty(tc.difficulty)
+                            && tc.add_block(candidate.clone(), elapsed).is_ok() {
+                            println!("✨ MINED: H-{} | Nonce: {} | Txs: {}", tc.blocks.len(), nonce, selected_txs.len());
+                            let encoded = bincode::serialize(&candidate).unwrap();
+                            let _ = swarm.behaviour_mut().gossipsub.publish(
+                                gossipsub::IdentTopic::new("timechain-blocks"), encoded
+                            );
+                            storage::save_chain(&tc.blocks);
+                            last_vdf = Instant::now();
+                            found = true;
                         }
                         nonce += 1;
                     }

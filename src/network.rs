@@ -3,7 +3,6 @@ use std::error::Error;
 use libp2p::identity;
 use libp2p::request_response::{self, ProtocolSupport};
 use futures::io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
-use futures::future::BoxFuture;
 use std::io;
 use serde::{Serialize, Deserialize};
 use crate::block::Block;

@@ -1,6 +1,8 @@
 use crate::block::Block;
 use crate::transaction::{Transaction, Address};
-use std::collections::{HashMap, HashSet};
+use crate::state::State;
+use crate::economics;
+use std::collections::HashSet;
 
 pub const TARGET_TIME: u64 = 3600; // 1 Hour Time-Lock
 pub const HALVING_INTERVAL: u64 = 2_100_000;
@@ -13,9 +15,10 @@ pub const GENESIS_ANCHOR: &str = "2dfba633817046c7f559ed4b93076048435f7e1a90f14e
 
 pub struct Timechain {
     pub blocks: Vec<Block>,
-    pub balances: HashMap<Address, u64>,
+    pub state: State,
     pub difficulty: u64,
     seen_hashes: HashSet<[u8; 32]>, // Injection Protection
+    pub total_issued: u64,
 }
 
 impl Timechain {
@@ -32,100 +35,136 @@ impl Timechain {
 
         let mut tc = Timechain {
             blocks: vec![genesis],
-            balances: HashMap::new(),
+            state: State::new(),
             difficulty: 1000,
             seen_hashes: HashSet::new(),
+            total_issued: 0,
         };
         tc.rebuild_state();
         tc
     }
 
-    /// The Core Consensus Logic: VDF + PoW + Self-Healing
-    pub fn add_block(&mut self, block: Block, elapsed: u64) -> Result<(), &'static str> {
-        // 1. DUPLICATE & INJECTION PROTECTION
-        let block_hash = block.calculate_hash(); // Ensure this matches your Block implementation
-        if self.seen_hashes.contains(&block_hash) {
-            return Err("Block already exists (Injection Attack thwarted)");
-        }
-
-        // 2. 60% ATTACK PROTECTION (The VDF Gate)
-        if elapsed < TARGET_TIME && self.blocks.len() > 1 {
-            return Err("VDF Violation: Time-lock not expired");
-        }
-
-        // 3. POW VALIDATION
-        if !block.meets_difficulty(self.difficulty) {
-            return Err("PoW Violation: Insufficient Hash Power");
-        }
-
-        // 4. SYBIL PROTECTION (ZK-PASS VALIDATION)
-        if !crate::genesis::verify_zk_pass(&block.miner, &block.parent, &block.zk_proof) {
-            return Err("Sybil Violation: Invalid ZK-Pass");
-        }
-
-        // 5. AGGRESSIVE RETARGETING (Governance-Free)
-        if elapsed < TARGET_TIME {
-            self.difficulty = self.difficulty.saturating_add(self.difficulty / 2);
-        } else {
-            self.difficulty = self.difficulty.saturating_sub(self.difficulty / 10);
-        }
-
-        // 6. SELF-HEALING (Longest Chain Rule)
-        if block.parent == self.blocks.last().unwrap().calculate_hash() {
-            self.blocks.push(block);
-            self.seen_hashes.insert(block_hash);
-            self.rebuild_state();
-            Ok(())
-        } else {
-            Err("Chain Split: Block does not follow local tip")
-        }
-    }
-
-    /// 84M Bit-Shift Halving & State Engine
+    /// Rebuild state from all blocks
     pub fn rebuild_state(&mut self) {
-        self.balances.clear();
-        let mut processed_txs = HashSet::new();
+        self.state = State::new();
+        self.total_issued = 0;
 
-        for (i, block) in self.blocks.iter().enumerate() {
-            let halvings = i as u64 / HALVING_INTERVAL;
-            let reward = INITIAL_REWARD >> halvings;
+        for block in &self.blocks {
+            // Process mining reward
+            let reward = economics::block_reward(block.slot, self.total_issued);
+            if reward > 0 && block.miner != [0u8; 32] {
+                self.state.credit(block.miner, reward);
+                self.total_issued += reward;
+            }
 
-            // Apply Miner Reward
-            let balance = self.balances.entry(block.miner).or_insert(0);
-            *balance = balance.saturating_add(reward);
-
-            // DOUBLE SPEND PROTECTION
+            // Process transactions
             for tx in &block.transactions {
-                let tx_hash = tx.hash();
-                if processed_txs.contains(&tx_hash) { continue; }
-
-                // (Transaction logic would go here)
-                processed_txs.insert(tx_hash);
+                if self.state.apply_tx(tx).is_ok() {
+                    // Transaction successful
+                }
             }
         }
     }
 
-    /// Calculate total coins mined so far
-    pub fn total_mined(&self) -> u64 {
-        self.balances.values().sum()
+    /// The Core Consensus Logic: VDF + PoW + Self-Healing
+    pub fn add_block(&mut self, block: Block, elapsed: u64) -> Result<(), &'static str> {
+        // 1. DUPLICATE & INJECTION PROTECTION
+        let block_hash = block.calculate_hash();
+        if self.seen_hashes.contains(&block_hash) {
+            return Err("Block already exists (Injection Attack thwarted)");
+        }
+
+        // 2. VALIDATE BLOCK STRUCTURE
+        if block.parent != self.blocks.last().unwrap().hash() {
+            return Err("Invalid parent hash");
+        }
+
+        if block.slot != self.blocks.len() as u64 {
+            return Err("Invalid block slot");
+        }
+
+        // 3. VALIDATE VDF PROOF
+        let expected_vdf = crate::main_helper::compute_vdf(
+            crate::vdf::evaluate(block.parent, block.slot),
+            self.difficulty as u32
+        );
+        if block.vdf_proof != expected_vdf {
+            return Err("Invalid VDF proof");
+        }
+
+        // 4. VALIDATE POW
+        if !block.meets_difficulty(self.difficulty) {
+            return Err("Block doesn't meet difficulty requirement");
+        }
+
+        // 5. VALIDATE TRANSACTIONS
+        for tx in &block.transactions {
+            let sender_balance = self.state.balance(&tx.from);
+            tx.validate(sender_balance)?;
+        }
+
+        // 6. VALIDATE ZK PASS FOR MINER
+        if !crate::genesis::verify_zk_pass(&block.miner, &block.parent, &block.zk_proof) {
+            return Err("Invalid miner ZK pass");
+        }
+
+        // 7. APPLY BLOCK
+        self.seen_hashes.insert(block_hash);
+        self.blocks.push(block.clone());
+
+        // 8. UPDATE STATE
+        let reward = economics::block_reward(block.slot, self.total_issued);
+        if reward > 0 && block.miner != [0u8; 32] {
+            self.state.credit(block.miner, reward);
+            self.total_issued += reward;
+        }
+
+        for tx in &block.transactions {
+            if self.state.apply_tx(tx).is_err() {
+                // This shouldn't happen since we validated above
+                return Err("Transaction application failed");
+            }
+        }
+
+        // 9. ADJUST DIFFICULTY
+        self.adjust_difficulty(elapsed);
+
+        Ok(())
     }
 
-    /// Calculate total coins remaining
-    pub fn total_remaining(&self) -> u64 {
-        MAX_SUPPLY.saturating_sub(self.total_mined())
+    /// Adjust difficulty based on block time
+    fn adjust_difficulty(&mut self, elapsed: u64) {
+        // Simple difficulty adjustment
+        if elapsed < TARGET_TIME {
+            self.difficulty = self.difficulty.saturating_add(1);
+        } else if elapsed > TARGET_TIME {
+            self.difficulty = self.difficulty.saturating_sub(1).max(1);
+        }
     }
 
-    /// Format coins to human-readable QBT (with 8 decimals)
-    pub fn format_qbt(amount: u64) -> String {
-        let qbt = amount as f64 / (10_u64.pow(DECIMALS) as f64);
-        format!("{:.8}", qbt).trim_end_matches('0').trim_end_matches('.').to_string()
+    /// Get current balance for address
+    pub fn balance(&self, address: &Address) -> u64 {
+        self.state.balance(address)
     }
 
-    /// Get supply info as a tuple (mined, remaining, percent_mined)
+    /// Get supply information
     pub fn supply_info(&self) -> (u64, u64, f64) {
-        let mined = self.total_mined();
-        let remaining = self.total_remaining();
+        let mined = self.total_issued;
+        let remaining = MAX_SUPPLY.saturating_sub(mined);
         let percent = (mined as f64 / MAX_SUPPLY as f64) * 100.0;
         (mined, remaining, percent)
+    }
+
+    /// Format amount to QBT with decimals
+    pub fn format_qbt(amount: u64) -> String {
+        let whole = amount / 10u64.pow(DECIMALS);
+        let fractional = amount % 10u64.pow(DECIMALS);
+        format!("{}.{:08}", whole, fractional)
+    }
+
+    /// Validate and add transaction to mempool (placeholder for now)
+    pub fn validate_transaction(&self, tx: &Transaction) -> Result<(), &'static str> {
+        let sender_balance = self.state.balance(&tx.from);
+        tx.validate(sender_balance)
     }
 }

@@ -1,9 +1,8 @@
-use std::collections::HashMap;
+
 
 pub struct NeuralGuardian {
     weights: [f32; 3],
     learning_rate: f32,
-    peer_history: HashMap<String, Vec<f32>>,
 }
 
 impl NeuralGuardian {
@@ -11,7 +10,6 @@ impl NeuralGuardian {
         Self {
             weights: [0.5, 0.3, 0.2],
             learning_rate: 0.01,
-            peer_history: HashMap::new(),
         }
     }
 
@@ -28,5 +26,11 @@ impl NeuralGuardian {
             let error = target - prediction;
             self.weights[i] += self.learning_rate * error * inputs[i];
         }
+    }
+}
+
+impl Default for NeuralGuardian {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,13 +1,12 @@
 /// ECONOMICS — CONSENSUS MONETARY POLICY
-
 /// Fixed total supply (forever)
-pub const MAX_SUPPLY: u64 = 84_000_000;
+pub const MAX_SUPPLY: u64 = 84_000_000_000_000_000;
 
 /// Initial block reward
-pub const INITIAL_REWARD: u64 = 100;
+pub const INITIAL_REWARD: u64 = 50_000_000_000;
 
 /// Blocks per halving (~4 years @ 15 min)
-pub const HALVING_INTERVAL: u64 = 210_240;
+pub const HALVING_INTERVAL: u64 = 2_100_000;
 
 /// Calculate block reward based on height
 pub fn block_reward(block_height: u64, already_issued: u64) -> u64 {
