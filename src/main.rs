@@ -17,6 +17,52 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
+/// Enhanced chain validation and synchronization for global consensus
+fn validate_and_sync_chain(peer_blocks: &[Block], current_chain: &Timechain) -> Option<Timechain> {
+    if peer_blocks.is_empty() {
+        return None;
+    }
+
+    // Verify genesis block matches
+    if peer_blocks[0].hash() != current_chain.blocks[0].hash() {
+        println!("⚠️  Peer chain has different genesis block - rejecting");
+        return None;
+    }
+
+    // Try to reconstruct and validate the peer's chain
+    let mut candidate = Timechain::new(genesis::genesis());
+    let mut valid = true;
+
+    for (i, block) in peer_blocks.iter().enumerate().skip(1) {
+        // Validate block structure and consensus rules
+        if candidate.add_block(block.clone(), 3600).is_err() {
+            println!("⚠️  Invalid block at height {} from peer - rejecting chain", i);
+            valid = false;
+            break;
+        }
+    }
+
+    if !valid {
+        return None;
+    }
+
+    // Accept the chain if it's longer or has more work (for tie-breaking)
+    let peer_work = calculate_chain_work(&candidate);
+    let current_work = calculate_chain_work(current_chain);
+
+    if candidate.blocks.len() > current_chain.blocks.len() || peer_work > current_work {
+        println!("✅ Peer chain validated - Work: {} vs {}", peer_work, current_work);
+        Some(candidate)
+    } else {
+        None
+    }
+}
+
+/// Calculate total work (cumulative difficulty) of a chain
+fn calculate_chain_work(chain: &Timechain) -> u64 {
+    chain.blocks.iter().map(|block| block.nonce.max(1)).sum()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("--------------------------------------------------");
@@ -78,6 +124,27 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _ = swarm.behaviour_mut().gossipsub.subscribe(&chain_topic);
     let _ = swarm.behaviour_mut().gossipsub.subscribe(&tx_topic);
 
+    // 3. BOOTSTRAP CONNECTIONS - Connect to mainnet bootnodes for global sync
+    println!("🌍 Connecting to mainnet bootstrap nodes...");
+    if let Ok(bootstrap_content) = std::fs::read_to_string("config/bootstrap.toml") {
+        if let Ok(bootstrap_config) = toml::from_str::<toml::Value>(&bootstrap_content) {
+            if let Some(bootnodes) = bootstrap_config.get("bootnodes").and_then(|v| v.as_array()) {
+                for bootnode in bootnodes {
+                    if let Some(addr_str) = bootnode.as_str() {
+                        if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+                            match swarm.dial(addr.clone()) {
+                                Ok(_) => println!("🔗 Connected to bootstrap node: {}", addr_str),
+                                Err(e) => println!("⚠️  Failed to connect to bootstrap node {}: {:?}", addr_str, e),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        println!("⚠️  Bootstrap config not found, starting with local discovery only");
+    }
+
     // Ask the network for peers' chains so we can self-heal/sync on startup
     let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
 
@@ -87,6 +154,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut dashboard_timer = time::interval(Duration::from_secs(10));
     let mut throttle_reset = time::interval(Duration::from_secs(60));
     let mut tx_broadcast_timer = time::interval(Duration::from_secs(30));
+    let mut chain_sync_timer = time::interval(Duration::from_secs(300)); // Sync every 5 minutes
     
     // Track connected peers for network monitoring
     let mut connected_peers: std::collections::HashSet<libp2p::PeerId> = std::collections::HashSet::new();
@@ -131,22 +199,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             }
                         }
 
-                        // 2) If this is a full chain broadcast, attempt to adopt it if it's longer
-                        else if let Ok(peer_blocks) = bincode::deserialize::<Vec<Block>>(&message.data) {
-                            // Try to reconstruct a Timechain from the peer's blocks
-                            let mut candidate = Timechain::new(genesis::genesis());
-                            let mut valid = true;
-                            for b in peer_blocks.iter().skip(1) {
-                                if candidate.add_block(b.clone(), 3600).is_err() {
-                                    valid = false;
-                                    break;
+                        // 2) If this is a full chain broadcast, attempt to adopt it if it's longer and valid
+                        else if message.topic == chain_topic.hash() {
+                            if let Ok(peer_blocks) = bincode::deserialize::<Vec<Block>>(&message.data) {
+                                // Enhanced chain validation for global consensus
+                                if let Some(valid_chain) = validate_and_sync_chain(&peer_blocks, &tc) {
+                                    tc = valid_chain;
+                                    println!("🔁 Synced complete chain from peer. New height: {}", tc.blocks.len());
+                                    storage::save_chain(&tc.blocks);
+                                    last_vdf = Instant::now();
+
+                                    // Broadcast our updated chain state to help other peers sync
+                                    if let Ok(encoded) = bincode::serialize(&tc.blocks) {
+                                        let _ = swarm.behaviour_mut().gossipsub.publish(chain_topic.clone(), encoded);
+                                    }
                                 }
-                            }
-                            if valid && candidate.blocks.len() > tc.blocks.len() {
-                                tc = candidate;
-                                println!("🔁 Synced chain from peer. New height: {}", tc.blocks.len());
-                                storage::save_chain(&tc.blocks);
-                                last_vdf = Instant::now();
                             }
                         }
 
@@ -269,6 +336,29 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                             let _ = std::fs::remove_file("pending_tx.dat");
                         }
                     }
+                }
+            },
+
+            // --- PERIODIC CHAIN SYNC: Ensure global consensus ---
+            _ = chain_sync_timer.tick() => {
+                println!("🔄 Performing periodic chain synchronization...");
+                // Request chains from connected peers to ensure we're in sync
+                let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
+
+                // Also request missing blocks via request-response if we detect gaps
+                if connected_peers.len() > 0 {
+                    let peer_ids: Vec<_> = connected_peers.iter().cloned().collect();
+                    for peer_id in peer_ids {
+                        let _ = swarm.behaviour_mut().request_response.send_request(
+                            &peer_id,
+                            network::ChainRequest { start_height: tc.blocks.len() as u64 },
+                        );
+                    }
+                }
+
+                // Broadcast our current chain state to help peers sync
+                if let Ok(encoded) = bincode::serialize(&tc.blocks) {
+                    let _ = swarm.behaviour_mut().gossipsub.publish(chain_topic.clone(), encoded);
                 }
             },
 

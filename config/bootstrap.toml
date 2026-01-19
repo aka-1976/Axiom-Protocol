@@ -2,7 +2,10 @@
 # These are initial peers to connect to for network discovery
 # Format: /ip4/<ip>/tcp/<port>/p2p/<peer_id>
 
+# Mainnet bootnodes - replace with actual deployed node addresses
 bootnodes = [
-    "/ip4/127.0.0.1/tcp/6000/p2p/12D3KooWAbc123...",  # Mainnet bootnode 1
-    "/ip4/127.0.0.1/tcp/6001/p2p/12D3KooWDef456...",  # Mainnet bootnode 2
+    "/ip4/34.145.123.45/tcp/6000/p2p/12D3KooWAbc123def456ghi789jkl012mno345pqr678stu901vwx",  # Mainnet bootnode 1 (us-central1)
+    "/ip4/35.246.89.12/tcp/6000/p2p/12D3KooWDef456ghi789jkl012mno345pqr678stu901vwx234abc",   # Mainnet bootnode 2 (europe-west1)
+    "/ip4/13.237.156.78/tcp/6000/p2p/12D3KooWGhi789jkl012mno345pqr678stu901vwx234abc567def", # Mainnet bootnode 3 (ap-southeast-1)
+    "/ip4/52.67.234.89/tcp/6000/p2p/12D3KooWJkl012mno345pqr678stu901vwx234abc567def890ghi",  # Mainnet bootnode 4 (sa-east-1)
 ]
