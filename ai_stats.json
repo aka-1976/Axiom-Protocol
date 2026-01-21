@@ -1,0 +1,9 @@
+{
+  "total_predictions": 0,
+  "spam_detected": 0,
+  "peers_blocked": 0,
+  "false_positives": 0,
+  "model_used": 0,
+  "fallback_used": 0,
+  "avg_confidence": 0.0
+}
