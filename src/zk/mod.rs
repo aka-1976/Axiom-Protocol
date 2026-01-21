@@ -1,7 +1,7 @@
+use crate::zk::circuit::QubitTransactionCircuit;
 use std::io::Write;
 use ark_groth16::{Groth16, ProvingKey, VerifyingKey};
 use ark_bls12_381::{Bls12_381, Fr};
-use crate::circuit::QubitTransactionCircuit;
 use ark_serialize::CanonicalDeserialize;
 use ark_ff::PrimeField;
 use ark_snark::SNARK;
@@ -137,9 +137,11 @@ pub fn generate_transaction_proof(
     let circuit = QubitTransactionCircuit {
         secret_key: Some(secret_fr),
         current_balance: Some(balance_fr),
-        public_address: Some(address_fr),
+        nonce: None,
+        commitment: None,
         transfer_amount: Some(amount_fr),
         fee: Some(fee_fr),
+        new_balance_commitment: None,
     };
 
     // Generate proof
@@ -261,4 +263,4 @@ pub fn verify_zk_pass(miner_address: &[u8; 32], _parent: &[u8; 32], proof: &[u8]
     let expected_hash = hasher.finalize();
 
     proof[..32] == expected_hash[..32]
-}
+}pub mod circuit;

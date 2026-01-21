@@ -40,6 +40,8 @@ ark-snark = "0.5"
 ark-groth16 = "0.5"
 ark-serialize = { version = "0.5", features = ["derive"] }
 ark-std = "0.5"
+# Add Arkworks R1CS gadgets for ZK circuits
+ark-r1cs-std = { version = "0.5", default-features = false }
 
 # Storage
 sled = "0.34" # Embedded database for self-healing chain storage
@@ -64,4 +66,8 @@ path = "src/bin/qubit-wallet.rs"
 [[bin]]
 name = "qubit-supply"
 path = "src/bin/qubit-supply.rs"
+
+[[bin]]
+name = "qubit-keygen"
+path = "src/bin/qubit-keygen.rs"
 

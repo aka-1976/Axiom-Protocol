@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 
-use qubit_core::{block, transaction, chain, network, storage, main_helper, genesis, circuit, bridge, vdf, ai_engine, state, economics, wallet, zk};
+use qubit_core::{block, transaction, chain, network, storage, main_helper, genesis, bridge, vdf, ai_engine, state, economics, wallet, zk};
 
 use block::Block;
 use chain::Timechain;

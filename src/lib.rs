@@ -8,7 +8,6 @@ pub mod chain;
 pub mod state;
 pub mod economics;
 pub mod wallet;
-pub mod circuit;
 pub mod vdf;
 pub mod ai_engine;
 pub mod bridge;

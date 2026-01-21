@@ -230,6 +230,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-r1cs-std"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "941551ef1df4c7a401de7068758db6503598e6f01850bdb2cfdb614a1f9dbea1"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-relations",
+ "ark-std",
+ "educe",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "tracing",
+]
+
+[[package]]
 name = "ark-relations"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2704,6 +2721,7 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-groth16",
+ "ark-r1cs-std",
  "ark-relations",
  "ark-serialize",
  "ark-snark",

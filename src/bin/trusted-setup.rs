@@ -5,7 +5,7 @@ use ark_serialize::CanonicalSerialize;
 use rand::thread_rng;
 use std::fs;
 use std::path::Path;
-use qubit_core::circuit::QubitTransactionCircuit;
+use qubit_core::zk::circuit::QubitTransactionCircuit;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔐 Starting Qubit Protocol ZK-SNARK Trusted Setup");
@@ -20,12 +20,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a dummy circuit instance for parameter generation
     // In a real trusted setup, this would be done with contributions from multiple parties
-    let circuit = QubitTransactionCircuit::<Fr> {
+    let circuit = QubitTransactionCircuit {
         secret_key: Some(Fr::from(12345u64)), // Dummy values for setup
         current_balance: Some(Fr::from(1000000u64)),
-        public_address: Some(Fr::from(67890u64)),
+        nonce: None,
+        commitment: None,
         transfer_amount: Some(Fr::from(500000u64)),
         fee: Some(Fr::from(1000u64)),
+        new_balance_commitment: None,
     };
 
     println!("⚙️  Generating proving key (this may take a while)...");

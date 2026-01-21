@@ -1,9 +1,9 @@
 {
-  "total_predictions": 0,
+  "total_predictions": 11,
   "spam_detected": 0,
   "peers_blocked": 0,
   "false_positives": 0,
-  "model_used": 0,
+  "model_used": 11,
   "fallback_used": 0,
-  "avg_confidence": 0.0
+  "avg_confidence": 0.82575756
 }

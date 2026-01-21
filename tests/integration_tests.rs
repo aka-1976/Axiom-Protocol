@@ -91,11 +91,11 @@ mod tests {
     fn test_economics() {
         // Test initial reward
         let reward = economics::block_reward(0, 0);
-        assert_eq!(reward, 50000000000); // 500 QBT
+        assert_eq!(reward, 5_000_000_000); // 5 QBT
 
         // Test halving
-        let reward_after_halving = economics::block_reward(2100000, 0);
-        assert_eq!(reward_after_halving, 25000000000); // 250 QBT
+        let reward_after_halving = economics::block_reward(210000, 0);
+        assert_eq!(reward_after_halving, 2_500_000_000); // 2.5 QBT
     }
 
     #[test]
