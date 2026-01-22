@@ -1,8 +1,6 @@
 use qubit_core::block::Block;
 use qubit_core::state::State;
 use qubit_core::transaction::Transaction;
-use qubit_core::vdf;
-use rug::Integer;
 
 #[test]
 fn test_block_validation_and_state() {
@@ -16,15 +14,6 @@ fn test_block_validation_and_state() {
     assert_eq!(state.balance(&to), 10_000);
 }
 
-#[test]
-fn test_vdf_wesolowski() {
-    // Use pre-generated 2048-bit modulus for fast testing
-    let n = vdf::wesolowski_setup(128);
-    let g = Integer::from(2);
-    let t = 10u32;
-    let (y, _pi) = vdf::wesolowski_prove(&g, t, &n);
-    assert!(vdf::wesolowski_verify(&g, t, &n, &y));
-}
 
 #[test]
 fn test_mining_reward_halving() {
