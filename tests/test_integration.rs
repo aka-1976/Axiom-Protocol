@@ -18,6 +18,6 @@ fn test_block_validation_and_state() {
 #[test]
 fn test_mining_reward_halving() {
     assert_eq!(Block::mining_reward(0), 50_000_000);
-    assert_eq!(Block::mining_reward(210_000), 25_000_000);
-    assert_eq!(Block::mining_reward(420_000), 12_500_000);
+    assert_eq!(Block::mining_reward(840_000), 25_000_000);
+    assert_eq!(Block::mining_reward(1_680_000), 12_500_000);
 }

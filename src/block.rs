@@ -2,7 +2,7 @@ impl Block {
     /// Calculate mining reward based on halving schedule
     pub fn mining_reward(slot: u64) -> u64 {
         let initial_reward = 50_000_000u64;
-        let halving_interval = 210_000u64;
+        let halving_interval = 840_000u64; // Matches 84M total supply
         let halvings = slot / halving_interval;
         initial_reward >> halvings.min(32) // Prevent overflow
     }
