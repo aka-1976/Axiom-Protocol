@@ -197,7 +197,7 @@ cd ..
 ```
 
 **Create GitHub Release:**
-1. Go to: https://github.com/joker00099/Qubit-Protocol-84m/releases/new
+1. Go to: https://github.com/joker00099/Axiom-Protocol/releases/new
 2. **Tag**: `v1.0.0` (already exists)
 3. **Title**: `🔺 AXIOM Protocol v1.0.0 - Production Release`
 4. **Description**:
@@ -290,7 +290,7 @@ After publishing, verify each package:
 - [ ] Test: `docker run --rm axiomprotocol/axiom-core:latest --version`
 
 ### GitHub
-- [ ] Release published: https://github.com/joker00099/Qubit-Protocol-84m/releases/tag/v1.0.0
+- [ ] Release published: https://github.com/joker00099/Axiom-Protocol/releases/tag/v1.0.0
 - [ ] Artifacts downloadable
 - [ ] Checksums verified
 
@@ -378,15 +378,15 @@ For version updates:
 - 🔧 [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) - Technical details
 
 **Links:**
-- 🐙 GitHub: https://github.com/joker00099/Qubit-Protocol-84m
+- 🐙 GitHub: https://github.com/joker00099/Axiom-Protocol
 - 📦 Crates.io: https://crates.io/crates/axiom-core
 - 🐍 PyPI: https://pypi.org/project/axiom-sdk/
 - 📦 npm: https://www.npmjs.com/package/axiom-sdk
 - 🐳 Docker: https://hub.docker.com/r/axiomprotocol/axiom-core
 
 **Need Help?**
-- Open an issue: https://github.com/joker00099/Qubit-Protocol-84m/issues
-- Start a discussion: https://github.com/joker00099/Qubit-Protocol-84m/discussions
+- Open an issue: https://github.com/joker00099/Axiom-Protocol/issues
+- Start a discussion: https://github.com/joker00099/Axiom-Protocol/discussions
 
 ---
 

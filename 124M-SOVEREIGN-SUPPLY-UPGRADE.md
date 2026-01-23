@@ -340,9 +340,9 @@ println!("Network: {} MH/s", hashrate / 1_000_000);
 
 ## 📞 Support & Resources
 
-- **GitHub:** https://github.com/Ghost-84M/Qubit-Protocol-84m
-- **Issues:** Report bugs at [GitHub Issues](https://github.com/Ghost-84M/Qubit-Protocol-84m/issues)
-- **Discussions:** Ask questions at [GitHub Discussions](https://github.com/Ghost-84M/Qubit-Protocol-84m/discussions)
+- **GitHub:** https://github.com/Ghost-84M/Axiom-Protocol
+- **Issues:** Report bugs at [GitHub Issues](https://github.com/Ghost-84M/Axiom-Protocol/issues)
+- **Discussions:** Ask questions at [GitHub Discussions](https://github.com/Ghost-84M/Axiom-Protocol/discussions)
 
 ## 🏆 Credits
 

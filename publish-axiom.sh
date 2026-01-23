@@ -247,7 +247,7 @@ print_success "Generated checksums"
 cd "$SCRIPT_DIR"
 
 print_info "Release artifacts ready in: release-artifacts/"
-print_info "Upload these to GitHub Release: https://github.com/joker00099/Qubit-Protocol-84m/releases"
+print_info "Upload these to GitHub Release: https://github.com/joker00099/Axiom-Protocol/releases"
 
 # ============================================================
 # 7. DOCKER IMAGE (Optional)
@@ -286,7 +286,7 @@ echo -e "${BLUE}Package Links:${NC}"
 echo "  📦 Rust Crate:   https://crates.io/crates/axiom-core"
 echo "  🐍 PyPI:         https://pypi.org/project/axiom-sdk/"
 echo "  📦 npm:          https://www.npmjs.com/package/axiom-sdk"
-echo "  🐙 GitHub:       https://github.com/joker00099/Qubit-Protocol-84m"
+echo "  🐙 GitHub:       https://github.com/joker00099/Axiom-Protocol"
 echo "  🐳 Docker Hub:   https://hub.docker.com/r/axiomprotocol/axiom-core"
 echo
 

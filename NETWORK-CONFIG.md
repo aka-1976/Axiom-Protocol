@@ -265,7 +265,7 @@ cargo run --bin axiom \
 ### Support & Community
 
 **Development Team:**
-- GitHub: https://github.com/Ghost-84M/Qubit-Protocol-84m
+- GitHub: https://github.com/Ghost-84M/Axiom-Protocol
 - Issues: Report bugs via GitHub Issues
 
 **Node Operators:**

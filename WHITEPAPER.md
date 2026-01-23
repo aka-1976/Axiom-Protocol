@@ -4,7 +4,7 @@
 
 **Date**: January 22, 2026  
 **Authors**: AXIOM Protocol Development Team  
-**Contact**: https://github.com/joker00099/Axiom-Protocol-84m
+**Contact**: https://github.com/Ghost-84M/Axiom-Protocol
 
 ---
 
@@ -754,7 +754,7 @@ Measurement Window: 1000 blocks
 
 **Last Updated**: January 22, 2026
 
-**Repository**: https://github.com/joker00099/Axiom-Protocol-84m
+**Repository**: https://github.com/Ghost-84M/Axiom-Protocol
 
 **Website**: (To be announced)
 

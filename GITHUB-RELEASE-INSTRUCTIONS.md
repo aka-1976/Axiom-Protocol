@@ -4,7 +4,7 @@
 
 ### 1. Go to Releases Page
 
-Visit: https://github.com/Ghost-84M/Qubit-Protocol-84m/releases/new
+Visit: https://github.com/Ghost-84M/Axiom-Protocol/releases/new
 
 ### 2. Fill in Release Information
 
@@ -130,8 +130,8 @@ Production-ready Solidity contracts:
 
 ```bash
 # Clone or update repository
-git clone https://github.com/Ghost-84M/Qubit-Protocol-84m.git
-cd Qubit-Protocol-84m
+git clone https://github.com/Ghost-84M/Axiom-Protocol.git
+cd Axiom-Protocol
 git checkout v2.0.0
 
 # Build
@@ -206,7 +206,7 @@ npx hardhat run scripts/deploy.js --network ethereum
 
 - **Website:** https://axiom.network
 - **Documentation:** https://docs.axiom.network
-- **GitHub:** https://github.com/Ghost-84M/Qubit-Protocol-84m
+- **GitHub:** https://github.com/Ghost-84M/Axiom-Protocol
 - **Explorer:** https://explorer.axiom.network
 
 ---
@@ -261,7 +261,7 @@ gh release create v2.0.0 \
 
 After publishing, verify:
 
-1. Release appears at: https://github.com/Ghost-84M/Qubit-Protocol-84m/releases
+1. Release appears at: https://github.com/Ghost-84M/Axiom-Protocol/releases
 2. Tag v2.0.0 is associated with the release
 3. Release notes are properly formatted
 4. "Latest" badge is shown
@@ -289,7 +289,7 @@ After publishing, share on:
 
 Complete rebranding: Qubit → AXIOM
 
-Try it: https://github.com/Ghost-84M/Qubit-Protocol-84m/releases/tag/v2.0.0
+Try it: https://github.com/Ghost-84M/Axiom-Protocol/releases/tag/v2.0.0
 
 #Blockchain #DeFi #Privacy #CrossChain
 ```
@@ -298,4 +298,4 @@ Try it: https://github.com/Ghost-84M/Qubit-Protocol-84m/releases/tag/v2.0.0
 
 **Status:** ✅ Tag pushed, ready for GitHub release creation
 
-Visit: https://github.com/Ghost-84M/Qubit-Protocol-84m/releases/new
+Visit: https://github.com/Ghost-84M/Axiom-Protocol/releases/new

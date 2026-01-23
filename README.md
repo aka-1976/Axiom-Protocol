@@ -307,8 +307,8 @@ AXIOM Protocol is a **fully tested and production-ready** next-generation blockc
 ### Build from Source
 ```bash
 # Clone the repository
-git clone https://github.com/Ghost-84M/Axiom-Protocol-84m.git
-cd Axiom-Protocol-84m
+git clone https://github.com/Ghost-84M/Axiom-Protocol.git
+cd Axiom-Protocol
 
 # Build in release mode for production
 cargo build --release
@@ -328,8 +328,8 @@ cargo test
 ### Option 1: Docker Mainnet (Recommended)
 ```bash
 # Clone the repository
-git clone https://github.com/Ghost-84M/Axiom-Protocol-84m.git
-cd Axiom-Protocol-84m
+git clone https://github.com/Ghost-84M/Axiom-Protocol.git
+cd Axiom-Protocol
 
 # Launch 3-node mainnet
 docker-compose up -d
@@ -899,8 +899,8 @@ We welcome contributions to the AXIOM Protocol! Please follow these guidelines:
 ### Development Setup
 ```bash
 # Fork and clone
-git clone https://github.com/your-username/Axiom-Protocol-84m.git
-cd Axiom-Protocol-84m
+git clone https://github.com/your-username/Axiom-Protocol.git
+cd Axiom-Protocol
 
 # Create feature branch
 git checkout -b feature/your-feature
@@ -950,11 +950,11 @@ included in all copies or substantial portions of the Software.
 - **Documentation**: [docs/](docs/) (generated with `cargo doc`)
 - **ONNX Usage**: [ONNX_USAGE.md](ONNX_USAGE.md)
 
-- **GitHub Repository**: [https://github.com/Ghost-84M/Axiom-Protocol-84m](https://github.com/Ghost-84M/Axiom-Protocol-84m)
+- **GitHub Repository**: [https://github.com/Ghost-84M/Axiom-Protocol](https://github.com/Ghost-84M/Axiom-Protocol)
 - **Documentation**: [docs/](docs/) (generated with `cargo doc`)
-- **Issues**: [GitHub Issues](https://github.com/Ghost-84M/Axiom-Protocol-84m/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Ghost-84M/Axiom-Protocol-84m/discussions)
-- **Latest Release**: [GitHub Releases](https://github.com/Ghost-84M/Axiom-Protocol-84m/releases)
+- **Issues**: [GitHub Issues](https://github.com/Ghost-84M/Axiom-Protocol/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Ghost-84M/Axiom-Protocol/discussions)
+- **Latest Release**: [GitHub Releases](https://github.com/Ghost-84M/Axiom-Protocol/releases)
 
 ### 📊 Repository Status
 - **✅ Fully Deployed**: All features committed and pushed
@@ -966,8 +966,8 @@ included in all copies or substantial portions of the Software.
 ### 🚀 Quick Deploy
 ```bash
 # Clone and run immediately
-git clone https://github.com/Ghost-84M/Axiom-Protocol-84m.git
-cd Axiom-Protocol-84m
+git clone https://github.com/Ghost-84M/Axiom-Protocol.git
+cd Axiom-Protocol
 cargo build --release
 ./launch-node.sh
 ```

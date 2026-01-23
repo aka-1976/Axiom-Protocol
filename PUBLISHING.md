@@ -183,7 +183,7 @@ sha256sum * > SHA256SUMS.txt
 cd ..
 
 # Create GitHub Release
-# 1. Go to: https://github.com/joker00099/Qubit-Protocol-84m/releases/new
+# 1. Go to: https://github.com/joker00099/Axiom-Protocol/releases/new
 # 2. Tag: v1.0.0
 # 3. Title: 🔺 AXIOM Protocol v1.0.0 - Production Release
 # 4. Upload files from release-artifacts/
@@ -344,7 +344,7 @@ Ensure all packages have:
 ## 📞 Support
 
 For publishing issues or questions:
-- Open an issue: https://github.com/joker00099/Qubit-Protocol-84m/issues
+- Open an issue: https://github.com/joker00099/Axiom-Protocol/issues
 - Email: contact@axiom-protocol.org (if configured)
 
 ---

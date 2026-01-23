@@ -25,7 +25,7 @@ This is your **complete guide** to rebrand from **Qubit Protocol → Axiom Proto
 
 ```bash
 # Navigate to repository
-cd /workspaces/Qubit-Protocol-84m
+cd /workspaces/Axiom-Protocol
 
 # Find and replace all instances
 find . -type f -name "*.rs" -exec sed -i 's/Qubit/Axiom/g' {} +
@@ -507,7 +507,7 @@ async function connectLedger() {
 
 ```bash
 # 1. Rebrand repository
-cd /workspaces/Qubit-Protocol-84m
+cd /workspaces/Axiom-Protocol
 find . -type f -name "*.rs" -exec sed -i 's/Qubit/Axiom/g' {} +
 find . -type f -name "*.rs" -exec sed -i 's/QBT/AXM/g' {} +
 

@@ -31,7 +31,7 @@ All remaining "Qubit" references have been eliminated and replaced with "AXIOM".
 
 **Files Updated:**
 - `Cargo.toml` - Package name, version, URLs
-- `sdk/javascript/qubit-sdk.js` - Function names
+- `sdk/javascript/axiom-sdk.js` - Function names
 - `sdk/javascript/README.md` - Examples
 - `contrib/axiom.service` - Service description
 - `contrib/axiom.logrotate` - Log rotation paths
@@ -151,7 +151,7 @@ All remaining "Qubit" references have been eliminated and replaced with "AXIOM".
 
 ## 🌐 GitHub Release
 
-**Repository:** https://github.com/Ghost-84M/Qubit-Protocol-84m  
+**Repository:** https://github.com/Ghost-84M/Axiom-Protocol  
 **Release Tag:** v2.0.0  
 **Commit:** 913b3cf  
 
@@ -284,7 +284,7 @@ Thank you for using Axiom Protocol! This v2.0.0 release represents a major miles
 
 ## 📞 Support
 
-- **GitHub:** https://github.com/Ghost-84M/Qubit-Protocol-84m
+- **GitHub:** https://github.com/Ghost-84M/Axiom-Protocol
 - **Issues:** Open an issue for bugs/features
 - **Documentation:** Check guides in repository
 - **Discord:** Coming soon

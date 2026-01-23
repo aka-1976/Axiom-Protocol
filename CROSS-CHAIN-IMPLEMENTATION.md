@@ -261,7 +261,7 @@ Axiom Chain
 ## 📦 Files Created
 
 ```
-/workspaces/Qubit-Protocol-84m/
+/workspaces/Axiom-Protocol/
 ├── src/
 │   └── bridge/
 │       ├── mod.rs                    ✅ NEW
@@ -327,7 +327,7 @@ Axiom Chain
 
 5. **Run Bridge Oracle:**
    ```bash
-   cd /workspaces/Qubit-Protocol-84m
+   cd /workspaces/Axiom-Protocol
    cargo build --release
    # Configure oracle with contract addresses
    ```

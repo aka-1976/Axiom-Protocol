@@ -58,7 +58,7 @@
 #### 1. Change GitHub Repository Name
 **On GitHub:**
 1. Go to repository settings
-2. Change name from `Qubit-Protocol-84m` to `Axiom-Protocol`
+2. Change name from `Axiom-Protocol` to `Axiom-Protocol`
 3. Update description: "🔺 AXIOM Protocol - Privacy is Axiomatic"
 
 #### 2. Push Changes
@@ -171,7 +171,7 @@ git diff main..axiom-rebrand --stat
 ### Repository Rename Instructions
 
 **GitHub Web Interface**:
-1. Go to: https://github.com/joker00099/Qubit-Protocol-84m/settings
+1. Go to: https://github.com/joker00099/Axiom-Protocol/settings
 2. In "Repository name" field, change to: `Axiom-Protocol`
 3. Click "Rename"
 4. GitHub will automatically set up redirects

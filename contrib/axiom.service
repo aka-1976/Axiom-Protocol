@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=%i
-WorkingDirectory=/path/to/Qubit-Protocol-84m
+WorkingDirectory=/path/to/Axiom-Protocol
 # ExecStart should point to the built binary; adjust path as needed
-ExecStart=/path/to/Qubit-Protocol-84m/target/release/qubit-core
+ExecStart=/path/to/Axiom-Protocol/target/release/axiom
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536

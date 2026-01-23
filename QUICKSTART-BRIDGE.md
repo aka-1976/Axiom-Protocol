@@ -13,7 +13,7 @@ Your Axiom Protocol now has **production-ready cross-chain bridge** functionalit
 ## 📁 New Files Created
 
 ```
-/workspaces/Qubit-Protocol-84m/
+/workspaces/Axiom-Protocol/
 ├── src/bridge/
 │   ├── mod.rs                        # Bridge module exports
 │   ├── cross_chain.rs               # Cross-chain bridge logic (800+ lines) ✅
