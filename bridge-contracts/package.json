@@ -1,0 +1,31 @@
+{
+  "name": "axiom-bridge-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Axiom Protocol cross-chain bridge",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:ethereum": "hardhat run scripts/deploy.js --network ethereum",
+    "deploy:bsc": "hardhat run scripts/deploy.js --network bsc",
+    "deploy:polygon": "hardhat run scripts/deploy.js --network polygon",
+    "deploy:arbitrum": "hardhat run scripts/deploy.js --network arbitrum",
+    "deploy:optimism": "hardhat run scripts/deploy.js --network optimism",
+    "deploy:all": "npm run deploy:ethereum && npm run deploy:bsc && npm run deploy:polygon && npm run deploy:arbitrum && npm run deploy:optimism"
+  },
+  "keywords": [
+    "axiom",
+    "bridge",
+    "cross-chain",
+    "ethereum",
+    "solidity"
+  ],
+  "author": "Axiom Protocol",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1"
+  }
+}

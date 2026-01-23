@@ -1,0 +1,464 @@
+// src/bridge/cross_chain.rs - Axiom Protocol Cross-Chain Bridge
+// Supports: Ethereum, BSC, Polygon, Arbitrum, Optimism
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use sha2::{Sha256, Digest};
+
+/// Supported blockchain networks for cross-chain operations
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ChainId {
+    Axiom,          // Native Axiom chain
+    Ethereum,       // Ethereum mainnet (Chain ID: 1)
+    BSC,            // Binance Smart Chain (Chain ID: 56)
+    Polygon,        // Polygon PoS (Chain ID: 137)
+    Arbitrum,       // Arbitrum One (Chain ID: 42161)
+    Optimism,       // Optimism (Chain ID: 10)
+    Avalanche,      // Avalanche C-Chain (Chain ID: 43114)
+    Fantom,         // Fantom Opera (Chain ID: 250)
+}
+
+impl ChainId {
+    pub fn chain_id(&self) -> u64 {
+        match self {
+            ChainId::Axiom => 84000,        // Custom chain ID for Axiom
+            ChainId::Ethereum => 1,
+            ChainId::BSC => 56,
+            ChainId::Polygon => 137,
+            ChainId::Arbitrum => 42161,
+            ChainId::Optimism => 10,
+            ChainId::Avalanche => 43114,
+            ChainId::Fantom => 250,
+        }
+    }
+    
+    pub fn rpc_url(&self) -> &str {
+        match self {
+            ChainId::Axiom => "https://rpc.axiom.network",
+            ChainId::Ethereum => "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY",
+            ChainId::BSC => "https://bsc-dataseed1.binance.org",
+            ChainId::Polygon => "https://polygon-rpc.com",
+            ChainId::Arbitrum => "https://arb1.arbitrum.io/rpc",
+            ChainId::Optimism => "https://mainnet.optimism.io",
+            ChainId::Avalanche => "https://api.avax.network/ext/bc/C/rpc",
+            ChainId::Fantom => "https://rpc.ftm.tools",
+        }
+    }
+    
+    pub fn native_token(&self) -> &str {
+        match self {
+            ChainId::Axiom => "AXM",        // Axiom native token
+            ChainId::Ethereum => "ETH",
+            ChainId::BSC => "BNB",
+            ChainId::Polygon => "MATIC",
+            ChainId::Arbitrum => "ETH",
+            ChainId::Optimism => "ETH",
+            ChainId::Avalanche => "AVAX",
+            ChainId::Fantom => "FTM",
+        }
+    }
+}
+
+/// Cross-chain bridge transaction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BridgeTransaction {
+    pub id: [u8; 32],
+    pub from_chain: ChainId,
+    pub to_chain: ChainId,
+    pub sender: String,             // Address on source chain
+    pub recipient: String,          // Address on destination chain
+    pub amount: u64,
+    pub token: String,              // "AXM" or wrapped token
+    pub status: BridgeStatus,
+    pub timestamp: u64,
+    pub confirmations: u32,
+    pub required_confirmations: u32,
+    pub zk_proof: Vec<u8>,         // Privacy-preserving bridge proof
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum BridgeStatus {
+    Pending,
+    Confirming { current: u32, required: u32 },
+    ReadyToMint,
+    Minted,
+    Failed { reason: String },
+}
+
+/// Bridge contract on EVM chains (deployed via CREATE2 for same address)
+pub struct BridgeContract {
+    pub address: String,            // Same on all EVM chains (CREATE2)
+    pub chain: ChainId,
+}
+
+impl BridgeContract {
+    /// Canonical bridge address (same on all chains via CREATE2)
+    pub const BRIDGE_ADDRESS: &'static str = "0x8400000000000000000000000000000000000001";
+    
+    /// Lock tokens on source chain
+    pub async fn lock_tokens(
+        &self,
+        sender: String,
+        amount: u64,
+        destination_chain: ChainId,
+        recipient: String,
+    ) -> Result<BridgeTransaction, String> {
+        println!("🔒 Locking {} AXM on {:?} for {:?}", amount, self.chain, destination_chain);
+        
+        // Generate ZK proof of lock
+        let zk_proof = self.generate_lock_proof(sender.clone(), amount)?;
+        
+        Ok(BridgeTransaction {
+            id: Self::generate_bridge_id(&sender, amount, &destination_chain),
+            from_chain: self.chain.clone(),
+            to_chain: destination_chain,
+            sender,
+            recipient,
+            amount,
+            token: "AXM".to_string(),
+            status: BridgeStatus::Pending,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            confirmations: 0,
+            required_confirmations: self.required_confirmations(),
+            zk_proof,
+        })
+    }
+    
+    /// Mint wrapped tokens on destination chain
+    pub async fn mint_wrapped(
+        &self,
+        bridge_tx: &BridgeTransaction,
+    ) -> Result<String, String> {
+        if bridge_tx.to_chain != self.chain {
+            return Err("Wrong destination chain".to_string());
+        }
+        
+        if bridge_tx.status != BridgeStatus::ReadyToMint {
+            return Err("Bridge transaction not ready to mint".to_string());
+        }
+        
+        // Verify ZK proof
+        if !self.verify_bridge_proof(&bridge_tx.zk_proof)? {
+            return Err("Invalid bridge proof".to_string());
+        }
+        
+        println!("🌉 Minting {} wAXM on {:?} to {}", 
+                 bridge_tx.amount, self.chain, bridge_tx.recipient);
+        
+        Ok(format!("0x{}", hex::encode(&bridge_tx.id)))
+    }
+    
+    /// Burn wrapped tokens and unlock on source chain
+    pub async fn burn_and_unlock(
+        &self,
+        amount: u64,
+        source_chain: ChainId,
+        recipient: String,
+    ) -> Result<BridgeTransaction, String> {
+        println!("🔥 Burning {} wAXM on {:?}, unlocking on {:?}", 
+                 amount, self.chain, source_chain);
+        
+        Ok(BridgeTransaction {
+            id: Self::generate_bridge_id(&recipient, amount, &source_chain),
+            from_chain: self.chain.clone(),
+            to_chain: source_chain,
+            sender: "wrapped_contract".to_string(),
+            recipient,
+            amount,
+            token: "wAXM".to_string(),
+            status: BridgeStatus::Pending,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            confirmations: 0,
+            required_confirmations: self.required_confirmations(),
+            zk_proof: vec![],
+        })
+    }
+    
+    fn required_confirmations(&self) -> u32 {
+        match self.chain {
+            ChainId::Axiom => 1,        // VDF already provides finality
+            ChainId::Ethereum => 12,    // ~3 minutes
+            ChainId::BSC => 15,         // ~45 seconds
+            ChainId::Polygon => 128,    // ~5 minutes
+            ChainId::Arbitrum => 1,     // Fast finality
+            ChainId::Optimism => 1,     // Fast finality
+            ChainId::Avalanche => 1,    // Fast finality
+            ChainId::Fantom => 1,       // Fast finality
+        }
+    }
+    
+    fn generate_bridge_id(sender: &str, amount: u64, chain: &ChainId) -> [u8; 32] {
+        let mut hasher = Sha256::new();
+        hasher.update(sender.as_bytes());
+        hasher.update(amount.to_le_bytes());
+        hasher.update(chain.chain_id().to_le_bytes());
+        hasher.update(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                .to_le_bytes()
+        );
+        hasher.finalize().into()
+    }
+    
+    fn generate_lock_proof(&self, _sender: String, _amount: u64) -> Result<Vec<u8>, String> {
+        // Generate ZK-SNARK proof that:
+        // 1. User has sufficient balance
+        // 2. Lock is authorized
+        // 3. Amount is valid
+        // Without revealing actual balance
+        
+        Ok(vec![0u8; 200]) // Placeholder for actual ZK proof
+    }
+    
+    fn verify_bridge_proof(&self, proof: &[u8]) -> Result<bool, String> {
+        // Verify ZK-SNARK proof on destination chain
+        // This is fast (~10ms) even though proof generation is slow
+        
+        Ok(!proof.is_empty()) // Placeholder verification
+    }
+}
+
+/// Bridge oracle - monitors chains and relays events
+pub struct BridgeOracle {
+    pub contracts: HashMap<ChainId, BridgeContract>,
+    pub pending_bridges: Vec<BridgeTransaction>,
+}
+
+impl BridgeOracle {
+    pub fn new() -> Self {
+        let mut contracts = HashMap::new();
+        
+        for chain in [
+            ChainId::Axiom,
+            ChainId::Ethereum,
+            ChainId::BSC,
+            ChainId::Polygon,
+            ChainId::Arbitrum,
+            ChainId::Optimism,
+        ] {
+            contracts.insert(
+                chain.clone(),
+                BridgeContract {
+                    address: BridgeContract::BRIDGE_ADDRESS.to_string(),
+                    chain,
+                }
+            );
+        }
+        
+        Self {
+            contracts,
+            pending_bridges: Vec::new(),
+        }
+    }
+    
+    /// Monitor source chain for lock events
+    pub async fn monitor_locks(&mut self) -> Result<(), String> {
+        for (chain_id, _contract) in &self.contracts {
+            println!("👀 Monitoring {:?} for lock events...", chain_id);
+        }
+        
+        Ok(())
+    }
+    
+    /// Update confirmations for pending bridges
+    pub async fn update_confirmations(&mut self) -> Result<(), String> {
+        // Collect block numbers first to avoid borrow issues
+        let mut block_numbers = std::collections::HashMap::new();
+        for bridge in self.pending_bridges.iter() {
+            if !block_numbers.contains_key(&bridge.from_chain) {
+                let block_num = Self::get_block_number_static(&bridge.from_chain).await?;
+                block_numbers.insert(bridge.from_chain.clone(), block_num);
+            }
+        }
+        
+        // Now update the bridges
+        for bridge in &mut self.pending_bridges {
+            // Use the pre-fetched block number
+            let _current_block = block_numbers.get(&bridge.from_chain).unwrap();
+            
+            if bridge.confirmations >= bridge.required_confirmations {
+                bridge.status = BridgeStatus::ReadyToMint;
+                println!("✅ Bridge {} ready to mint!", hex::encode(&bridge.id));
+            } else {
+                bridge.status = BridgeStatus::Confirming {
+                    current: bridge.confirmations,
+                    required: bridge.required_confirmations,
+                };
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Execute minting on destination chain
+    pub async fn execute_minting(&mut self) -> Result<(), String> {
+        let ready_bridges: Vec<_> = self.pending_bridges.iter()
+            .filter(|b| b.status == BridgeStatus::ReadyToMint)
+            .cloned()
+            .collect();
+        
+        for bridge in ready_bridges {
+            let dest_contract = self.contracts.get(&bridge.to_chain)
+                .ok_or("Destination chain not supported")?;
+            
+            match dest_contract.mint_wrapped(&bridge).await {
+                Ok(tx_hash) => {
+                    println!("🎉 Minted on {:?}: {}", bridge.to_chain, tx_hash);
+                }
+                Err(e) => {
+                    eprintln!("❌ Minting failed: {}", e);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn get_block_number(&self, chain: &ChainId) -> Result<u64, String> {
+        Self::get_block_number_static(chain).await
+    }
+    
+    async fn get_block_number_static(_chain: &ChainId) -> Result<u64, String> {
+        // In production: Query RPC endpoint
+        Ok(12345678)
+    }
+}
+
+/// User-facing bridge API
+pub struct AxiomBridge {
+    oracle: BridgeOracle,
+}
+
+impl AxiomBridge {
+    pub fn new() -> Self {
+        Self {
+            oracle: BridgeOracle::new(),
+        }
+    }
+    
+    /// Bridge AXM from Axiom to another chain
+    pub async fn bridge_to(
+        &mut self,
+        amount: u64,
+        destination: ChainId,
+        recipient: String, // EVM address on destination
+    ) -> Result<BridgeTransaction, String> {
+        let axiom_contract = self.oracle.contracts.get(&ChainId::Axiom)
+            .ok_or("Axiom bridge not available")?;
+        
+        // Lock tokens on Axiom chain
+        let bridge_tx = axiom_contract.lock_tokens(
+            recipient.clone(),
+            amount,
+            destination.clone(),
+            recipient.clone(),
+        ).await?;
+        
+        self.oracle.pending_bridges.push(bridge_tx.clone());
+        
+        Ok(bridge_tx)
+    }
+    
+    /// Bridge from another chain back to Axiom
+    pub async fn bridge_from(
+        &mut self,
+        amount: u64,
+        source_chain: ChainId,
+        recipient: String, // Axiom address
+    ) -> Result<BridgeTransaction, String> {
+        let source_contract = self.oracle.contracts.get(&source_chain)
+            .ok_or("Source chain not supported")?;
+        
+        // Burn wrapped tokens on source chain
+        let bridge_tx = source_contract.burn_and_unlock(
+            amount,
+            ChainId::Axiom,
+            recipient,
+        ).await?;
+        
+        self.oracle.pending_bridges.push(bridge_tx.clone());
+        
+        Ok(bridge_tx)
+    }
+    
+    /// Get bridge transaction status
+    pub fn get_bridge_status(&self, bridge_id: &[u8; 32]) -> Option<&BridgeTransaction> {
+        self.oracle.pending_bridges.iter()
+            .find(|b| &b.id == bridge_id)
+    }
+    
+    /// Estimate bridge time
+    pub fn estimate_bridge_time(&self, from: &ChainId, _to: &ChainId) -> u64 {
+        // Estimate in seconds
+        match from {
+            ChainId::Axiom => 3600,      // 1 hour (VDF)
+            ChainId::Ethereum => 180,     // 3 minutes
+            ChainId::BSC => 45,           // 45 seconds
+            ChainId::Polygon => 300,      // 5 minutes
+            ChainId::Arbitrum => 10,      // 10 seconds
+            ChainId::Optimism => 10,      // 10 seconds
+            _ => 60,
+        }
+    }
+    
+    /// Calculate bridge fee
+    pub fn calculate_fee(&self, amount: u64, _from: &ChainId, to: &ChainId) -> u64 {
+        // Base fee: 0.1%
+        let base_fee = amount / 1000;
+        
+        // Add gas costs (estimated)
+        let gas_fee = match to {
+            ChainId::Ethereum => 50_000_000_000,  // ~$5-20 depending on gas
+            ChainId::BSC => 1_000_000_000,        // ~$0.10
+            ChainId::Polygon => 100_000_000,      // ~$0.01
+            ChainId::Arbitrum => 5_000_000_000,   // ~$0.50
+            _ => 10_000_000_000,
+        };
+        
+        base_fee + gas_fee
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_bridge_to_ethereum() {
+        let mut bridge = AxiomBridge::new();
+        
+        let result = bridge.bridge_to(
+            100_000_000_000, // 100 AXM
+            ChainId::Ethereum,
+            "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb".to_string(),
+        ).await;
+        
+        assert!(result.is_ok());
+        let bridge_tx = result.unwrap();
+        assert_eq!(bridge_tx.from_chain, ChainId::Axiom);
+        assert_eq!(bridge_tx.to_chain, ChainId::Ethereum);
+        assert_eq!(bridge_tx.amount, 100_000_000_000);
+    }
+    
+    #[test]
+    fn test_fee_calculation() {
+        let bridge = AxiomBridge::new();
+        
+        let fee = bridge.calculate_fee(
+            1000_000_000_000, // 1000 AXM
+            &ChainId::Axiom,
+            &ChainId::Polygon,
+        );
+        
+        // Should be 0.1% + gas
+        assert!(fee > 1_000_000_000); // > 1 AXM
+    }
+}

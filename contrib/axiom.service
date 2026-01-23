@@ -1,5 +1,5 @@
 [Unit]
-Description=Qubit Core Node
+Description=Axiom Core Node
 After=network.target
 
 [Service]

@@ -1,4 +1,4 @@
-/path/to/Qubit-Protocol-84m/node.log {
+/path/to/Axiom-Protocol/node.log {
     daily
     rotate 7
     compress
@@ -8,4 +8,4 @@
     create 0644 codespace codespace
 }
 
-# Install with: sudo cp contrib/qubit.logrotate /etc/logrotate.d/qubit
+# Install with: sudo cp contrib/axiom.logrotate /etc/logrotate.d/axiom

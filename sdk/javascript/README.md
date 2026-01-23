@@ -11,7 +11,7 @@ npm install axiom-sdk
 ## Quick Start
 
 ```javascript
-const { AxiomClient, Wallet, axmToSats, satsToQbt } = require('axiom-sdk');
+const { AxiomClient, Wallet, axmToSats, satsToAxm } = require('axiom-sdk');
 
 (async () => {
     // Initialize client
@@ -23,7 +23,7 @@ const { AxiomClient, Wallet, axmToSats, satsToQbt } = require('axiom-sdk');
     
     // Check balance
     const balance = await client.getBalance(wallet.address);
-    console.log(`Balance: ${satsToQbt(balance)} AXM`);
+    console.log(`Balance: ${satsToAxm(balance)} AXM`);
     
     // Send transaction
     const recipient = 'recipient_address_here';

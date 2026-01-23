@@ -413,7 +413,7 @@ module.exports = {
     Wallet,
     AxiomClient,
     axmToSats,
-    satsToQbt
+    satsToAxm
 };
 
 
@@ -430,7 +430,7 @@ if (require.main === module) {
         try {
             // Check balance
             const balance = await client.getBalance(wallet.address);
-            console.log(`Balance: ${satsToQbt(balance)} AXM`);
+            console.log(`Balance: ${satsToAxm(balance)} AXM`);
             
             // Send transaction
             const recipient = 'a'.repeat(64);  // Example recipient address
@@ -442,7 +442,7 @@ if (require.main === module) {
             // Get chain info
             const info = await client.getChainInfo();
             console.log(`Chain height: ${info.height}`);
-            console.log(`Total supply: ${satsToQbt(info.total_supply || 0)} AXM`);
+            console.log(`Total supply: ${satsToAxm(info.total_supply || 0)} AXM`);
             
         } catch (error) {
             console.error(`Error: ${error.message}`);
