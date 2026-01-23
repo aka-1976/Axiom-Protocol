@@ -2,8 +2,15 @@
 name = "axiom-core"
 version = "1.0.0"
 edition = "2021"
-description = "Governance-free decentralized Timechain with VDF+PoW Hybrid Consensus"
-publish = false # Ensures identity remains private and code isn't leaked to registries
+authors = ["AXIOM Protocol Team"]
+description = "Decentralized 84M Layer-1 Blockchain with ZK-SNARKs, VDF Consensus, and Neural Guardian AI"
+license = "MIT"
+repository = "https://github.com/joker00099/Qubit-Protocol-84m"
+homepage = "https://github.com/joker00099/Qubit-Protocol-84m"
+documentation = "https://github.com/joker00099/Qubit-Protocol-84m/blob/main/README.md"
+readme = "README.md"
+keywords = ["blockchain", "cryptocurrency", "zk-snarks", "vdf", "consensus"]
+categories = ["cryptography", "network-programming"]
 default-run = "axiom"
 
 [dependencies]
