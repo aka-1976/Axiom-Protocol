@@ -31,7 +31,7 @@ South America   52.67.234.89    6000    Discovery
 
 ```toml
 # Block Production
-block_time = 3600              # 1 hour (3600 seconds)
+block_time = 1800              # 30 minutes (1800 seconds)
 vdf_time_param = 3600000000    # Calibrated for 1-hour blocks
 
 # VDF Parameters
@@ -52,7 +52,7 @@ similarity_threshold = 0.85   # Response similarity (85%)
 
 ```toml
 # Supply
-max_supply = 8400000000000000      # 84M AXM (8 decimals)
+max_supply = 12400000000000000      # 124M AXM (8 decimals)
 initial_reward = 5000000000        # 50 AXM per block
 decimals = 8                       # Smallest unit: 0.00000001 AXM
 
@@ -150,7 +150,7 @@ cargo run --release --bin axiom \
 | Feature | Mainnet (Current) | Testnet (N/A) |
 |---------|-------------------|---------------|
 | Network ID | 1 | 2 (not used) |
-| Supply | 84M AXM (real value) | N/A |
+| Supply | 124M AXM (real value) | N/A |
 | Block Time | 1 hour | N/A |
 | Validators | Production (3+) | N/A |
 | Reset Policy | Never | N/A |
@@ -172,7 +172,7 @@ cargo run --bin axiom config show | grep network_id
 
 # Verify genesis block
 cargo run --bin axiom genesis verify
-# Expected: Network: mainnet, Supply: 84,000,000 AXM
+# Expected: Network: mainnet, Supply: 124,000,000 AXM
 
 # Check connected peers
 curl http://localhost:8545/peers
@@ -250,7 +250,7 @@ cargo run --bin axiom \
 
 **Key Metrics to Watch:**
 - Block height (should increase by 1/hour)
-- VDF computation time (should be ~3600 seconds)
+- VDF computation time (should be ~1800 seconds)
 - Oracle consensus rate (should be >95%)
 - Peer count (should be >10)
 - Transaction throughput (target 1000 TPS)

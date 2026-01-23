@@ -240,7 +240,9 @@ The node will display status every 10 seconds:
 - **wallet.dat** - Keep this file safe! It contains your private key
 - Backup: `cp wallet.dat wallet.dat.backup`
 - The node runs on **MAINNET** with Chain ID **84000**
-- Maximum supply: **84,000,000 AXM**
+- Maximum supply: **124,000,000 AXM**
+- Block reward: **50 AXM** (halves every 1,240,000 blocks)
+- Block time: **30 minutes** (1800 seconds)
 
 ---
 

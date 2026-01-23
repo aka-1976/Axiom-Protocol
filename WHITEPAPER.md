@@ -167,7 +167,7 @@ prove: new_balance = balance - amount - fee
 
 ### 3.1 Supply Schedule
 
-**Total Supply**: 84,000,000 AXM (84 million)
+**Total Supply**: 124,000,000 AXM (124 million)
 
 **Smallest Unit**: 0.00000001 AXM (100,000,000 units = 1 AXM)
 
@@ -181,7 +181,7 @@ Block 0-210k:      50 AXM/block = 10,500,000 AXM
 Block 210k-420k:   25 AXM/block =  5,250,000 AXM
 Block 420k-630k:   12.5 AXM/block = 2,625,000 AXM
 ...
-Total:             ~84,000,000 AXM
+Total:             ~124,000,000 AXM (50 AXM × 1,240,000 blocks × 2 halvings)
 ```
 
 ### 3.2 Fee Market
@@ -398,7 +398,7 @@ Selfish mining requires withholding blocks. VDF time-lock means no advantage to 
 
 ### 6.2 Performance Characteristics
 
-**Block Time**: 3600 seconds (1 hour)
+**Block Time**: 1800 seconds (30 minutes)
 
 **Transaction Throughput**: 
 - Theoretical: 100 tx/block = 0.027 tx/sec
@@ -419,7 +419,8 @@ Selfish mining requires withholding blocks. VDF time-lock means no advantage to 
 ### 6.3 Scalability
 
 **Current Limitations**:
-- Serial block production (1 hour blocks)
+- Serial block production (30-minute blocks)
+- LWMA difficulty adjustment (60-block weighted average)
 - On-chain transaction processing
 
 **Future Improvements**:
@@ -500,7 +501,7 @@ Stock-to-Flow = Existing Supply / Annual Production
 ### 8.2 Value Proposition
 
 **Digital Scarcity**:
-- Fixed 84M supply (cannot be changed)
+- Fixed 124M supply (cannot be changed)
 - Predictable issuance (no surprises)
 - Deflationary (lost keys reduce supply)
 
@@ -721,7 +722,7 @@ Peer Discovery: Continuous
 
 ### Supply
 ```
-Total Supply: 84,000,000 AXM
+Total Supply: 124,000,000 AXM
 Smallest Unit: 0.00000001 AXM
 Initial Reward: 50 AXM
 Halving Interval: 210,000 blocks

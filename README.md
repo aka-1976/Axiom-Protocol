@@ -29,9 +29,11 @@ Axiom implements a hybrid consensus mechanism combining time-based fairness with
 **Key Features**:
 - 🔒 **Privacy-First**: All transactions use ZK-SNARKs (no transparent transactions)
 - ⏱️ **Time-Based Fairness**: VDF prevents mining advantages through parallelization
-- 💎 **Fixed Supply**: Exactly 84,000,000 AXM (Bitcoin's 21M × 4)
+- 💎 **Fixed Supply**: Exactly 124,000,000 AXM (Bitcoin's 21M × 5.9)
 - 🌐 **Decentralized**: No governance, no foundation, no pre-mine
 - 🛡️ **Production-Grade Crypto**: All parameters reviewed and hardened
+- ⚡ **LWMA Difficulty**: Flash mining protection with 60-block weighted average
+- ⏰ **30-Minute Blocks**: Optimized for network stability and throughput
 
 ---
 
@@ -93,16 +95,16 @@ AXIOM Protocol integrates an AI engine for network protection and anomaly detect
 - Detected anomalies can trigger alerts, slashing, or automated governance actions.
 
 See `src/ai_engine.rs` and `src/ai_logic.rs` for implementation details.
-# AXIOM Protocol (84M) - Production-Ready Blockchain 🏛️
+# AXIOM Protocol (124M) - Production-Ready Blockchain 🏛️
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-8%20passing-green.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-46%2F49%20passing-green.svg)](tests/)
 [![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![Network](https://img.shields.io/badge/network-active-blue.svg)]()
 [![Peers](https://img.shields.io/badge/peers-verified-success.svg)]()
 
-**The 84,000,000 Sovereign Scarcity Engine** - A fully decentralized, production-ready blockchain with ZK-SNARK privacy, VDF consensus, AI-powered network protection, and real-time peer monitoring.
+**The 124,000,000 Sovereign Supply Blockchain** - A fully decentralized, production-ready blockchain with ZK-SNARK privacy, VDF consensus, LWMA difficulty protection, AI-powered network protection, and 30-minute block times.
 
 > **Special Binary Message**: `01010011 01100001 01110100 01101111 01110011 01101000 01101001` 🔐
 
@@ -189,7 +191,8 @@ AXIOM Protocol is a **fully tested and production-ready** next-generation blockc
 - **✅ Real-Time Peer Monitoring**: Live network status and peer counting
 - **✅ Multi-Node Testing**: Peer discovery and connection verified
 - **✅ Transaction System**: Complete wallet and broadcasting functionality
-- **✅ Fixed Supply Economics**: 84M AXM with predictable halving schedule
+- **✅ Fixed Supply Economics**: 124M AXM with predictable binary halving schedule (50 → 25 → 12.5...)
+- **✅ LWMA Difficulty**: Flash mining protection with 60-block weighted average
 - **✅ Production-Ready**: 8/8 tests passing, clean code, enterprise features
 
 ### ✅ Verification Status
@@ -200,7 +203,8 @@ AXIOM Protocol is a **fully tested and production-ready** next-generation blockc
 - **Application Integration**: ✅ Python API demo included
 
 ### Core Philosophy
-- **Absolute Scarcity**: Fixed 84M supply, no inflation, no governance
+- **Absolute Scarcity**: Fixed 124M supply, no inflation, no governance
+- **30-Minute Blocks**: Optimized for network stability and user experience
 - **Mathematical Sovereignty**: Only provable math governs the network
 - **Privacy by Default**: ZK-SNARKs mandatory for all transactions
 - **Time as Consensus**: VDF ensures fair block production
@@ -247,7 +251,9 @@ AXIOM Protocol is a **fully tested and production-ready** next-generation blockc
 - **Anomaly Isolation**: Automatic quarantine of suspicious nodes
 
 ### 💰 Economics
-- **Fixed Supply**: 84,000,000 AXM (84,000,000,000,000,000 smallest units)
+- **Fixed Supply**: 124,000,000 AXM (124,000,000,000,000,000 smallest units)
+- **Block Reward**: 50 AXM (halves every 1,240,000 blocks)
+- **Block Time**: 1800 seconds (30 minutes)
 - **Initial Reward**: 50 AXM per block
 - **Halving Schedule**: Every 2,100,000 blocks (~4 years)
 - **Deflationary Design**: Supply decreases over time
