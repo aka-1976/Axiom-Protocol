@@ -116,7 +116,7 @@ All core features have been successfully implemented, tested, and deployed to ma
 ### Docker Compose
 **File**: `monitoring/docker-compose.yml`
 - Prometheus container
-- Grafana container (admin/axiom_admin_2026)
+- Grafana container (admin/axiom_admin_2025)
 - AlertManager container
 - Node Exporter for system metrics
 - Volume persistence
@@ -139,20 +139,20 @@ Content:
 - Annual energy projections
 - Carbon footprint analysis
 - ESG compliance checklist
-- Future roadmap (2026-2030)
+- Future roadmap (2025-2029)
 
-### Sustainability Report 2026
+### Sustainability Report 2025
 **File**: `docs/sustainability/sustainability-report.md`
 
 Content:
-- 2026 network statistics
+- 2025 network statistics
 - Monthly energy breakdown
 - Mobile mining impact analysis
 - Renewable energy partnerships
 - R&D initiatives
 - Community engagement metrics
 - Validator performance analysis
-- 2027 strategic goals
+- 2026 strategic goals
 
 ---
 
@@ -185,7 +185,7 @@ Content:
 ### New Files (4)
 1. `src/mobile/mod.rs` - Mobile mining (277 lines)
 2. `docs/sustainability/impact-analysis.md` - Impact analysis (280 lines)
-3. `docs/sustainability/sustainability-report.md` - 2026 report (350 lines)
+3. `docs/sustainability/sustainability-report.md` - 2025 report (350 lines)
 4. `monitoring/grafana/axiom-dashboard.json` - Grafana dashboard
 
 ### Updated Files (3)
