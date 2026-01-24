@@ -65,7 +65,7 @@ pub struct NetworkConfig {
     pub connection_timeout: u64,
     /// Gossipsub heartbeat interval (seconds)
     pub gossip_heartbeat: u64,
-    /// Network ID (mainnet=1, testnet=2)
+    /// Network ID (mainnet=1)
     pub network_id: u8,
 }
 
@@ -353,30 +353,32 @@ impl AxiomConfig {
         Ok(())
     }
     
-    /// Create testnet configuration
-    pub fn testnet() -> Self {
+    /// Create validator configuration (mainnet with archive mode)
+    pub fn validator() -> Self {
         let mut config = Self::default();
-        config.network.network_id = 2;
-        config.consensus.vdf_steps = 600_000;
-        config.consensus.block_time_seconds = 600;
-        config.consensus.pow_difficulty = 100;
-        config.storage.data_dir = PathBuf::from("./axiom-testnet-data");
+        config.network.network_id = 1;
+        config.node.node_type = NodeType::Archive;
+        config.storage.pruning = PruningMode::Archive;
+        config.consensus.vdf_steps = 3_600_000;
+        config.consensus.block_time_seconds = 3600;
+        config.consensus.pow_difficulty = 1000;
+        config.storage.data_dir = PathBuf::from("./axiom-validator-data");
         config
     }
     
-    /// Create devnet configuration
-    pub fn devnet() -> Self {
+    /// Create light client configuration (mainnet with pruning)
+    pub fn light_client() -> Self {
         let mut config = Self::default();
-        config.network.network_id = 3;
-        config.network.bootstrap_peers = vec![];
-        config.network.max_peers = 10;
-        config.consensus.vdf_steps = 60_000;
-        config.consensus.block_time_seconds = 60;
-        config.consensus.pow_difficulty = 10;
-        config.mining.enabled = true;
-        config.mining.min_peers_to_mine = 0;
-        config.storage.data_dir = PathBuf::from("./axiom-dev-data");
-        config.logging.level = "debug".to_string();
+        config.network.network_id = 1;
+        config.node.node_type = NodeType::Light;
+        config.network.max_peers = 20;
+        config.consensus.vdf_steps = 3_600_000;
+        config.consensus.block_time_seconds = 3600;
+        config.consensus.pow_difficulty = 1000;
+        config.mining.enabled = false;
+        config.storage.data_dir = PathBuf::from("./axiom-light-data");
+        config.storage.pruning = PruningMode::Light;
+        config.logging.level = "info".to_string();
         config
     }
 }

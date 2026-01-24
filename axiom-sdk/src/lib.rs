@@ -76,12 +76,12 @@ impl NetworkConfig {
         }
     }
     
-    /// Testnet configuration
-    pub fn testnet() -> Self {
+    /// Mainnet US-East endpoint
+    pub fn mainnet_us() -> Self {
         Self {
-            chain_id: 84001,
-            rpc_url: "https://testnet-rpc.axiom.network".to_string(),
-            explorer_url: "https://testnet-explorer.axiom.network".to_string(),
+            chain_id: 84000,
+            rpc_url: "https://rpc-us.axiom.network".to_string(),
+            explorer_url: "https://explorer.axiom.network".to_string(),
         }
     }
     
@@ -123,7 +123,7 @@ mod tests {
         let mainnet = NetworkConfig::mainnet();
         assert_eq!(mainnet.chain_id, 84000);
         
-        let testnet = NetworkConfig::testnet();
-        assert_eq!(testnet.chain_id, 84001);
+        let mainnet_us = NetworkConfig::mainnet_us();
+        assert_eq!(mainnet_us.chain_id, 84000);
     }
 }

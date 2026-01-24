@@ -2,7 +2,7 @@
 
 [node]
 name = "axiom-mainnet-node"
-node_type = "full"  # full, light, miner, archive
+node_type = "full"  # full, light, archive
 metrics_enabled = true
 
 [network]
@@ -28,11 +28,11 @@ min_transaction_fee = 100000000  # 0.1 AXM
 confirmation_depth = 6
 
 [mining]
-enabled = false  # Set to true to enable mining
+enabled = false  # Mainnet mining requires validator stake
 threads = 4
-miner_address = ""  # Add your AXM address
-intensity = 80  # 1-100
-min_peers_to_mine = 3
+miner_address = ""
+intensity = 100
+min_peers_to_mine = 10  # Require full network connectivity
 
 [storage]
 data_dir = "./axiom-data"
@@ -51,12 +51,12 @@ oracle_consensus_threshold = 3
 
 [rpc]
 enabled = true
-listen_address = "127.0.0.1:8546"
+listen_address = "0.0.0.0:8546"  # Public RPC endpoint
 cors_allowed_origins = ["*"]
-max_connections = 100
+max_connections = 1000
 request_timeout = 30
 websocket_enabled = true
-rate_limit = 60
+rate_limit = 200  # Per second per IP
 
 [logging]
 level = "info"  # trace, debug, info, warn, error
