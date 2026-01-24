@@ -27,6 +27,7 @@ pub mod neural_guardian; // NEW: AI-powered security with federated learning
 // 2026 Best Practices Modules
 pub mod privacy; // View keys & selective disclosure
 pub mod sustainability; // Energy benchmarking & reporting
+pub mod mobile; // Mobile mining with 1 AXM rewards
 
 pub use wallet::Wallet;
 pub use block::Block;

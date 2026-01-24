@@ -2,9 +2,9 @@
 // Gives users CONTROL over their privacy - can share with auditors/tax authorities
 
 use serde::{Deserialize, Serialize};
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer};
+use ed25519_dalek::SigningKey;
 use aes_gcm::{Aes256Gcm, KeyInit};
-use aes_gcm::aead::{Aead, OsRng};
+use aes_gcm::aead::Aead;
 use sha2::{Sha256, Digest};
 use rand::Rng;
 
@@ -34,7 +34,7 @@ pub struct AxiomWallet {
 impl AxiomWallet {
     /// Generate new wallet with both spend and view keys
     pub fn new() -> Self {
-        use rand::rngs::OsRng as RandOsRng;
+        
         
         // Generate spending keypair
         let spend_secret = SigningKey::from_bytes(&rand::thread_rng().gen());
@@ -200,7 +200,7 @@ impl ReadOnlyWallet {
         tx: &EncryptedTransaction,
         view_secret: &[u8; 32]
     ) -> Result<TransactionDetails, String> {
-        use aes_gcm::aead::generic_array::GenericArray;
+        
         
         // Use view key to decrypt transaction metadata
         let shared_secret = self.compute_shared_secret(view_secret, &tx.ephemeral_public_key);

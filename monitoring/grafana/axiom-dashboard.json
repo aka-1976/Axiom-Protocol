@@ -1,0 +1,243 @@
+{
+  "dashboard": {
+    "title": "Axiom Protocol - Network Overview",
+    "tags": ["axiom", "blockchain", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Network Health",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "up{job=\"axiom-node\"}",
+            "legendFormat": "Nodes Online"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 3, "color": "yellow"},
+                {"value": 5, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Block Height",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "axiom_block_height",
+            "legendFormat": "Current Block"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "orientation": "auto"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Total Supply (124M AXM)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "axiom_total_supply / 1000000",
+            "legendFormat": "Supply (M AXM)"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "blue"},
+                {"value": 124, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Peer Count",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "axiom_peer_count",
+            "legendFormat": "Connected Peers"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 3, "color": "yellow"},
+                {"value": 10, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Block Production Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(axiom_blocks_total[5m]) * 60",
+            "legendFormat": "Blocks/min"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Blocks/min"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2
+      },
+      {
+        "id": 6,
+        "title": "Transaction Throughput",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(axiom_transactions_total[1m]) * 60",
+            "legendFormat": "TX/min"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Transactions/min"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2
+      },
+      {
+        "id": 7,
+        "title": "Energy Consumption (Sustainability)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "axiom_energy_watts_total",
+            "legendFormat": "{{instance}} - Power (W)"
+          }
+        ],
+        "yaxes": [
+          {"format": "watt", "label": "Power Draw"},
+          {"format": "short"}
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2
+      },
+      {
+        "id": 8,
+        "title": "Energy Per Transaction",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 12, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "axiom_energy_per_transaction_joules",
+            "legendFormat": "J/tx"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "joule",
+            "min": 0,
+            "max": 20,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 15, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Efficiency Grade",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 12, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "axiom_efficiency_grade",
+            "legendFormat": "Grade"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "5", "text": "A+"},
+              {"type": "value", "value": "4", "text": "A"},
+              {"type": "value", "value": "3", "text": "B"},
+              {"type": "value", "value": "2", "text": "C"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 1, "color": "red"},
+                {"value": 3, "color": "yellow"},
+                {"value": 4, "color": "green"},
+                {"value": 5, "color": "super-light-green"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
