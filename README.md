@@ -51,23 +51,32 @@ This document intentionally avoids speculative or financial language. Its purpos
 
 ### Core Philosophy
 - **Absolute Scarcity**: Fixed 124M supply, no inflation, no governance
-- **30-Minute Blocks**: Optimized for network stability and user experience
+- **1-Hour Blocks**: Enforced by VDF time-locks for fair and predictable consensus
 - **Mathematical Sovereignty**: Only provable math governs the network
 - **Privacy by Default**: ZK-SNARKs mandatory for all transactions
-- **Time as Consensus**: VDF ensures fair block production
+- **Time as Consensus**: VDF ensures sequential, fair block production
 - **Network Transparency**: Real-time peer monitoring and health status
+- **No Pre-mine**: 100% of supply earned through mining (no development wallet)
 
-## 🔄 Recent Upgrades (January 2025)
+## 🔄 Recent Upgrades (February 2026)
 
 ### Dependency Updates
-- **libp2p**: Upgraded from 0.53 to 0.56 for improved networking and security
+- **libp2p**: Upgraded from 0.53 to 0.54.1 with Yamux improvements, idle connection timeout, and RequestResponse fallback
 - **ark-* crates**: Updated to 0.5.x for latest ZK-SNARK implementations
 - **AI/ML**: Migrated from TensorFlow to ONNX Runtime for attack detection (see ONNX_USAGE.md)
 - **Cargo Audit**: All vulnerabilities resolved, clean build
 
+### OpenClaw Integration (NEW)
+- **Automation Framework**: Python-based credential ceremony orchestration
+- **Ceremony Master**: Coordinates multi-party computation and key generation
+- **Node Health Monitor**: Real-time monitoring of validator node status
+- **Agent Internet**: Decentralized execution of verification tasks
+- **Auto-Launch**: Integrated into node startup via `openclaw_integration.rs` module
+
 ### Infrastructure Improvements
 - **Docker Support**: Added Dockerfile and docker-compose.yml for containerized deployment
 - **Mainnet Configuration**: Updated setup for production mainnet operation
+- **Multi-Node Synchronization**: Enhanced P2P syncing with automatic peer discovery (mDNS)
 - **CLI Enhancements**: Added `--bootnodes` flag for initial peer connections
 - **Bootstrap Config**: `config/bootstrap.toml` with mainnet bootnode addresses
 
@@ -98,12 +107,12 @@ This document intentionally avoids speculative or financial language. Its purpos
 - **Anomaly Isolation**: Automatic quarantine of suspicious nodes
 
 ### 💰 Economics
-- **Fixed Supply**: 124,000,000 AXM (124,000,000,000,000,000 smallest units)
-- **Block Reward**: 50 AXM (halves every 1,240,000 blocks)
-- **Block Time**: 1800 seconds (30 minutes)
-- **Initial Reward**: 50 AXM per block
-- **Halving Schedule**: Every 2,100,000 blocks (~4 years)
-- **Deflationary Design**: Supply decreases over time
+- **Total Supply**: 124,000,000 AXM (fixed, no pre-mine, all earned through mining)
+- **No Pre-mine**: 100% of supply earned through proof-of-work mining (no development wallet)
+- **Block Reward**: 50 AXM per block (halves every 2,100,000 blocks)
+- **Block Time**: 3600 seconds (1 hour) enforced by VDF
+- **Halving Schedule**: Every 2,100,000 blocks (~4 years per era)
+- **Deflationary Design**: Supply reaches maximum over multiple eras with binary halving
 
 ### 🔗 Network & Storage
 - **P2P Networking**: libp2p with gossipsub protocol
@@ -369,7 +378,67 @@ Consensus Process:
 6. Longest valid chain wins
 ```
 
-#### 📡 AI Stats Monitoring
+#### �️ Detailed Multi-Node Same-Machine Setup (3-Terminal Guide)
+
+**Step 1: Build the project**
+```bash
+cargo build --release
+cd target/release
+```
+
+**Step 2: Fresh Start (Delete wallet.dat for genesis)**
+```bash
+# Remove wallet files for fresh start
+rm -f wallet.dat wallet_public.txt
+
+# This ensures nodes start from genesis block
+```
+
+**Step 3: Terminal 1 - Node A (Bootnode)**
+```bash
+# Start the first node on port 6000
+./axiom --port 6000
+
+# Output will show:
+# ⛓️ Height: 0 | Peers: 0
+# 🆔 PeerId: 12D3Koo...ABC123
+# 📍 Listen on: /ip4/127.0.0.1/tcp/6000
+
+# Save the PeerId for next steps
+```
+
+**Step 3: Terminal 2 - Node B (Port 6001)**
+```bash
+# Copy Node A's PeerId from Terminal 1 output above
+export NODE_A_PEER_ID="12D3Koo...ABC123"  # Replace with actual PeerId
+
+# Connect to Node A
+./axiom --port 6001 --bootnodes /ip4/127.0.0.1/tcp/6000/p2p/$NODE_A_PEER_ID
+
+# Expected output: Connected Peers: 1
+```
+
+**Step 4: Terminal 3 - Node C (Port 6002)**
+```bash
+# Same PeerId as Node A
+export NODE_A_PEER_ID="12D3Koo...ABC123"
+
+# Connect to Node A
+./axiom --port 6002 --bootnodes /ip4/127.0.0.1/tcp/6000/p2p/$NODE_A_PEER_ID
+
+# Expected output: Connected Peers: 2 (one for Node B, one for Node A)
+```
+
+**Result: All nodes should show Height 100+ and be synchronized!**
+
+**Key Notes:**
+- mDNS handles automatic peer discovery on localhost
+- Port allocation is automatic (6000-6010 for multiple nodes)
+- Height converges when blocks propagate across peers
+- Delete `wallet.dat` on each node for isolated genesis starts
+- Use `AXIOM_KNOWN_PEERS` env var for custom peer discovery
+
+#### �📡 AI Stats Monitoring
 
 The dashboard also exports AI statistics to `ai_stats.json`:
 ```json
@@ -585,10 +654,10 @@ Chain → Add block → Save to storage → Update UTXO state
 ```
 
 **Consensus Rules:**
+- **No Pre-mine**: All 124,000,000 AXM earned through mining only (no pre-allocated tokens)
 - **Block Time**: 3600 seconds (1 hour) enforced by VDF
 - **Difficulty**: Auto-adjusts if mining fails (min: 10)
-- **Reward**: 50 AXM per block (halves every 2.1M blocks)
-- **Genesis**: 1,000,000 AXM pre-mine for development
+- **Reward**: 50 AXM per block (halves every 2,100,000 blocks)
 - **Validation**: Parent hash, VDF proof, PoW difficulty, ZK proof
 
 #### 🤖 AI Guardian (Neural Network)
@@ -987,7 +1056,7 @@ node.validate_block(&block)?;
 
 ## 🔒 Security Audit
 
-### Current Security Status (January 2025)
+### Current Security Status (February 2026)
 
 **Audit Tool:** `cargo audit` - Official Rust security vulnerability scanner  
 **Last Updated:** January 20, 2025  

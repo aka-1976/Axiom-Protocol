@@ -21,7 +21,7 @@ AXIOM Protocol is a production-grade blockchain project focused on ZK-SNARK priv
 
 ## 4. Consensus
 - **VDF:** Fully implemented, production-grade
-- **Block Time:** Target 30 minutes (1800 seconds)
+- **Block Time:** Target 1 hour (3600 seconds)
 - **Difficulty:** LWMA (Linear Weighted Moving Average) with 60-block window
 - **Flash Mining Protection:** Detects and prevents sustained rapid block production
 - **Max Adjustment:** 3x per difficulty period
@@ -40,10 +40,10 @@ AXIOM Protocol is a production-grade blockchain project focused on ZK-SNARK priv
 ## 7. Economics
 - **Total Supply:** 124,000,000 AXM (fixed forever)
 - **Initial Reward:** 50 AXM per block
-- **Halving Interval:** 1,240,000 blocks (~70.7 years per era)
-- **Block Time:** 1800 seconds (30 minutes)
-- **Distribution:** No premine, no treasury, fair launch
-- **Supply Math:** Binary halving over 64 eras reaching 100% at era 33
+- **Halving Interval:** 2,100,000 blocks (~4 years per era)
+- **Block Time:** 3600 seconds (1 hour)
+- **Distribution:** No premine, no treasury, fair launch (100% earned through mining)
+- **Supply Math:** Binary halving over 33 eras reaching 100% around year 33
 
 ## 8. Testing
 - **Unit Tests:** Basic, 8/8 passing

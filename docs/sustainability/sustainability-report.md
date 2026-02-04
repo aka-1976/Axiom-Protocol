@@ -7,7 +7,7 @@ To build the **world's most energy-efficient blockchain** while maintaining unco
 ## 2025 Overview
 
 ### Network Statistics
-- **Launch Date**: January 2025
+- **Launch Date**: January 2025 (Genesis)\n- **Latest Update**: February 2026
 - **Total Transactions**: 1,247,392
 - **Total Energy**: 12.47 GJ (3,464 kWh)
 - **Average Power**: 395 watts (5 validators)

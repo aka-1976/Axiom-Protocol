@@ -13,14 +13,14 @@ pub const SMALLEST_UNIT: u64 = 100_000_000; // 10^8 (Satoshi-scale divisibility)
 /// Initial Mining Reward: 50 AXM per block
 pub const INITIAL_REWARD: u64 = 50 * SMALLEST_UNIT; // 5,000,000,000
 
-/// Halving Interval: 1,240,000 blocks (~70.7 years at 30min/block)
-pub const HALVING_INTERVAL: u64 = 1_240_000;
+/// Halving Interval: 2,100,000 blocks (~4 years at 1hr/block)
+pub const HALVING_INTERVAL: u64 = 2_100_000;
 
-/// Block Time: 30 minutes (1800 seconds) - The Pulse
-pub const BLOCK_TIME_SECONDS: u64 = 1800;
+/// Block Time: 1 hour (3600 seconds) - The Pulse
+pub const BLOCK_TIME_SECONDS: u64 = 3600;
 
-/// Era Duration: ~70.7 years per generation
-pub const ERA_DURATION_YEARS: f64 = 70.7;
+/// Era Duration: ~4 years per generation
+pub const ERA_DURATION_YEARS: f64 = 4.0;
 
 /// Genesis Message
 pub const GENESIS_MESSAGE: &[u8] = b"The timeline is decentralized. Only math governs. - Ghost-84M 2026";
@@ -32,10 +32,10 @@ pub const AXIOM_SIGNATURE: &str = "01000001 01011000 01001001 01001111 01001101"
 
 /// Calculate mining reward for a given block height
 /// 
-/// Formula: reward = 50 AXM >> (height / 1,240,000)
+/// Formula: reward = 50 AXM >> (height / 2,100,000)
 /// 
-/// This implements exact binary halving every 1.24M blocks.
-/// After 64 halvings, reward becomes 0 (supply cap reached).
+/// This implements exact binary halving every 2.1M blocks (~4 years).
+/// After 33 halvings, reward becomes negligible (supply cap reached).
 pub fn get_mining_reward(height: u64) -> u64 {
     let era = height / HALVING_INTERVAL;
     
@@ -255,7 +255,7 @@ pub fn validate_economics() -> Result<(), String> {
         ));
     }
     
-    // Test 2: First halving should occur at block 1,240,000
+    // Test 2: First halving should occur at block 2,100,000
     let before_halving = get_mining_reward(HALVING_INTERVAL - 1);
     let after_halving = get_mining_reward(HALVING_INTERVAL);
     

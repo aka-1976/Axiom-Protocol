@@ -37,7 +37,7 @@ fn validate_and_sync_chain(peer_blocks: &[Block], current_chain: &Timechain) -> 
 
     for (i, block) in peer_blocks.iter().enumerate().skip(1) {
         // Validate block structure and consensus rules
-        if candidate.add_block(block.clone(), 1800).is_err() {
+        if candidate.add_block(block.clone(), 3600).is_err() {
             println!("⚠️  Invalid block at height {} from peer - rejecting chain", i);
             valid = false;
             break;
@@ -68,9 +68,12 @@ fn calculate_chain_work(chain: &Timechain) -> u64 {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("--------------------------------------------------");
-    println!("🏛️  AXIOM CORE | DECENTRALIZED 84M PROTOCOL");
-    println!("🛡️  STATUS: AI-NEURAL PROTECTION ACTIVE");
+    println!("🏛️  AXIOM CORE | NEXT-GEN PRIVACY BLOCKCHAIN");
+    println!("🛡️  VDF: 3600sec (1hr) | PoW Hybrid | 124M Fixed Supply");
+    println!("🤖 AI NEURAL GUARDIAN: ATTACK DETECTION ACTIVE");
+    println!("🔐 MANDATORY ZK-SNARK PRIVACY | ED25519 SIGNATURES");
     println!("--------------------------------------------------");
+    println!("📅 February 2026 | OpenClaw Integration Active");
 
     // --- Network Diagnostics: Check bootstrap connectivity on startup ---
     network::check_bootstrap_connectivity();

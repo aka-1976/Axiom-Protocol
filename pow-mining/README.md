@@ -126,7 +126,7 @@ if pool.submit_solution(solution) {
 ### Base Reward
 
 - **Amount**: 50 AXM per block
-- **Distribution**: Follows binary halving schedule every 1,240,000 blocks (~70.7 years per era)
+- **Distribution**: Follows binary halving schedule every 2,100,000 blocks (~4 years per era)
 - **Allocation**: All miners completing valid work
 
 ### Work Bonus

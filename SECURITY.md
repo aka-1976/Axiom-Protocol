@@ -66,7 +66,7 @@ The following are **out of scope**:
 
 ## 🔍 Security Audits
 
-### Current Audit Status (January 2025)
+### Current Audit Status (February 2026)
 
 **Tool Used:** `cargo audit` (Rust security vulnerability scanner)
 
