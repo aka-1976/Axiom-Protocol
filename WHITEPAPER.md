@@ -11,7 +11,7 @@
 
 ## Abstract
 
-AXIOM Protocol is a privacy-first Layer-1 blockchain that combines Verifiable Delay Functions (VDF), Proof-of-Work (PoW), and Zero-Knowledge cryptography to create an institutional-grade decentralized network. With a fixed supply of 124 million AXM tokens, 1-hour block times enforced by cryptographic time-locks, and mandatory privacy for all transactions, AXIOM addresses the critical needs of both individual users and institutions requiring regulatory compliance.
+AXIOM Protocol is a privacy-first Layer-1 blockchain that combines Verifiable Delay Functions (VDF), Proof-of-Work (PoW), and Zero-Knowledge cryptography to create an institutional-grade decentralized network. With a fixed supply of 124 million AXM tokens, 30-minute block times enforced by cryptographic time-locks, and mandatory privacy for all transactions, AXIOM addresses the critical needs of both individual users and institutions requiring regulatory compliance.
 
 Key innovations include: (1) VDF-enforced time-based consensus eliminating governance centralization, (2) dual-key cryptography enabling selective disclosure for compliance, (3) AI-powered network defense with federated learning, (4) real-time energy monitoring for ESG compliance, and (5) cross-chain bridges connecting to 8+ major blockchains. This paper presents the complete technical architecture, economic model, security properties, and network protocol of AXIOM Protocol.
 
@@ -150,14 +150,14 @@ AXIOM Protocol consists of five integrated layers:
 
 #### 3.2.1 VDF Engine
 - **Implementation**: Wesolowski VDF construction [4]
-- **Parameters**: 3600-second delay (1 hour)
+- **Parameters**: 1800-second delay (30 minutes)
 - **Hardware**: CPU-bound computation preventing ASIC advantage
 - **Verification**: Sub-second proof verification
 
 #### 3.2.2 PoW Mining
 - **Algorithm**: Blake3 hash function
 - **Difficulty**: LWMA (Linear Weighted Moving Average) with 60-block window
-- **Target**: Dynamic adjustment for 1-hour average
+- **Target**: Dynamic adjustment for 30-minute average
 - **Purpose**: Sybil resistance and network security
 
 #### 3.2.3 ZK-SNARK Circuit
@@ -218,9 +218,9 @@ AXIOM combines VDF time-locks with proof-of-work for secure, fair consensus:
 
 **Block Production Process**:
 
-1. **VDF Computation** (3600 seconds):
+1. **VDF Computation** (1800 seconds):
    - Miners compute VDF on previous block hash
-   - VDF ensures 1-hour minimum interval
+   - VDF ensures 30-minute minimum interval
    - Cannot be parallelized or accelerated
 
 2. **PoW Mining** (parallel):
@@ -254,7 +254,7 @@ def calculate_lwma_difficulty(blocks):
                         for i, w in enumerate(weights))
     avg_time = weighted_times / total_weight
     
-    target_time = 3600  # 1 hour
+    target_time = 1800  # 30 minutes
     new_difficulty = (current_difficulty * target_time) / avg_time
     
     # Limit adjustment to ±30% per epoch
@@ -381,29 +381,27 @@ struct SelectiveDisclosure {
 |-----------|-------|-----------|
 | **Total Supply** | 124,000,000 AXM | Fixed cap ensures scarcity |
 | **Initial Reward** | 50 AXM/block | High early incentive |
-| **Block Time** | 1 hour | VDF-enforced interval |
-| **Halving Interval** | 2,100,000 blocks | ~4 years per era |
+| **Block Time** | 30 minutes | VDF-enforced interval |
+| **Halving Interval** | 1,240,000 blocks | ~70.7 years per era |
 | **Smallest Unit** | 1 satoshi = 10⁻⁸ AXM | Divisibility for micro-payments |
 | **Genesis Allocation** | 0% premine | Fair launch |
 
 ### 6.2 Emission Schedule
 
-AXIOM follows a binary halving schedule with 2,100,000 blocks per era (~4 years):
+AXIOM follows a binary halving schedule with 1,240,000 blocks per era (~70.7 years):
 
 ```
-Era 1 (Years 0-4):    50 AXM/block → 52.5M total
-Era 2 (Years 4-8):    25 AXM/block → 78.75M total
-Era 3 (Years 8-12):   12.5 AXM/block → 91.875M total
-Era 4 (Years 12-16):  6.25 AXM/block → 98.4375M total
-Era 5 (Years 16-20):  3.125 AXM/block → 101.71875M total
+Era 1 (Years 0-70):   50 AXM/block → 62M total
+Era 2 (Years 70-141): 25 AXM/block → 93M total
+Era 3 (Years 141-212): 12.5 AXM/block → 108.5M total
 ...
-Final supply: 124M AXM (reached year ~33)
+Final supply: 124M AXM (year ~850)
 ```
 
 **Emission Formula**:
 ```python
 def block_reward(height):
-    era = height // 2_100_000
+    era = height // 1_240_000
     base_reward = 50_00000000  # 50 AXM in satoshis
     return base_reward >> era   # Binary shift for halving
 ```
@@ -547,7 +545,7 @@ New nodes synchronize via fast-sync:
    - Assumes checkpoint validity
 
 3. **Warp Sync**: Download state snapshots
-   - Time: ~1 hour
+   - Time: ~30 minutes
    - Trusts recent snapshot
 
 ### 7.5 Bootstrap Nodes
@@ -1014,7 +1012,7 @@ The future of finance is private, compliant, and sustainable. The future is AXIO
   "network_name": "AXIOM Mainnet",
   "chain_id": 84000,
   "genesis_timestamp": 1704067200,
-  "block_time": 3600,
+  "block_time": 1800,
   "max_supply": 12400000000000000,
   "halving_interval": 1240000,
   "difficulty_window": 60,

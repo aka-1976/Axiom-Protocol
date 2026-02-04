@@ -51,10 +51,10 @@ This document intentionally avoids speculative or financial language. Its purpos
 
 ### Core Philosophy
 - **Absolute Scarcity**: Fixed 124M supply, no inflation, no governance
-- **1-Hour Blocks**: Enforced by VDF time-locks for fair and predictable consensus
+- **30-Minute Blocks**: Optimized for network stability and user experience
 - **Mathematical Sovereignty**: Only provable math governs the network
 - **Privacy by Default**: ZK-SNARKs mandatory for all transactions
-- **Time as Consensus**: VDF ensures sequential, fair block production
+- **Time as Consensus**: VDF ensures fair block production
 - **Network Transparency**: Real-time peer monitoring and health status
 - **No Pre-mine**: 100% of supply earned through mining (no development wallet)
 
@@ -94,8 +94,8 @@ This document intentionally avoids speculative or financial language. Its purpos
 - **Nonce-based Replay Protection**: Account-based state with nonce tracking
 
 ### ⛏️ Consensus & Mining
-- **Hybrid Consensus**: VDF (1-hour blocks) + PoW difficulty adjustment
-- **Automatic Halving**: Mining rewards halve every 2.1 million blocks
+- **Hybrid Consensus**: VDF (30-minute blocks) + PoW difficulty adjustment
+- **Automatic Halving**: Mining rewards halve every 1.24 million blocks
 - **Fair Distribution**: Genesis block with initial supply allocation
 - **Network Synchronization**: P2P block and transaction propagation
 
@@ -109,9 +109,9 @@ This document intentionally avoids speculative or financial language. Its purpos
 ### 💰 Economics
 - **Total Supply**: 124,000,000 AXM (fixed, no pre-mine, all earned through mining)
 - **No Pre-mine**: 100% of supply earned through proof-of-work mining (no development wallet)
-- **Block Reward**: 50 AXM per block (halves every 2,100,000 blocks)
-- **Block Time**: 3600 seconds (1 hour) enforced by VDF
-- **Halving Schedule**: Every 2,100,000 blocks (~4 years per era)
+- **Block Reward**: 50 AXM per block (halves every 1,240,000 blocks)
+- **Block Time**: 1800 seconds (30 minutes) enforced by VDF
+- **Halving Schedule**: Every 1,240,000 blocks (~70.7 years per era)
 - **Deflationary Design**: Supply reaches maximum over multiple eras with binary halving
 
 ### 🔗 Network & Storage
@@ -655,9 +655,9 @@ Chain → Add block → Save to storage → Update UTXO state
 
 **Consensus Rules:**
 - **No Pre-mine**: All 124,000,000 AXM earned through mining only (no pre-allocated tokens)
-- **Block Time**: 3600 seconds (1 hour) enforced by VDF
+- **Block Time**: 1800 seconds (30 minutes) enforced by VDF
 - **Difficulty**: Auto-adjusts if mining fails (min: 10)
-- **Reward**: 50 AXM per block (halves every 2,100,000 blocks)
+- **Reward**: 50 AXM per block (halves every 1,240,000 blocks)
 - **Validation**: Parent hash, VDF proof, PoW difficulty, ZK proof
 
 #### 🤖 AI Guardian (Neural Network)

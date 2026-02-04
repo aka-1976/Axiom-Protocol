@@ -24,10 +24,10 @@ AXIOM Protocol has successfully upgraded from 84M to **124M Sovereign Supply** w
 ### Current Production (February 2026)
 - **Total Supply:** 124,000,000 AXM (fixed forever)
 - **Initial Reward:** 50 AXM per block  
-- **Halving Interval:** 2,100,000 blocks (~4 years per era)
-- **Block Time:** 3600 seconds (1 hour)
-- **Era Duration:** ~4 years per generation
-- **Difficulty:** LWMA with enhanced VDF time-lock
+- **Halving Interval:** 1,240,000 blocks (~70.7 years per era)
+- **Block Time:** 1800 seconds (30 minutes)
+- **Era Duration:** ~70.7 years per generation
+- **Difficulty:** LWMA with VDF time-lock
 - **Status:** ✅ Production-grade, all tests passing
 
 ### Mathematical Validation
@@ -48,11 +48,11 @@ Binary halving ensures mathematical scarcity
 ## 🛡️ LWMA Difficulty Protection
 
 ### Algorithm Specifications
-- **Window:** 60 blocks (~60 hours of history at 1-hour block time)
-- **Target:** 3600 seconds (1 hour per block)
+- **Window:** 60 blocks (~30 hours of history at 30-minute block time)
+- **Target:** 1800 seconds (30 minutes per block)
 - **Max Adjustment:** 3x per difficulty period
 - **Min Difficulty:** 1000 (prevents underflow)
-- **VDF Time-Lock:** 3600 seconds (mandatory, non-negotiable)
+- **VDF Time-Lock:** 1800 seconds (mandatory, non-negotiable)
 
 ### Mathematical Formula
 
@@ -60,7 +60,7 @@ Binary halving ensures mathematical scarcity
 LWMA Difficulty Calculation:
 weighted_time = Σ(block_time[i] × weight[i]) for i in last 60 blocks
 weight[i] = (i + 1) / sum_of_weights
-target_time = 3600 seconds
+target_time = 1800 seconds
 new_difficulty = current_difficulty × (weighted_time / target_time)
 clamped_difficulty = min(max(new_difficulty, current × 0.33), current × 3)
 ```
@@ -191,12 +191,12 @@ num-traits = "0.2"  # For ToPrimitive conversion
 |--------|------------|-----------------|-----------------|--------|
 | **Total Supply** | 84,000,000 | 124,000,000 | 124,000,000 | +47.6% |
 | **Initial Reward** | 20 AXM | 50 AXM | 50 AXM | +150% |
-| **Halving Interval** | 840,000 | 1,240,000 | 2,100,000 | +150% |
-| **Block Time** | 3600s (1h) | 1800s (30m) | 3600s (1h) | No change |
-| **Blocks per Day** | 24 | 48 | 24 | -50% |
-| **AXM per Day (Era 0)** | 480 | 2,400 | 1,200 | +150% |
-| **Era Duration** | 95.89 years | 70.7 years | ~4 years | Optimized |
-| **Supply Maturity** | Year ~200 | Year ~850 | Year ~33 | Accelerated |
+| **Halving Interval** | 840,000 | 1,240,000 | 1,240,000 | +47.6% |
+| **Block Time** | 3600s (1h) | 1800s (30m) | 1800s (30m) | No change |
+| **Blocks per Day** | 24 | 48 | 48 | +100% |
+| **AXM per Day (Era 0)** | 480 | 2,400 | 2,400 | +400% |
+| **Era Duration** | 95.89 years | 70.7 years | 70.7 years | Stable |
+| **Supply Maturity** | Year ~200 | Year ~850 | Year ~850 | Stable |
 
 ### Economic Rationale
 
@@ -255,8 +255,8 @@ $ ./target/release/axiom
 ⚡ Network: Mainnet
 📊 Current Supply: 0.00 AXM / 124,000,000 AXM
 🎁 Current Reward: 50 AXM
-⏱️  Block Time: 1 hour (3600 seconds)
-🔗 Halving: Every 2,100,000 blocks (~4 years per era)
+⏱️  Block Time: 30 minutes (1800 seconds)
+🔗 Halving: Every 1,240,000 blocks (~70.7 years per era)
 ```
 
 ## 📚 Updated Documentation

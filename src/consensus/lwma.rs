@@ -4,10 +4,10 @@
 use num_bigint::BigUint;
 use num_traits::{One, Zero, ToPrimitive};
 
-/// Target block time: 1 hour (3600 seconds)
-pub const TARGET_BLOCK_TIME: u64 = 3600;
+/// Target block time: 30 minutes (1800 seconds)
+pub const TARGET_BLOCK_TIME: u64 = 1800;
 
-/// LWMA window: 60 blocks (~60 hours of history)
+/// LWMA window: 60 blocks (~30 hours of history)
 pub const LWMA_WINDOW: usize = 60;
 
 /// Minimum difficulty
