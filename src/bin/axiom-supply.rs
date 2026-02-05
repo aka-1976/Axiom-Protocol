@@ -34,12 +34,12 @@ fn main() {
     // Calculate total mined
     let mut total_mined: u64 = 0;
     for (i, _block) in blocks.iter().enumerate() {
-        let halvings = i as u64 / 2_100_000;
+        let halvings = i as u64 / 1_240_000;
         let reward = 50_000_000_000u64 >> halvings;
         total_mined = total_mined.saturating_add(reward);
     }
 
-    let max_supply: u64 = 84_000_000_000_000_000;
+    let max_supply: u64 = 124_000_000_000_000_000;
     let remaining = max_supply.saturating_sub(total_mined);
     let percent = (total_mined as f64 / max_supply as f64) * 100.0;
 

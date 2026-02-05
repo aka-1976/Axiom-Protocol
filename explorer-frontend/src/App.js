@@ -19,7 +19,7 @@ function App() {
             <nav className="nav">
               <Link to="/">Dashboard</Link>
               <Link to="/blocks">Blocks</Link>
-              <a href="https://github.com/Ghost-84M/Axiom-Protocol-84m" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/Ghost-84M/Axiom-Protocol" target="_blank" rel="noopener noreferrer">
                 GitHub
               </a>
             </nav>

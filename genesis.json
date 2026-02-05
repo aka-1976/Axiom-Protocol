@@ -9,15 +9,15 @@
       "type": "3-of-5-multisig"
     },
     "vdf": {
-      "steps": 3600000,
-      "timeProof": "1-hour",
+      "steps": 1800000,
+      "timeProof": "30-minutes",
       "enforceStrictTiming": true
     },
     "pow": {
-      "algorithm": "SHA256d",
+      "algorithm": "Blake3",
       "initialDifficulty": 1000,
       "adjustmentInterval": 2016,
-      "targetBlockTime": 3600
+      "targetBlockTime": 1800
     },
     "economics": {
       "totalSupply": "124000000",
@@ -25,7 +25,7 @@
       "decimals": 8,
       "initialBlockReward": "50.00000000",
       "mobileReward": "1.00000000",
-      "halvingInterval": 2100000,
+      "halvingInterval": 1240000,
       "minTransactionFee": "0.00000100"
     }
   },

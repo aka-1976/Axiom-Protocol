@@ -139,7 +139,7 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
     let metrics = Metrics {
         chain_height,
         difficulty: diff,
-        total_supply: 84_000_000_000_000_000, // 84M AXM
+        total_supply: 124_000_000_000_000_000, // 124M AXM
         circulating_supply: blocks_mined * 5_000_000_000, // Simplified
         
         peers_connected: peers,
@@ -254,7 +254,7 @@ async fn info(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "name": "AXIOM Protocol Node",
         "version": env!("CARGO_PKG_VERSION"),
-        "description": "AXIOM Protocol - 84M Sovereign Scarcity Engine",
+        "description": "AXIOM Protocol - 124M Sovereign Scarcity Engine",
         "chain_height": chain_height,
         "peers": peers,
         "network": "mainnet",

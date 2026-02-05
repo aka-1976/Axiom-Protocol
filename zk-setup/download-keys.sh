@@ -10,7 +10,7 @@ echo "======================================"
 # Configuration - Update these with actual hashes after ceremony
 PROVING_KEY_IPFS="bafkreigjmiu2vtn7iehy6btmah7pfyxxknpddij4m3pyaq4occukv2qov4"  # Canonical IPFS CID
 PROVING_KEY_SHA256="f6d4552e9be710535ef45a0470572311d7506a0f1f13b75f340bac11ccffd9cd"  # Trusted setup hash
-VERIFICATION_KEY_URL="https://raw.githubusercontent.com/Ghost-84M/Axiom-Protocol-84m/main/zk-setup/verification_key.json"
+VERIFICATION_KEY_URL="https://raw.githubusercontent.com/Ghost-84M/Axiom-Protocol/main/zk-setup/verification_key.json"
 
 # Create keys directory
 mkdir -p ~/.axiom/keys
