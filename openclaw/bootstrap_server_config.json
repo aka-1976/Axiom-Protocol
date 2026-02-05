@@ -1,0 +1,260 @@
+{
+  "server_type": "bootstrap_node",
+  "bootstrap_ip": "34.10.172.20",
+  "bootstrap_port": 6000,
+  "peer_id": "12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",
+  "region": "GCP",
+  "timestamp": "2026-02-05",
+
+  "ceremony": {
+    "enabled": true,
+    "description": "ZK-Ceremony Master for Axiom Network",
+    "role": "bootstrap_coordinator",
+    "phase": 2,
+    "miners": [
+      {
+        "id": "bootstrap_node",
+        "name": "Axiom Bootstrap Server (34.10.172.20)",
+        "contact": "/ip4/34.10.172.20/tcp/6000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",
+        "endpoint": "http://34.10.172.20:6000",
+        "role": "coordinator"
+      }
+    ],
+    "capabilities": [
+      "ceremony_coordination",
+      "peer_verification",
+      "zkey_validation",
+      "transcript_archival",
+      "network_monitoring"
+    ]
+  },
+
+  "security": {
+    "enabled": true,
+    "description": "Network Security & Attack Prevention",
+    
+    "dos_protection": {
+      "enabled": true,
+      "max_connections_per_ip": 5,
+      "rate_limit_requests_per_second": 100,
+      "blacklist_duration_minutes": 60,
+      "whitelisted_ips": [
+        "127.0.0.1",
+        "::1"
+      ]
+    },
+
+    "peer_validation": {
+      "enabled": true,
+      "verify_peer_id": true,
+      "verify_zk_proofs": true,
+      "minimum_trust_score": 0.6,
+      "reputation_tracking": true,
+      "block_malicious_peers": true
+    },
+
+    "encryption": {
+      "enabled": true,
+      "algo": "libp2p/noise",
+      "zk_snark_mandatory": true,
+      "curve": "BLS12-381",
+      "hash": "Groth16"
+    },
+
+    "privacy": {
+      "enabled": true,
+      "hide_peer_identities": false,
+      "anonymize_ip_addresses": true,
+      "tor_bridges_enabled": false,
+      "query_privacy": true,
+      "no_public_logs": true,
+      "no_metrics_export": false,
+      "encrypted_logs": true
+    },
+
+    "firewall": {
+      "enabled": true,
+      "allowed_ports": [6000, 6001, 6002, 6003, 6004, 6005],
+      "block_suspicious_patterns": true,
+      "ddos_detection": true,
+      "anomaly_detection_enabled": true
+    }
+  },
+
+  "network_optimization": {
+    "enabled": true,
+    "description": "Network Performance Boosting",
+    
+    "peer_discovery": {
+      "mdns_enabled": true,
+      "kademlia_enabled": true,
+      "discovery_interval_seconds": 30,
+      "max_peers": 50
+    },
+
+    "bandwidth_optimization": {
+      "enabled": true,
+      "block_compression": true,
+      "batch_txs": true,
+      "optimize_propagation": true
+    },
+
+    "connection_pooling": {
+      "enabled": true,
+      "max_outbound_peers": 25,
+      "max_inbound_peers": 25,
+      "connection_timeout_seconds": 30,
+      "idle_timeout_seconds": 300
+    }
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "description": "Continuous Network Health Monitoring",
+    
+    "health_checks": {
+      "check_interval_seconds": 10,
+      "log_interval_seconds": 60
+    },
+
+    "metrics": {
+      "enabled": true,
+      "track_peer_count": true,
+      "track_block_height": true,
+      "track_mining_rewards": true,
+      "track_network_latency": true,
+      "track_bandwidth_usage": true,
+      "track_disk_usage": true,
+      "track_memory_usage": true,
+      "track_error_rate": true,
+      "track_attack_attempts": true
+    },
+
+    "alert_thresholds": {
+      "min_peers_connected": 1,
+      "max_latency_ms": 500,
+      "max_memory_percent": 85,
+      "min_disk_free_gb": 5,
+      "max_error_rate_percent": 5,
+      "max_failed_validations": 10
+    },
+
+    "alerts": {
+      "enabled": true,
+      "alert_on_peer_disconnect": true,
+      "alert_on_network_lag": true,
+      "alert_on_disk_low": true,
+      "alert_on_memory_high": true,
+      "alert_on_attack_detected": true,
+      "alert_channel": "console"
+    }
+  },
+
+  "ai_integration": {
+    "enabled": true,
+    "description": "AI-Enhanced Network Intelligence",
+    
+    "neural_guardian": {
+      "enabled": true,
+      "threat_detection": true,
+      "anomaly_detection": true,
+      "peer_scoring": true
+    },
+
+    "attack_detection": {
+      "enabled": true,
+      "selfish_mining_detection": true,
+      "sybil_attack_detection": true,
+      "eclipse_attack_detection": true,
+      "dos_attack_detection": true,
+      "vdf_manipulation_detection": true
+    }
+  },
+
+  "agent_internet": {
+    "enabled": true,
+    "description": "Multi-Platform Agent Deployment for Network Boosting",
+    "mode": "bootstrap_coordinator",
+    
+    "agents": [
+      {
+        "name": "ceremony_coordinator",
+        "enabled": true,
+        "platform": "moltbook",
+        "description": "Automates ceremony handoff between miners",
+        "interval_seconds": 300
+      },
+      {
+        "name": "network_monitor",
+        "enabled": true,
+        "platform": "eliza",
+        "description": "Monitors network health and peer connectivity",
+        "interval_seconds": 60
+      },
+      {
+        "name": "security_guardian",
+        "enabled": true,
+        "platform": "autonolas",
+        "description": "Detects and blocks attacks, maintains peer reputation",
+        "interval_seconds": 30
+      },
+      {
+        "name": "network_booster",
+        "enabled": true,
+        "platform": "moltbook",
+        "description": "Optimizes bandwidth, manages connection pools",
+        "interval_seconds": 120
+      }
+    ],
+
+    "moltbook": {
+      "enabled": true,
+      "name": "Moltbook",
+      "description": "Ceremony Master Coordination",
+      "base_url": "https://axiom-ceremony.moltbook.ai",
+      "auth_token": "${MOLTBOOK_AUTH_TOKEN}",
+      "skills": [
+        "ceremony_master",
+        "network_booster"
+      ]
+    },
+
+    "eliza": {
+      "enabled": true,
+      "name": "Eliza",
+      "description": "Network Health Monitoring Agent",
+      "base_url": "https://eliza.axiom.local",
+      "auth_token": "${ELIZA_AUTH_TOKEN}",
+      "skills": [
+        "health_monitor",
+        "peer_manager"
+      ]
+    },
+
+    "autonolas": {
+      "enabled": true,
+      "name": "Autonolas",
+      "description": "Security & Trust Agent",
+      "base_url": "https://autonolas.axiom.local",
+      "auth_token": "${AUTONOLAS_AUTH_TOKEN}",
+      "skills": [
+        "security_guardian",
+        "reputation_tracker"
+      ]
+    }
+  },
+
+  "deployment": {
+    "environment": "production",
+    "bootstrap_node": true,
+    "systemd_service": true,
+    "auto_restart": true,
+    "logging": {
+      "enabled": true,
+      "level": "INFO",
+      "encrypt_logs": true,
+      "log_rotation": true,
+      "retention_days": 30
+    }
+  }
+}
