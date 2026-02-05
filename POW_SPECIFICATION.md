@@ -2,10 +2,10 @@
 
 ## Executive Summary
 
-AXIOM Protocol uses a **SHA-256 based Proof of Work** system integrated with the VDF consensus layer. The PoW mechanism provides Sybil resistance and finality, while the VDF enforces time-based fairness. This document specifies the exact PoW algorithm, input construction, nonce mechanism, and difficulty adjustment.
+AXIOM Protocol uses a **Blake3 based Proof of Work** system integrated with the VDF consensus layer. The PoW mechanism provides Sybil resistance and finality, while the VDF enforces time-based fairness. This document specifies the exact PoW algorithm, input construction, nonce mechanism, and difficulty adjustment.
 
 **Key Properties**:
-- **Hash Function**: SHA-256 (256-bit output)
+- **Hash Function**: Blake3 (256-bit output)
 - **Target Block Time**: 30 minutes (1800 seconds)
 - **Difficulty Window**: 60 blocks (~30 hours)
 - **Adjustment Bounds**: ±3x per adjustment period
@@ -15,27 +15,31 @@ AXIOM Protocol uses a **SHA-256 based Proof of Work** system integrated with the
 
 ## 1. Hash Function Specification
 
-### 1.1 Algorithm: SHA-256
+### 1.1 Algorithm: Blake3
 
-**Standard**: FIPS 180-4 (Federal Information Processing Standards)  
+**Standard**: BLAKE3 cryptographic hash (RFC 7517 compatible)  
 **Output Size**: 256 bits (32 bytes)  
-**Library**: Rust `sha2` crate (NIST-approved implementation)
+**Library**: Rust `blake3` crate (official implementation)
 
 ```rust
-use sha2::{Sha256, Digest};
+use blake3;
 
 // Pseudocode
-let mut hasher = Sha256::new();
+let hash: [u8; 32] = blake3::hash(input_data).into();
+
+// Or using hasher for streaming:
+let mut hasher = blake3::Hasher::new();
 hasher.update(input_data);
-let hash: [u8; 32] = hasher.finalize().into();
+let hash = hasher.finalize();
 ```
 
-### 1.2 Why SHA-256?
+### 1.2 Why Blake3?
 
-1. **ASIC-resistant**: Fairly optimizable across hardware
-2. **Non-specialized work**: Unlike SHA-3, not amenable to custom circuits
-3. **Standard cryptography**: Battle-tested in Bitcoin for 15+ years
-4. **Fast verification**: ~5ms per hash on modern CPU
+1. **High Performance**: 2-3x faster than SHA-256 on modern CPUs
+2. **Simper API**: Single function for hashing vs. multi-step hasher
+3. **Parallelizable**: Efficient tree hashing for large inputs
+4. **Modern cryptography**: Designed by cryptographic experts (2019)
+5. **Hardware-friendly**: Efficient on both CPUs and custom hardware
 
 ---
 
@@ -79,11 +83,7 @@ let block = Block {
 let input: Vec<u8> = bincode::serialize(&block)?;
 
 // Compute hash
-let hash: [u8; 32] = {
-    let mut hasher = Sha256::new();
-    hasher.update(&input);
-    hasher.finalize().into()
-};
+let hash: [u8; 32] = blake3::hash(&input).into();
 ```
 
 ### 2.3 Bit-by-bit Encoding

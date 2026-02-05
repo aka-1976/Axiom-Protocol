@@ -48,7 +48,6 @@ impl Block {
     }
 }
 use serde::{Serialize, Deserialize};
-use sha2::{Sha256, Digest};
 use crate::transaction::{Transaction, Address};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -63,12 +62,10 @@ pub struct Block {
 }
 
 impl Block {
-    /// Computes the cryptographic hash of the block
+    /// Computes the cryptographic hash of the block using Blake3
     pub fn hash(&self) -> [u8; 32] {
         let serialized = bincode::serialize(self).expect("Serialization failed");
-        let mut hasher = Sha256::new();
-        hasher.update(serialized);
-        hasher.finalize().into()
+        blake3::hash(&serialized).into()
     }
 
     /// Checks if the block meets the dynamic network difficulty (Hash Power check)

@@ -2,7 +2,6 @@ use crate::zk;
 
 use crate::block::Block;
 use crate::wallet::Wallet;
-use sha2::{Sha256, Digest};
 use std::sync::Once;
 
 /// Genesis timestamp: January 20, 2025 00:00:00 UTC
@@ -20,11 +19,11 @@ pub fn generate_zk_pass(wallet: &Wallet, parent_hash: [u8; 32]) -> Vec<u8> {
     // For genesis/mining, we create a simplified proof
     // In production, this would use the full circuit
     let mut proof_data = vec![0u8; 128];
-    let mut hasher = Sha256::new();
-    hasher.update(wallet.secret_key);
-    hasher.update(parent_hash);
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&wallet.secret_key);
+    hasher.update(&parent_hash);
     let hash = hasher.finalize();
-    proof_data[..32].copy_from_slice(&hash);
+    proof_data[..32].copy_from_slice(hash.as_bytes());
     proof_data
 }
 
@@ -38,13 +37,13 @@ pub fn generate_transaction_proof(
     // Simplified implementation - in production this would use full ZK-SNARK
     // For now, create a deterministic proof based on inputs
     let mut proof_data = vec![0u8; 128];
-    let mut hasher = Sha256::new();
+    let mut hasher = blake3::Hasher::new();
     hasher.update(secret_key);
-    hasher.update(current_balance.to_le_bytes());
-    hasher.update(transfer_amount.to_le_bytes());
-    hasher.update(fee.to_le_bytes());
+    hasher.update(&current_balance.to_le_bytes());
+    hasher.update(&transfer_amount.to_le_bytes());
+    hasher.update(&fee.to_le_bytes());
     let hash = hasher.finalize();
-    proof_data[..32].copy_from_slice(&hash);
+    proof_data[..32].copy_from_slice(hash.as_bytes());
     Ok(proof_data)
 }
 
@@ -85,22 +84,21 @@ pub fn genesis() -> Block {
 }
 
 impl Block {
-    /// Serializes the block and returns a SHA-256 hash.
+    /// Serializes the block and returns a Blake3 hash.
     pub fn calculate_hash(&self) -> [u8; 32] {
-        let mut hasher = Sha256::new();
+        let mut hasher = blake3::Hasher::new();
 
-        // Manual Feed to maintain strict control over the 84M protocol format
-        hasher.update(self.parent);
-        hasher.update(self.slot.to_be_bytes());
-        hasher.update(self.miner);
-        #[allow(clippy::needless_borrows_for_generic_args)]
+        // Manual Feed to maintain strict control over the protocol format
+        hasher.update(&self.parent);
+        hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.miner);
         hasher.update(&self.vdf_proof);
         hasher.update(&self.zk_proof);
-        hasher.update(self.nonce.to_be_bytes());
+        hasher.update(&self.nonce.to_be_bytes());
 
-        let result = hasher.finalize();
-        let mut hash = [0u8; 32];
-        hash.copy_from_slice(&result);
-        hash
+        let hash = hasher.finalize();
+        let mut result = [0u8; 32];
+        result.copy_from_slice(hash.as_bytes());
+        result
     }
 }
