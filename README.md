@@ -2,6 +2,8 @@
 
 **Status**: ✅ Production Mainnet | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
+> 🤖 **AI Enhancement Available**: Optional addon module with anomaly detection, contract auditing, and consensus optimization - see [axiom-ai-enhancement/README.md](axiom-ai-enhancement/README.md)
+
 ---
 
 ## 🎯 What is AXIOM?
