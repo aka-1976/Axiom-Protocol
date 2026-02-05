@@ -5,10 +5,11 @@ mod tests {
     use axiom_core::chain::Timechain;
     use axiom_core::genesis;
     use axiom_core::wallet::Wallet;
+    use axiom_core::economics::block_reward;
 
     #[test]
     fn test_transaction_creation() {
-        let wallet = wallet::Wallet::load_or_create();
+        let wallet = Wallet::load_or_create();
         let to_address = [1u8; 32];
         let amount = 100000000; // 1 AXM
         let fee = 1000000; // 0.01 AXM
@@ -29,7 +30,7 @@ mod tests {
     #[test]
     #[ignore] // Skip in CI - requires valid ZK keys
     fn test_transaction_validation() {
-        let wallet = wallet::Wallet::load_or_create();
+        let wallet = Wallet::load_or_create();
         let to_address = [1u8; 32];
         let amount = 100000000; // 1 AXM
         let fee = 1000000; // 0.01 AXM
@@ -90,12 +91,12 @@ mod tests {
     #[test]
     fn test_economics() {
         // Test initial reward
-        let reward = economics::block_reward(0, 0);
-        assert_eq!(reward, 5_000_000_000); // 5 AXM
+        let reward = block_reward(0, 0);
+        assert_eq!(reward, 50_000_000_000); // 50 AXM
 
         // Test halving
-        let reward_after_halving = economics::block_reward(210000, 0);
-        assert_eq!(reward_after_halving, 2_500_000_000); // 2.5 AXM
+        let reward_after_halving = block_reward(1_240_000, 0);
+        assert_eq!(reward_after_halving, 25_000_000_000); // 25 AXM
     }
 
     #[test]
