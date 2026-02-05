@@ -60,30 +60,41 @@ This document intentionally avoids speculative or financial language. Its purpos
 
 ## 🔄 Recent Upgrades (February 2026)
 
+### OpenClaw Agents Deployment ⭐ NEW
+- **Security Guardian Agent** - Real-time threat detection and attack prevention
+  - DDoS/Sybil/Eclipse attack detection
+  - Peer reputation scoring system
+  - Automatic blacklisting of malicious peers
+  
+- **Network Booster Agent** - Performance optimization and peer management
+  - Intelligent peer connection management
+  - Bandwidth optimization and compression
+  - Congestion detection and handling
+  - Smart block propagation
+  
+- **Health Monitor Agent** - System monitoring and health status
+  - Real-time node health tracking
+  - Automatic issue detection and correction
+  - Performance metrics collection
+  
+- **Ceremony Coordinator Agent** - Phase 2 network automation
+  - Multi-party computation coordination
+  - Trusted key generation setup
+  - Network initialization automation
+
+**Key Feature**: Agents start **automatically** when the Axiom node launches—no manual setup required!
+
+### Bootstrap Node Infrastructure
+- **Mainnet Bootstrap**: GCP instance at `34.10.172.20:6000`
+- **PeerId**: `12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU`
+- **Configuration**: Managed via `config/bootstrap.toml` or `AXIOM_BOOTSTRAP_PEERS` env var
+- **Multi-node Support**: Automatic peer discovery via mDNS + explicit bootstrap
+
 ### Dependency Updates
-- **libp2p**: Upgraded from 0.53 to 0.54.1 with Yamux improvements, idle connection timeout, and RequestResponse fallback
+- **libp2p**: Upgraded from 0.53 to 0.54.1 with Yamux improvements
 - **ark-* crates**: Updated to 0.5.x for latest ZK-SNARK implementations
-- **AI/ML**: Migrated from TensorFlow to ONNX Runtime for attack detection (see ONNX_USAGE.md)
-- **Cargo Audit**: All vulnerabilities resolved, clean build
-
-### OpenClaw Integration (NEW)
-- **Automation Framework**: Python-based credential ceremony orchestration
-- **Ceremony Master**: Coordinates multi-party computation and key generation
-- **Node Health Monitor**: Real-time monitoring of validator node status
-- **Agent Internet**: Decentralized execution of verification tasks
-- **Auto-Launch**: Integrated into node startup via `openclaw_integration.rs` module
-
-### Infrastructure Improvements
-- **Docker Support**: Added Dockerfile and docker-compose.yml for containerized deployment
-- **Mainnet Configuration**: Updated setup for production mainnet operation
-- **Multi-Node Synchronization**: Enhanced P2P syncing with automatic peer discovery (mDNS)
-- **CLI Enhancements**: Added `--bootnodes` flag for initial peer connections
-- **Bootstrap Config**: `config/bootstrap.toml` with mainnet bootnode addresses
-
-### Security Enhancements
-- **Audit Documentation**: Full security audit results in `SECURITY.md`
-- **Vulnerability Tracking**: Active monitoring of dependencies
-- **Responsible Disclosure**: Established security reporting process
+- **AI/ML**: ONNX Runtime for fast, portable attack detection
+- **Security**: Zero known vulnerabilities, full audit trail
 
 ## ✨ Key Features
 
@@ -181,30 +192,56 @@ cargo test
 
 ## 🏃 Quick Start
 
-### Option 1: Docker Mainnet (Recommended)
+### Option 1: Run with Auto-Starting Agents (Recommended)
 ```bash
-# Clone the repository
+# Clone and build
 git clone https://github.com/Ghost-84M/Axiom-Protocol.git
 cd Axiom-Protocol
+cargo build --release
 
-# Launch 3-node mainnet
+# Run the node - agents start automatically!
+cargo run --release
+```
+
+You'll see:
+```
+🚀 OpenClaw daemon starting...
+✅ Python3 found - agents will be launched
+✅ Security Guardian agent started (PID: 12345)
+✅ Network Booster agent started (PID: 12346)
+✅ Health Monitor agent started (PID: 12347)
+✅ Ceremony Coordinator agent started (PID: 12348)
+```
+
+### Option 2: Docker Mainnet (Full Stack)
+```bash
+# Launch 3-node mainnet with automatic agents
 docker-compose up -d
 
 # Check logs
 docker-compose logs -f
 ```
 
-### Option 2: Native Build
+### Option 3: Connect to Mainnet Bootstrap
 ```bash
-# Build and run the main node
-cargo build --release
-./target/release/axiom --bootnodes /ip4/127.0.0.1/tcp/6000/p2p/<peer-id>
+# Set bootstrap node and run
+export AXIOM_BOOTSTRAP_PEERS="/ip4/34.10.172.20/tcp/6000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU"
+cargo run --release
 
-# The node will:
-# - Connect to the P2P network
-# - Start mining blocks
-# - Begin transaction processing
-# - Activate AI network protection
+# Agent verification (in another terminal)
+./verify_agents.sh
+```
+
+### Verify Agents Are Running
+```bash
+# Quick check script (shows all 4 agents with PIDs)
+./verify_agents.sh
+
+# Manual verification
+ps aux | grep -E "security_guardian|network_booster|node_health|ceremony_master"
+
+# View metrics
+curl http://127.0.0.1:9090
 ```
 
 ### 2. Wallet Management
