@@ -6,6 +6,8 @@ mod tests {
     use axiom_core::genesis;
     use axiom_core::wallet::Wallet;
     use axiom_core::economics::block_reward;
+    use axiom_core::vdf;
+    use axiom_core::main_helper;
 
     #[test]
     fn test_transaction_creation() {
@@ -101,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_wallet_balance() {
-        let wallet = wallet::Wallet::load_or_create();
+        let wallet = Wallet::load_or_create();
         let genesis = genesis::genesis();
         let chain = Timechain::new(genesis);
 
