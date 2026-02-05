@@ -2,16 +2,25 @@
 # These are initial peers to connect to for network discovery
 # Format: /ip4/<ip>/tcp/<port>/p2p/<peer_id>
 
-# MAINNET DEPLOYMENT INSTRUCTIONS:
-# 1. Replace these addresses with actual deployed bootnode addresses
-# 2. For development/testing, leave empty and use mDNS discovery
-# 3. To override via environment, set AXIOM_BOOTSTRAP_PEERS environment variable:
+# DEPLOYMENT INSTRUCTIONS:
+# For MAINNET: Use the bootstrap nodes listed below
+# For TESTNET/LOCAL: Leave empty and use mDNS discovery
+# For CUSTOM: Override via environment variable:
 #    export AXIOM_BOOTSTRAP_PEERS="/ip4/x.x.x.x/tcp/6000/p2p/peer_id_1,/ip4/y.y.y.y/tcp/6000/p2p/peer_id_2"
-#    ./target/release/axiom
+#    cargo run --release
 
-# Empty by default - relies on mDNS for local/testnet discovery
-# Uncomment and update with real mainnet bootnodes for production
+# ========================================
+# AXIOM BOOTSTRAP NODES (February 2026)
+# ========================================
+
 bootnodes = [
-    # "/ip4/X.X.X.X/tcp/6000/p2p/12D3KooW...",  # Mainnet bootnode 1
-    # "/ip4/Y.Y.Y.Y/tcp/6000/p2p/12D3KooW...",  # Mainnet bootnode 2
+    "/ip4/34.10.172.207/tcp/6000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",  # Primary bootstrap node
 ]
+
+# ========================================
+# ADDITIONAL BOOTSTRAP NODES
+# Uncomment to add more bootstrap nodes for redundancy
+# ========================================
+# Additional bootstrap nodes can be added here for network resilience:
+#    "/ip4/X.X.X.X/tcp/6000/p2p/12D3KooW...",  # Backup bootnode 1
+#    "/ip4/Y.Y.Y.Y/tcp/6000/p2p/12D3KooW...",  # Backup bootnode 2
