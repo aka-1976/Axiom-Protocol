@@ -68,3 +68,5 @@ pub use consensus::{
 // Re-export production types
 pub use error::{AxiomError, Result};
 pub use config::AxiomConfig;
+pub use vdf;
+pub use main_helper;
