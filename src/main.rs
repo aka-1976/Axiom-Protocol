@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
 
     let mut current_port: u16 = 6000;
-    let max_port: u16 = 6010;
+    let max_port: u16 = 6003; // Restricted to 4 genesis mining nodes only
 
     loop {
         let addr: Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", current_port).parse()?;
@@ -133,7 +133,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     println!("⚠️  Port {} busy. Trying {}...", current_port, current_port + 1);
                     current_port += 1;
                 } else {
-                    println!("❌ Critical Error: No available ports found in range 6000-6010.");
+                    println!("❌ Critical Error: No available ports found in range 6000-6003 (4 genesis nodes max).");
                     return Err(e.into());
                 }
             }

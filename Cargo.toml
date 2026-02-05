@@ -1,11 +1,11 @@
 [package]
 name = "axiom-core"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 authors = ["AXIOM Protocol Team"]
-description = "Decentralized 84M Layer-1 Blockchain with ZK-SNARKs, VDF Consensus, and Neural Guardian AI"
+description = "Decentralized 124M Layer-1 Blockchain with ZK-SNARKs, VDF (1800s) Consensus, Blake3 PoW, and Guardian AI - 4 Genesis Nodes"
 license = "MIT"
-repository = "https://github.com/joker00099/Axiom-Protocol"
+repository = "https://github.com/Ghost-84M/Axiom-Protocol"
 homepage = "https://axiom.network"
 documentation = "https://docs.axiom.network"
 readme = "README.md"

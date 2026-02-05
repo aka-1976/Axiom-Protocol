@@ -4,9 +4,9 @@
     "networkId": 1,
     "consensus": "hybrid-pow-vdf-byzantine",
     "byzantineThreshold": {
-      "total": 5,
+      "total": 4,
       "required": 3,
-      "type": "3-of-5-multisig"
+      "type": "3-of-4-multisig"
     },
     "vdf": {
       "steps": 1800000,
@@ -48,31 +48,33 @@
       "address": "axm1validatorfec8ab4f330e300609aa9e3b9e627b2f0aa5a921",
       "stake": "100000.00000000",
       "power": 1,
-      "index": 0
+      "index": 0,
+      "port": 6000,
+      "description": "Genesis Miner Node 1 (port 6000)"
     },
     {
       "address": "axm1validator823ab475c41297b18950d96f2ad244d166525b16",
       "stake": "100000.00000000",
       "power": 1,
-      "index": 1
+      "index": 1,
+      "port": 6001,
+      "description": "Genesis Miner Node 2 (port 6001)"
     },
     {
       "address": "axm1validator28468ce1f8ffd4a9dc566b8f37bb2ad7ba5d154c",
       "stake": "100000.00000000",
       "power": 1,
-      "index": 2
+      "index": 2,
+      "port": 6002,
+      "description": "Genesis Miner Node 3 (port 6002)"
     },
     {
       "address": "axm1validator2595de5cd7c01a2876c2d65f2c030baa744a8f78",
       "stake": "100000.00000000",
       "power": 1,
-      "index": 3
-    },
-    {
-      "address": "axm1validator85e5359fc5ade13f074307509e765208414d826c",
-      "stake": "100000.00000000",
-      "power": 1,
-      "index": 4
+      "index": 3,
+      "port": 6003,
+      "description": "Genesis Miner Node 4 (port 6003)"
     }
   ],
   "bootstrap": {

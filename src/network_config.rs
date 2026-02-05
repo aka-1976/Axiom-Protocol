@@ -47,20 +47,19 @@ impl NetworkConfig {
         let mut config = Self::default();
         
         // Genesis miners should always connect to each other
-        // These are the 5 genesis mining nodes
+        // These are the 4 genesis mining nodes on restricted ports 6000-6003
         config.bootstrap_peers = vec![
-            "/ip4/192.168.1.100/tcp/6000".to_string(), // Server 1
-            "/ip4/192.168.1.101/tcp/6000".to_string(), // Server 2
-            "/ip4/192.168.1.102/tcp/6000".to_string(), // Server 3
-            "/ip4/192.168.1.103/tcp/6000".to_string(), // Server 4
-            "/ip4/192.168.1.104/tcp/6000".to_string(), // Server 5
+            "/ip4/192.168.1.100/tcp/6000".to_string(), // Node 1 - Server A (port 6000)
+            "/ip4/192.168.1.101/tcp/6001".to_string(), // Node 2 - Server B (port 6001)
+            "/ip4/192.168.1.102/tcp/6002".to_string(), // Node 3 - Server C (port 6002)
+            "/ip4/192.168.1.103/tcp/6003".to_string(), // Node 4 - Server D (port 6003)
         ];
         
-        // All genesis miners use the same listen port for consistency
-        config.listen_port = 6000;
+        // Dynamic port assignment for genesis miners: 6000 + node_id
+        config.listen_port = 6000 + (node_id as u16).min(3); // Ensures ports stay in 6000-6003 range
         
         // Stricter requirements for genesis phase
-        config.min_peers = 4; // Need at least 4 out of 5
+        config.min_peers = 3; // Need at least 3 out of 4
         config.max_peers = 50;
         
         log::info!("Genesis Miner {}: Using dedicated bootstrap configuration", node_id);
