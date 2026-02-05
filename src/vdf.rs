@@ -185,7 +185,7 @@ pub fn wesolowski_prove(g: &Integer, t: u32, n: &Integer) -> (Integer, Integer) 
     let l = generate_challenge(g, &y, n);
     
     // Step 3: Compute quotient q = floor(2^t / l)
-    let two_to_t = (Integer::from(1) << t);
+    let two_to_t = Integer::from(1) << t;
     let q = two_to_t / l.clone();
     
     // Step 4: Compute proof π = g^q mod n
@@ -239,7 +239,7 @@ pub fn wesolowski_verify_with_proof(
     let l = generate_challenge(g, y, n);
     
     // Compute r = 2^t mod l
-    let two_to_t = (Integer::from(1) << t);
+    let two_to_t = Integer::from(1) << t;
     let r = two_to_t % l.clone();
     
     // Verify: y ≡ π^l * g^r (mod n)
