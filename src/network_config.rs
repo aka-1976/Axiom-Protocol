@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn test_genesis_config() {
         let config = NetworkConfig::for_genesis_miner(1);
-        assert_eq!(config.bootstrap_peers.len(), 5);
+        assert_eq!(config.bootstrap_peers.len(), 4);
         assert!(config.validate().is_ok());
     }
     

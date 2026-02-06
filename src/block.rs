@@ -72,7 +72,14 @@ impl Block {
     pub fn meets_difficulty(&self, difficulty: u64) -> bool {
         let h = self.hash();
         // Convert first 8 bytes to u64 for numerical comparison
-        let val = u64::from_be_bytes(h[0..8].try_into().unwrap());
+        // Safe conversion with proper error handling
+        let val = match <[u8; 8]>::try_from(&h[0..8]) {
+            Ok(bytes) => u64::from_be_bytes(bytes),
+            Err(_) => {
+                eprintln!("⚠️  Block hash conversion failed");
+                return false;
+            }
+        };
         
         // Difficulty formula: higher difficulty results in a smaller target range
         val < (u64::MAX / difficulty.max(1))

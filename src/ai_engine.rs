@@ -37,7 +37,16 @@ impl AttackDetectionModel {
         let input_shape = vec![1, features.len()];
         let input_array = ndarray::Array::from_shape_vec(input_shape.clone(), features.to_vec())?;
         let outputs: Vec<OrtOwnedTensor<f32, _>> = self.session.run(vec![input_array])?;
-        Ok(outputs[0].as_slice().unwrap()[0])
+        
+        // Safely extract first output - prevents panic on empty results
+        let first_output = outputs.first()
+            .ok_or("ONNX model produced no outputs")?;
+        let output_slice = first_output.as_slice()
+            .ok_or("Failed to convert ONNX output to slice")?;
+        let first_value = output_slice.first()
+            .ok_or("ONNX output is empty")?;
+        
+        Ok(*first_value)
     }
 }
 

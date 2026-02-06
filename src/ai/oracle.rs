@@ -78,8 +78,11 @@ impl OracleNode {
             signature,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+                .map(|d| d.as_secs())
+                .unwrap_or_else(|e| {
+                    eprintln!("⚠️  Failed to get oracle timestamp: {}", e);
+                    0
+                }),
         })
     }
     
@@ -348,7 +351,8 @@ mod tests {
             },
         ];
         
-        let consensus = manager.find_consensus(responses).unwrap();
+        let consensus = manager.find_consensus(responses)
+            .expect("Failed to find consensus among oracle responses");
         
         assert_eq!(consensus.agreed_response, "The answer is 42");
         assert_eq!(consensus.participating_oracles.len(), 3);
@@ -407,7 +411,8 @@ mod tests {
             timestamp: 0,
         };
         
-        let response = oracle.process_query(&query).await.unwrap();
+        let response = oracle.process_query(&query).await
+            .expect("Failed to process oracle query");
         
         println!("Oracle response: {}", response.response_text);
         assert!(response.response_text.contains("4") || response.response_text.contains("four"));

@@ -28,7 +28,15 @@ impl ValidatorRegistry {
 /// Add external peer to the network
 pub fn add_external_peer(swarm: &mut Swarm<TimechainBehaviour>, peer_addr: &str, peer_id: &str) {
     if let Ok(addr) = peer_addr.parse() {
-        let _ = swarm.behaviour_mut().kademlia.add_address(&peer_id.parse().unwrap(), addr);
+        // Safely parse peer ID instead of unwrapping
+        match peer_id.parse::<libp2p::PeerId>() {
+            Ok(parsed_peer_id) => {
+                swarm.behaviour_mut().kademlia.add_address(&parsed_peer_id, addr);
+            },
+            Err(e) => {
+                eprintln!("⚠️  Failed to parse peer ID '{}': {}", peer_id, e);
+            }
+        }
     }
 }
 

@@ -300,9 +300,9 @@ mod tests {
     fn test_mempool_fee_ordering() {
         let mut mempool = Mempool::new();
         
-        mempool.add(create_test_transaction(100, 5, 0)).unwrap();
-        mempool.add(create_test_transaction(100, 10, 1)).unwrap();
-        mempool.add(create_test_transaction(100, 1, 2)).unwrap();
+        assert!(mempool.add(create_test_transaction(100, 5, 0)).is_ok(), "Failed to add tx with fee 5");
+        assert!(mempool.add(create_test_transaction(100, 10, 1)).is_ok(), "Failed to add tx with fee 10");
+        assert!(mempool.add(create_test_transaction(100, 1, 2)).is_ok(), "Failed to add tx with fee 1");
         
         let txs = mempool.get_for_mining(3);
         assert_eq!(txs[0].fee, 10);
@@ -314,11 +314,11 @@ mod tests {
     fn test_mempool_eviction() {
         let mut mempool = Mempool::with_capacity(2, DEFAULT_MAX_TX_SIZE);
         
-        mempool.add(create_test_transaction(100, 5, 0)).unwrap();
-        mempool.add(create_test_transaction(100, 10, 1)).unwrap();
+        assert!(mempool.add(create_test_transaction(100, 5, 0)).is_ok(), "Failed to add tx with fee 5");
+        assert!(mempool.add(create_test_transaction(100, 10, 1)).is_ok(), "Failed to add tx with fee 10");
         
         // This should evict the lowest fee (5)
-        mempool.add(create_test_transaction(100, 15, 2)).unwrap();
+        assert!(mempool.add(create_test_transaction(100, 15, 2)).is_ok(), "Failed to add tx with fee 15");
         
         assert_eq!(mempool.len(), 2);
         let stats = mempool.stats();

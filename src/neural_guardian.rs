@@ -427,10 +427,15 @@ fn determine_action(threats: &[ThreatType]) -> Action {
 
 /// Get current timestamp in seconds
 fn current_timestamp() -> u64 {
+    // Safe conversion: system time should always be after UNIX_EPOCH
+    // If this fails, return 0 as fallback (epoch time)
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
+        .map(|d| d.as_secs())
+        .unwrap_or_else(|e| {
+            eprintln!("⚠️  Failed to get current timestamp: {}", e);
+            0
+        })
 }
 
 #[cfg(test)]
@@ -478,7 +483,7 @@ mod tests {
         let assessment = guardian.analyze_peer("peer1");
         assert!(assessment.is_some());
         
-        let assessment = assessment.unwrap();
+        let assessment = assessment.expect("Failed to get peer assessment");
         assert_eq!(assessment.peer_id, "peer1");
         assert!(assessment.trust_score >= 0.0 && assessment.trust_score <= 1.0);
     }

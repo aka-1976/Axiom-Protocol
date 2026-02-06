@@ -169,7 +169,11 @@ impl AxiomWallet {
         let mut to = [0u8; 32];
         to.copy_from_slice(&decrypted[0..32]);
         
-        let amount = u64::from_le_bytes(decrypted[32..40].try_into().unwrap());
+        // Safely extract amount with proper error handling instead of unwrap
+        let amount = u64::from_le_bytes(match <[u8; 8]>::try_from(&decrypted[32..40]) {
+            Ok(bytes) => bytes,
+            Err(_) => return Err("Failed to extract amount bytes from decrypted data".to_string()),
+        });
         
         Ok(TransactionDetails {
             from: tx.from,
@@ -244,7 +248,11 @@ impl ReadOnlyWallet {
         let mut recipient = [0u8; 32];
         recipient.copy_from_slice(&decrypted[0..32]);
         
-        let amount = u64::from_le_bytes(decrypted[32..40].try_into().unwrap());
+        // Safely extract amount with proper error handling instead of unwrap
+        let amount = u64::from_le_bytes(match <[u8; 8]>::try_from(&decrypted[32..40]) {
+            Ok(bytes) => bytes,
+            Err(_) => return Err("Failed to extract amount bytes from decrypted data".to_string()),
+        });
         
         Ok(TransactionDetails {
             from: [0u8; 32], // Will be filled from tx
