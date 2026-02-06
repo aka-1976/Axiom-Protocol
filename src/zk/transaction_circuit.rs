@@ -223,7 +223,7 @@ pub fn prepare_verification_key(vk: &VerifyingKey<Bn254>) -> PreparedVerifyingKe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ark_std::test_rng;
+    // use ark_std::test_rng; // Unused - using StdRng::seed_from_u64 instead
     use rand::rngs::StdRng;
     use rand::SeedableRng;
     
@@ -234,7 +234,7 @@ mod tests {
         
         // Setup
         println!("Generating proving/verification keys...");
-        let (pk, _vk) = trusted_setup(&mut rng).unwrap();
+        let (pk, vk) = trusted_setup(&mut rng).unwrap();
         
         // Test transaction
         let from = [1u8; 32];
