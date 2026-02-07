@@ -1,82 +1,51 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
 
+//! Main orchestrator for AXIOM Protocol node
+//! Integrates network, metrics, and CLI
 
-use axiom_core::{block, transaction, chain, network, storage, main_helper, genesis, bridge, vdf, ai_engine, state, economics, wallet, zk, openclaw_integration};
-use axiom_core::zk::circuit;
-
-use block::Block;
-use chain::Timechain;
-use transaction::Transaction;
-use ai_engine::NeuralGuardian;
-use serde_json;
-use wallet::Wallet;
-use main_helper::compute_vdf;
-use libp2p::{gossipsub, swarm::SwarmEvent, futures::StreamExt, Multiaddr, PeerId};
-use std::time::{Duration, Instant};
-use tokio::time;
 use std::error::Error;
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, Mutex};
+use tracing::{info, error};
+use crate::network::{config::NetworkConfig, discv5_service::Discv5Service, peer_manager::PeerManager, behaviour::AxiomBehaviour, gossip_handler::GossipHandler, event_handler::EventHandler};
+use crate::metrics::MetricsCollector;
 
-/// Enhanced chain validation and synchronization for global consensus
-fn validate_and_sync_chain(peer_blocks: &[Block], current_chain: &Timechain) -> Option<Timechain> {
-    if peer_blocks.is_empty() {
-        return None;
-    }
+fn main() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::fmt::init();
+    info!("Starting AXIOM Protocol node...");
 
-    // Verify genesis block matches
-    if peer_blocks[0].hash() != current_chain.blocks[0].hash() {
-        println!("⚠️  Peer chain has different genesis block - rejecting");
-        return None;
-    }
+    // Load config
+    let config = NetworkConfig::load_from_file("config/bootstrap.toml")?;
+    info!("Loaded network config: {:?}", config);
 
-    // Try to reconstruct and validate the peer's chain
-    let mut candidate = Timechain::new(genesis::genesis());
-    let mut valid = true;
+    // Initialize metrics
+    let metrics = MetricsCollector::new();
+    info!("Metrics collector initialized");
 
-    for (i, block) in peer_blocks.iter().enumerate().skip(1) {
-        // Validate block structure and consensus rules
-        if candidate.add_block(block.clone(), 1800).is_err() {
-            println!("⚠️  Invalid block at height {} from peer - rejecting chain", i);
-            valid = false;
-            break;
-        }
-    }
+    // Initialize Discv5 service
+    let discv5 = Discv5Service::new(&config, &metrics);
+    info!("Discv5 service started");
 
-    if !valid {
-        return None;
-    }
+    // Initialize peer manager
+    let peer_manager = PeerManager::new(&config, &metrics);
+    info!("Peer manager started");
 
-    // Accept the chain if it's longer or has more work (for tie-breaking)
-    let peer_work = calculate_chain_work(&candidate);
-    let current_work = calculate_chain_work(current_chain);
+    // Initialize behaviour
+    let behaviour = AxiomBehaviour::new(&config, &metrics);
+    info!("Network behaviour started");
 
-    if candidate.blocks.len() > current_chain.blocks.len() || peer_work > current_work {
-        println!("✅ Peer chain validated - Work: {} vs {}", peer_work, current_work);
-        Some(candidate)
-    } else {
-        None
+    // Initialize gossip handler
+    let gossip_handler = GossipHandler::new(&config, &metrics);
+    info!("Gossip handler started");
+
+    // Initialize event handler
+    let event_handler = EventHandler::new();
+    info!("Event handler started");
+
+    // Main event loop placeholder
+    info!("Node running. Press Ctrl+C to exit.");
+    loop {
+        // TODO: async event loop, handle events, metrics, peer updates
+        std::thread::sleep(std::time::Duration::from_secs(5));
     }
 }
-
-/// Calculate total work (cumulative difficulty) of a chain
-fn calculate_chain_work(chain: &Timechain) -> u64 {
-    chain.blocks.iter().map(|block| block.nonce.max(1)).sum()
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    println!("--------------------------------------------------");
-    println!("🏛️  AXIOM CORE | PRIVACY-FIRST BLOCKCHAIN");
-    println!("🛡️  VDF: 1800sec (30min) | PoW Hybrid | 124M Fixed Supply");
-    println!("🤖 AI NEURAL GUARDIAN: ATTACK DETECTION ACTIVE");
-    println!("🔐 MANDATORY ZK-SNARK PRIVACY | ED25519 SIGNATURES");
-    println!("--------------------------------------------------");
-    println!("📅 February 2026 | OpenClaw Integration Active");
-
-    // --- Network Diagnostics: Check bootstrap connectivity on startup ---
-    network::check_bootstrap_connectivity();
 
     // 1. IDENTITY & STATE INITIALIZATION
     let wallet = Wallet::load_or_create();
