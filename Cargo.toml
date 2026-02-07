@@ -42,6 +42,13 @@ rand_core = { version = "0.6", features = ["std"] }
 # AI/Security Engine
 parking_lot = "0.12"  # Faster synchronization primitives for multi-layer security
 
+# Peer management & caching
+dashmap = "5.5"       # Concurrent HashMap
+lru = "0.12"          # LRU cache for peers
+
+# Additional networking & crypto
+sha3 = "0.10"
+
 # Cryptography & ZK-Pass
 ed25519-dalek = "2.1"
 sha2 = "0.10"
