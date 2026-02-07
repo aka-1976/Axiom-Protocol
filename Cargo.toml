@@ -25,7 +25,26 @@ actix-rt = "2.9"
 # Wesolowski VDF (Big Integer Support)
 rug = "1.20"
 # Networking (Hardened P2P)
-libp2p = { version = "0.54", features = ["macros", "gossipsub", "mdns", "kad", "identify", "tcp", "quic", "websocket", "tokio", "noise", "yamux", "dns", "request-response"] }
+libp2p = { version = "0.54", features = [
+	"gossipsub",
+	"mdns",
+	"noise",
+	"tcp",
+	"yamux",
+	"kad",           # Kademlia DHT
+	"identify",
+	"ping",          # Ping protocol
+	"dns",
+	"tokio",
+	"macros",
+	"request-response",
+	"quic",
+	"websocket"
+] }
+
+# Discv5 peer discovery (compatible version for libp2p 0.54)
+discv5 = "0.5"
+enr = { version = "0.11", features = ["serde", "k256"] }
 tokio = { version = "1.35", features = ["full"] }
 futures = "0.3"
 
