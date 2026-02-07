@@ -36,7 +36,37 @@ watch -n 5 './target/release/axiom-node status'
 
 ---
 
-## 🚀 v3.0.0: AI Guardian Security Upgrade
+
+## 🚀 v3.1.0: Discv5 Network & Modular Upgrade
+
+### Major Changes (February 2026)
+
+**Production-Grade Discv5/libp2p Networking Stack**
+- Modular network services: `src/network/config.rs`, `discv5_service.rs`, `peer_manager.rs`, `behaviour.rs`, `gossip_handler.rs`, `event_handler.rs`, `mod.rs`
+- Peer manager with reputation, LRU cache, ban logic, and metrics
+- Discv5Service for Ethereum-style peer discovery and ENR
+- Gossipsub, Kademlia, mDNS, Identify, Ping integrated for robust P2P
+- GossipHandler for block/tx/sync/heartbeat routing and deduplication
+- EventHandler for async event dispatch
+- Metrics module: `src/metrics/mod.rs` for Prometheus-style node metrics
+- Main orchestrator: `src/main.rs` now integrates network, metrics, and CLI
+- Integration tests: `tests/integration_test.rs` for network stack validation
+- Legacy network code moved to `src/network_legacy.rs`
+- Cargo.toml updated: dashmap, lru, sha3 dependencies added
+
+**Deployment & Validation**
+- All modules compile cleanly (no errors/warnings)
+- Integration tests included and passing
+- PR pushed to Ghost-84M/Axiom-Protocol main branch
+- Ready for mainnet deployment and monitoring
+
+**How to Use**
+- Build and run as before; node now uses new modular network stack
+- See `src/network/` for all new network code
+- See `src/metrics/` for metrics collection
+- See `tests/integration_test.rs` for integration test example
+
+---
 
 The Axiom Protocol is now upgraded to v3.0.0, featuring a robust 5-layer AI security system, Guardian-enforced consensus, and all protocol/test fixes. **All critical/medium issues are fixed and verified for mainnet.**
 
