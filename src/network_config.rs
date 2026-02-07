@@ -7,7 +7,7 @@ use log;
 /// Network configuration for all node types
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
-    /// TCP port to listen on (default: 6000)
+    /// TCP port to listen on (default: 7000)
     pub listen_port: u16,
     
     /// Bootstrap peer addresses (multiaddr format)
@@ -29,7 +29,7 @@ pub struct NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            listen_port: 6000,
+            listen_port: 7000,
             bootstrap_peers: vec![
                 // Will be populated from environment or config file
             ],
@@ -47,16 +47,16 @@ impl NetworkConfig {
         let mut config = Self::default();
         
         // Genesis miners should always connect to each other
-        // These are the 4 genesis mining nodes on restricted ports 6000-6003
+        // These are the 4 genesis mining nodes on restricted ports 7000-7003
         config.bootstrap_peers = vec![
-            "/ip4/192.168.1.100/tcp/6000".to_string(), // Node 1 - Server A (port 6000)
-            "/ip4/192.168.1.101/tcp/6001".to_string(), // Node 2 - Server B (port 6001)
-            "/ip4/192.168.1.102/tcp/6002".to_string(), // Node 3 - Server C (port 6002)
-            "/ip4/192.168.1.103/tcp/6003".to_string(), // Node 4 - Server D (port 6003)
+            "/ip4/192.168.1.100/tcp/7000".to_string(), // Node 1 - Server A (port 7000)
+            "/ip4/192.168.1.101/tcp/7001".to_string(), // Node 2 - Server B (port 7001)
+            "/ip4/192.168.1.102/tcp/7002".to_string(), // Node 3 - Server C (port 7002)
+            "/ip4/192.168.1.103/tcp/7003".to_string(), // Node 4 - Server D (port 7003)
         ];
         
-        // Dynamic port assignment for genesis miners: 6000 + node_id
-        config.listen_port = 6000 + (node_id as u16).min(3); // Ensures ports stay in 6000-6003 range
+        // Dynamic port assignment for genesis miners: 7000 + node_id
+        config.listen_port = 7000 + (node_id as u16).min(3); // Ensures ports stay in 7000-7003 range
         
         // Stricter requirements for genesis phase
         config.min_peers = 3; // Need at least 3 out of 4
@@ -73,12 +73,12 @@ impl NetworkConfig {
         
         // Regular validators connect to known bootstrap nodes
         config.bootstrap_peers = vec![
-            "/ip4/34.160.111.145/tcp/6000".to_string(),
-            "/ip4/51.15.23.200/tcp/6000".to_string(),
-            "/ip4/3.8.120.113/tcp/6000".to_string(),
+            "/ip4/34.160.111.145/tcp/7000".to_string(),
+            "/ip4/51.15.23.200/tcp/7000".to_string(),
+            "/ip4/3.8.120.113/tcp/7000".to_string(),
         ];
         
-        config.listen_port = 6000;
+        config.listen_port = 7000;
         config.min_peers = 2; // More relaxed for regular nodes
         
         log::info!("Validator Node: Using standard bootstrap configuration");
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = NetworkConfig::default();
-        assert_eq!(config.listen_port, 6000);
+        assert_eq!(config.listen_port, 7000);
         assert_eq!(config.min_peers, 4);
         assert!(config.validate().is_ok());
     }

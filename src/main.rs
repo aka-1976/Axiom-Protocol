@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         network::init_network().await?
     };
 
-    let mut current_port: u16 = 6000;
+    let mut current_port: u16 = 7000;
     let max_port: u16 = 6003; // Restricted to 4 genesis mining nodes only
 
     loop {
@@ -133,7 +133,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                     println!("⚠️  Port {} busy. Trying {}...", current_port, current_port + 1);
                     current_port += 1;
                 } else {
-                    println!("❌ Critical Error: No available ports found in range 6000-6003 (4 genesis nodes max).");
+                    println!("❌ Critical Error: No available ports found in range 7000-7003 (4 genesis nodes max).");
                     return Err(e.into());
                 }
             }

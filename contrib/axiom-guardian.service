@@ -10,7 +10,7 @@ User=axiom
 Group=axiom
 WorkingDirectory=/opt/axiom
 Environment="RUST_LOG=info,axiom=debug"
-Environment="AXIOM_BOOTSTRAP_PEERS=192.168.1.100:6000,192.168.1.101:6000,192.168.1.102:6000,192.168.1.103:6000,192.168.1.104:6000"
+Environment="AXIOM_BOOTSTRAP_PEERS=192.168.1.100:7000,192.168.1.101:7001,192.168.1.102:7002,192.168.1.103:7003,192.168.1.104:7003"
 ExecStart=/opt/axiom/bin/axiom-node
 Restart=always
 RestartSec=10
