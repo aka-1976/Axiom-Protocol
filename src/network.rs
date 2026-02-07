@@ -128,9 +128,9 @@ impl From<request_response::Event<ChainRequest, ChainResponse>> for TimechainBeh
 /// Default hardcoded real-world bootstrap peers
 const DEFAULT_BOOTSTRAP_PEERS: &[&str] = &[
     // Replace these with real, public Axiom nodes as they become available
-    "/ip4/34.160.111.145/tcp/6000", // Example: Google Cloud VM
-    "/ip4/51.15.23.200/tcp/6000",   // Example: Scaleway/OVH
-    "/ip4/3.8.120.113/tcp/6000",    // Example: AWS EC2
+    "/ip4/34.160.111.145/tcp/7000", // Example: Google Cloud VM
+    "/ip4/51.15.23.200/tcp/7000",   // Example: Scaleway/OVH
+    "/ip4/3.8.120.113/tcp/7000",    // Example: AWS EC2
 ];
 
 pub async fn init_network() -> Result<Swarm<TimechainBehaviour>, Box<dyn Error + Send + Sync>> {
