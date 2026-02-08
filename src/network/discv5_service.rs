@@ -1,176 +1,84 @@
-use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::Path;
+use discv5::{Discv5, enr::{CombinedKey, Enr, NodeId}, ConfigBuilder as Discv5ConfigBuilder, ListenConfig};
+use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::mpsc;
-use tracing::{debug, error, info, trace, warn};
+use tokio::sync::RwLock;
+use std::time::Duration;
 
-use super::config::NetworkConfig;
-
-/// Metrics for Discv5 discovery
-#[derive(Debug, Clone, Default)]
-pub struct DiscoveryMetrics {
-    pub total_queries: u64,
-    pub successful_queries: u64,
-    pub failed_queries: u64,
-    pub peers_discovered: u64,
-    pub active_sessions: usize,
-    pub last_lookup: Option<Instant>,
-}
-
-/// Discovered peer information
-#[derive(Debug, Clone)]
-pub struct DiscoveredPeer {
-    pub node_id: String, // String representation of NodeId
-    pub discovered_at: Instant,
-    pub tcp_socket: Option<SocketAddr>,
-    pub udp_socket: Option<SocketAddr>,
-}
-
-impl DiscoveredPeer {
-    pub fn new(node_id: String, tcp_socket: Option<SocketAddr>, udp_socket: Option<SocketAddr>) -> Self {
-        Self {
-            node_id,
-            discovered_at: Instant::now(),
-            tcp_socket,
-            udp_socket,
-        }
-    }
-}
-
-/// Production Discv5 discovery service (placeholder for Discv5 integration)
 pub struct Discv5Service {
-    /// Discovered peers cache
-    discovered_peers: Arc<RwLock<HashMap<String, DiscoveredPeer>>>,
-    
-    /// Metrics
-    metrics: Arc<RwLock<DiscoveryMetrics>>,
-    
-    /// Configuration
-    config: NetworkConfig,
-    
-    /// Shutdown signal
-    shutdown_tx: Option<mpsc::UnboundedSender<()>>,
-    
-    /// Local ENR (base64 encoded)
-    local_enr: String,
+    discv5: Arc<RwLock<Discv5>>,
+    local_enr: Enr<CombinedKey>,
 }
 
 impl Discv5Service {
-    /// Initialize Discv5 service with persistent key
-    pub async fn new(config: NetworkConfig) -> Result<Self, DiscoveryError> {
-        config.validate().map_err(|e| DiscoveryError::Config(e.to_string()))?;
+    pub async fn new(
+        listen_addr: SocketAddr,
+        enr_key: CombinedKey,
+        boot_nodes: Vec<Enr<CombinedKey>>,
+    ) -> Result<Self, String> {
+        let mut builder = Enr::builder();
+        builder.ip(listen_addr.ip());
+        builder.udp4(listen_addr.port());
+        let local_enr = builder.build(&enr_key).map_err(|e| e.to_string())?;
+
+        let listen_config = ListenConfig::from_ip(listen_addr.ip(), listen_addr.port());
+        let config = Discv5ConfigBuilder::new(listen_config)
+            .request_timeout(Duration::from_secs(10))
+            .query_timeout(Duration::from_secs(30))
+            .build();
+
+        let mut discv5 = Discv5::new(local_enr.clone(), enr_key, config)
+            .map_err(|e| e.to_string())?;
         
-        info!("🔍 Starting Discv5 peer discovery...");
-        info!("   TCP Port: {}", config.tcp_port);
-        info!("   UDP Port: {}", config.udp_port);
-        info!("   Bootstrap ENRs: {}", config.boot_enrs.len());
+        for boot_enr in boot_nodes {
+            if let Err(e) = discv5.add_enr(boot_enr.clone()) {
+                eprintln!("⚠️ Failed to add bootstrap node: {}", e);
+            } else {
+                println!("✅ Added bootstrap node: {}", boot_enr.node_id());
+            }
+        }
         
-        // Generate a dummy ENR for now (will be replaced with actual Discv5 ENR)
-        let local_enr = format!(
-            "enr:-IS4QHCYrYZbAKWCBRl{:x}{}",
-            config.udp_port,
-            config.tcp_port
-        );
-        
-        info!("✅ Local ENR: {}", local_enr);
+        discv5.start().await.map_err(|e| e.to_string())?;
+        println!("🔍 Discv5 discovery started on {}", listen_addr);
         
         Ok(Self {
-            discovered_peers: Arc::new(RwLock::new(HashMap::new())),
-            metrics: Arc::new(RwLock::new(DiscoveryMetrics::default())),
-            config,
-            shutdown_tx: None,
+            discv5: Arc::new(RwLock::new(discv5)),
             local_enr,
         })
     }
     
-    /// Start discovery loop (runs continuously)
-    pub async fn start_discovery_loop(
-        &mut self,
-        _peer_tx: mpsc::UnboundedSender<DiscoveredPeer>,
-    ) {
-        let (shutdown_tx, mut shutdown_rx) = mpsc::unbounded_channel();
-        self.shutdown_tx = Some(shutdown_tx);
-        
-        let metrics = self.metrics.clone();
-        let interval = self.config.discovery_interval;
-        
-        tokio::spawn(async move {
-            let mut lookup_interval = tokio::time::interval(interval);
-            
-            loop {
-                tokio::select! {
-                    _ = lookup_interval.tick() => {
-                        // Simulate discovery tick
-                        let mut m = metrics.write();
-                        m.total_queries += 1;
-                        m.last_lookup = Some(Instant::now());
-                    }
-                    
-                    _ = shutdown_rx.recv() => {
-                        info!("🛑 Discv5 discovery loop shutting down");
-                        break;
-                    }
-                }
+    pub async fn find_nodes(&self, target: NodeId) -> Vec<Enr<CombinedKey>> {
+        let mut discv5 = self.discv5.write().await;
+        match discv5.find_node(target).await {
+            Ok(nodes) => nodes,
+            Err(e) => {
+                eprintln!("⚠️ Find nodes error: {}", e);
+                vec![]
             }
-        });
-    }
-    
-    /// Handle Discv5 events (peer updates, sessions, bans)
-    pub async fn handle_events(&self) {
-        // Placeholder for event handling
-        trace!("Discv5 event handler running (placeholder)");
-    }
-    
-    /// Get discovery metrics
-    pub fn metrics(&self) -> DiscoveryMetrics {
-        self.metrics.read().clone()
-    }
-    
-    /// Get local ENR
-    pub fn local_enr(&self) -> &str {
-        &self.local_enr
-    }
-    
-    /// Get all discovered peers
-    pub fn discovered_peers(&self) -> Vec<DiscoveredPeer> {
-        self.discovered_peers.read().values().cloned().collect()
-    }
-    
-    /// Get number of active Discv5 sessions
-    pub fn active_sessions(&self) -> usize {
-        self.metrics.read().active_sessions
-    }
-    
-    /// Shutdown service gracefully
-    pub async fn shutdown(&mut self) {
-        if let Some(tx) = self.shutdown_tx.take() {
-            let _ = tx.send(());
         }
-        
-        info!("🛑 Shutting down Discv5 service");
+    }
+    
+    pub fn local_enr(&self) -> Enr<CombinedKey> {
+        self.local_enr.clone()
+    }
+    
+    pub async fn connected_peers(&self) -> usize {
+        let discv5 = self.discv5.read().await;
+        discv5.connected_peers()
+    }
+    
+    pub async fn table_entries(&self) -> Vec<Enr<CombinedKey>> {
+        let discv5 = self.discv5.read().await;
+        discv5.table_entries_enr()
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum DiscoveryError {
-    #[error("Configuration error: {0}")]
-    Config(String),
-    
-    #[error("Initialization error: {0}")]
-    Initialization(String),
-    
-    #[error("ENR build error: {0}")]
-    EnrBuild(String),
-    
-    #[error("ENR parse error: {0}")]
-    EnrParse(String),
-    
-    #[error("Key load error: {0}")]
-    KeyLoad(String),
-    
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+pub fn default_bootstrap_enrs() -> Vec<Enr<CombinedKey>> {
+    vec![
+        "enr:-IS4QHCYrYZbAKWCBRlAy5zzaDZXJBGkcnh4MHcBFZntXNFrdvJjX04jRzjzCBOonrkTfj499SZuOh8R33Ls8RRcy5wBgmlkgnY0gmlwhCIKrBSJc2VjcDI1NmsxoQPKY3i3_IJCdGaNADIwR0mO1n-bGx5RdVjbLLaFx0Y-koN0Y3CCfGODdWRwgnxj"
+            .parse()
+            .ok(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }

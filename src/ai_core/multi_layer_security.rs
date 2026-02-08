@@ -521,7 +521,7 @@ impl MultiLayerSecurityEngine {
         score: f64,
         risk_level: &RiskLevel,
         threats: &[ThreatType],
-        current_block: u64,
+        _current_block: u64,
     ) -> Result<SecurityAction, AxiomError> {
         // Catastrophic threats
         if score >= self.config.guardian_escalation_threshold {

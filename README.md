@@ -1,8 +1,8 @@
 # AXIOM Protocol - Privacy-First Blockchain with AI Security
 
-**Status**: ✅ Production Mainnet | **Version**: v3.0.0 (AI Guardian Upgrade) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
+**Status**: ✅ Production Mainnet | **Version**: v3.2.0 (Nuclear Network Cleanup) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
-> 🤖 **AI Guardian Upgrade**: v3.0.0 delivers 5-layer AI threat detection, Guardian-enforced consensus optimization, advanced anomaly detection, and all protocol/test fixes—fully verified and mainnet-ready.
+> 🚀 **v3.2.0 Nuclear Network Cleanup**: All legacy code and duplicate network logic removed. Network stack fully rewritten for production, with clean modular libp2p/discv5, deduplicated behaviour.rs, and zero build errors. Mainnet-ready and validated.
 
 ---
 
@@ -686,5 +686,5 @@ All integration points preserve immutable constraints and Guardian approval requ
 **Last Updated**: February 7, 2026  
 **Status**: Production Mainnet + AI Security Ready  
 **Network Health**: 4+ connected peers, fully synchronized, AI systems active  
-**PR Status**: v3.0.0 upgrade ready for review & merge  
+**PR Status**: v3.0.0 upgrade ready for review & merge
 
