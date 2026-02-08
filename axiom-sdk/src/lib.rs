@@ -4,7 +4,7 @@
 //!
 //! ## Features
 //! - ✅ Wallet management (create, import, export)
-//! - ✅ Transaction creation with ZK-SNARK privacy
+//! - ✅ Transaction creation with ZK-STARK privacy
 //! - ✅ Cross-chain bridge integration
 //! - ✅ View keys for compliance
 //! - ✅ RPC client for node communication

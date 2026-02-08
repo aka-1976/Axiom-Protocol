@@ -1,6 +1,5 @@
 use std::collections::HashSet;
-use libp2p::{gossipsub, mdns, kad, identify, swarm::{NetworkBehaviour, Swarm}, Multiaddr, StreamProtocol};
-use libp2p_swarm_derive::NetworkBehaviour;
+use libp2p::{gossipsub, mdns, identify, swarm::{NetworkBehaviour, Swarm}, Multiaddr, StreamProtocol};
 use log;
 use std::error::Error;
 use libp2p::identity;
@@ -26,18 +25,19 @@ impl ValidatorRegistry {
     }
 }
 
-/// Add external peer to the network
-pub fn add_external_peer(swarm: &mut Swarm<TimechainBehaviour>, peer_addr: &str, peer_id: &str) {
-    if let Ok(addr) = peer_addr.parse() {
-        // Safely parse peer ID instead of unwrapping
-        match peer_id.parse::<libp2p::PeerId>() {
-            Ok(parsed_peer_id) => {
-                swarm.behaviour_mut().kademlia.add_address(&parsed_peer_id, addr);
+/// Add external peer to the network via direct dial (Discv5 handles discovery externally)
+pub fn add_external_peer(swarm: &mut Swarm<TimechainBehaviour>, peer_addr: &str, _peer_id: &str) {
+    if let Ok(addr) = peer_addr.parse::<Multiaddr>() {
+        match swarm.dial(addr.clone()) {
+            Ok(_) => {
+                log::info!("✅ Dialing external peer at {}", addr);
             },
             Err(e) => {
-                eprintln!("⚠️  Failed to parse peer ID '{}': {}", peer_id, e);
+                eprintln!("⚠️  Failed to dial peer at '{}': {}", peer_addr, e);
             }
         }
+    } else {
+        eprintln!("⚠️  Failed to parse peer address '{}'", peer_addr);
     }
 }
 
@@ -94,7 +94,6 @@ impl request_response::Codec for ChainCodec {
 pub struct TimechainBehaviour {
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
-    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub identify: identify::Behaviour,
     pub request_response: request_response::Behaviour<ChainCodec>,
 }
@@ -103,7 +102,6 @@ pub struct TimechainBehaviour {
 pub enum TimechainBehaviourEvent {
     Gossipsub(gossipsub::Event),
     Mdns(mdns::Event),
-    Kademlia(kad::Event),
     Identify(identify::Event),
     RequestResponse(request_response::Event<ChainRequest, ChainResponse>),
 }
@@ -114,9 +112,6 @@ impl From<gossipsub::Event> for TimechainBehaviourEvent {
 }
 impl From<mdns::Event> for TimechainBehaviourEvent {
     fn from(event: mdns::Event) -> Self { Self::Mdns(event) }
-}
-impl From<kad::Event> for TimechainBehaviourEvent {
-    fn from(event: kad::Event) -> Self { Self::Kademlia(event) }
 }
 impl From<identify::Event> for TimechainBehaviourEvent {
     fn from(event: identify::Event) -> Self { Self::Identify(event) }
@@ -139,12 +134,11 @@ pub async fn init_network() -> Result<Swarm<TimechainBehaviour>, Box<dyn Error +
     init_network_with_bootstrap(peers).await
 }
 
-/// Initialize network with optional bootstrap peers
 /// Initialize network with advanced security: peer authentication, encrypted channels, rate limiting, and robust bootstrap logic.
+/// Discv5 handles peer discovery externally - peers are bridged to the swarm via manual dialing.
 pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result<Swarm<TimechainBehaviour>, Box<dyn Error + Send + Sync>> {
     // Use Ed25519 for strong peer identity
     let local_key = identity::Keypair::generate_ed25519();
-    let peer_id = local_key.public().to_peer_id();
     
     // Configure Yamux with longer idle timeout to prevent disconnects
     let yamux_config = libp2p::yamux::Config::default();
@@ -164,7 +158,6 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
                     gossipsub::Config::default(),
                 )?,
                 mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?,
-                kademlia: kad::Behaviour::new(key.public().to_peer_id(), kad::store::MemoryStore::new(key.public().to_peer_id())),
                 identify: identify::Behaviour::new(identify::Config::new("axiom/1.0.0".into(), key.public())),
                 request_response: {
                     // Support multiple protocol versions for compatibility
@@ -183,19 +176,25 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
         })
         .build();
 
-    // Add bootstrap peers to Kademlia with fallback and logging
-    let mut added = 0;
+    // Dial bootstrap peers directly (Discv5 handles discovery externally)
+    let mut dialed = 0;
     for addr_str in bootstrap_peers {
         if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-            let _ = swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
-            log::info!("Added bootstrap peer: {}", addr);
-            added += 1;
+            match swarm.dial(addr.clone()) {
+                Ok(_) => {
+                    log::info!("Dialing bootstrap peer: {}", addr);
+                    dialed += 1;
+                }
+                Err(e) => {
+                    log::warn!("Failed to dial bootstrap peer {}: {}", addr, e);
+                }
+            }
         } else {
             log::warn!("Invalid bootstrap peer address: {}", addr_str);
         }
     }
-    if added == 0 {
-        log::warn!("No valid bootstrap peers added. Node will rely on mDNS/local discovery.");
+    if dialed == 0 {
+        log::warn!("No valid bootstrap peers dialed. Node will rely on mDNS and Discv5 discovery.");
     }
     Ok(swarm)
 }

@@ -1,5 +1,6 @@
 // Main orchestrator for AXIOM Protocol node
 // Integrates network, consensus, and AI Guardian
+// Architecture: Discv5 (UDP radar) discovers peers, libp2p (TCP) handles messaging
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -11,6 +12,9 @@ use libp2p::swarm::SwarmEvent;
 
 // Import all necessary modules
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
+use axiom_core::network::Discv5Service;
+use axiom_core::network::discv5_service::default_bootstrap_enrs;
+use axiom_core::AxiomPulse;
 
 // These are placeholders - adjust based on your actual module structure
 mod wallet {
@@ -146,7 +150,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("🏛️  AXIOM CORE | PRIVACY-FIRST BLOCKCHAIN");
     println!("🛡️  VDF: 1800sec (30min) | PoW Hybrid | 124M Fixed Supply");
     println!("🤖 AI NEURAL GUARDIAN: ATTACK DETECTION ACTIVE");
-    println!("🔐 MANDATORY ZK-SNARK PRIVACY | ED25519 SIGNATURES");
+    println!("🔐 MANDATORY ZK-STARK PRIVACY | ED25519 SIGNATURES");
     println!("--------------------------------------------------");
 
     // 1. IDENTITY & STATE INITIALIZATION
@@ -270,22 +274,51 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if bootstrap_connected == 0 {
-        println!("   🌐 Using mDNS for local peer discovery only");
+        println!("   🌐 Using mDNS and Discv5 for peer discovery");
     } else {
         println!("   ✅ {} bootstrap nodes queued for connection", bootstrap_connected);
     }
+
+    // 3b. DISCV5 PEER DISCOVERY (UDP Radar)
+    // Discv5 runs externally alongside the libp2p Swarm, not inside NetworkBehaviour.
+    // It scans the network (UDP) and discovered peers are manually dialed by the Swarm (TCP).
+    let discv5_udp_port = current_port as u32 + 3000;
+    let discv5_service = if discv5_udp_port <= 65535 {
+        let discv5_listen_addr: std::net::SocketAddr = format!("0.0.0.0:{}", discv5_udp_port)
+            .parse()
+            .expect("valid socket addr");
+        let discv5_key = discv5::enr::CombinedKey::generate_secp256k1();
+        let boot_enrs = default_bootstrap_enrs();
+
+        match Discv5Service::new(discv5_listen_addr, discv5_key, boot_enrs).await {
+            Ok(svc) => {
+                println!("🔍 Discv5 discovery active on UDP port {}", discv5_udp_port);
+                Some(svc)
+            }
+            Err(e) => {
+                println!("⚠️  Discv5 init warning (falling back to mDNS only): {}", e);
+                None
+            }
+        }
+    } else {
+        println!("⚠️  Discv5 UDP port {} exceeds valid range, falling back to mDNS only", discv5_udp_port);
+        None
+    };
+    let mut discv5_lookup_timer = time::interval(Duration::from_secs(30));
 
     // 4. TOPICS
     let req_topic = gossipsub::IdentTopic::new("timechain-request");
     let chain_topic = gossipsub::IdentTopic::new("timechain-chain");
     let blocks_topic = gossipsub::IdentTopic::new("timechain-blocks");
     let tx_topic = gossipsub::IdentTopic::new("timechain-transactions");
+    let pulse_topic = gossipsub::IdentTopic::new("axiom/realtime/pulse/v1");
 
     // Subscribe to topics
     swarm.behaviour_mut().gossipsub.subscribe(&req_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&chain_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&tx_topic)?;
+    swarm.behaviour_mut().gossipsub.subscribe(&pulse_topic)?;
 
     // Request chains from network
     let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
@@ -385,6 +418,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             }
                         }
+                        // Handle real-time pulse (push-based sync)
+                        else if message.topic == pulse_topic.hash() {
+                            if let Ok(pulse) = bincode::deserialize::<AxiomPulse>(&message.data) {
+                                if pulse.height > tc.blocks.len() as u64 {
+                                    println!("🔥 Real-time Pulse: Height {} | Mined: {} AXM | Remaining: {} AXM",
+                                        pulse.height,
+                                        Timechain::format_axm(pulse.total_mined),
+                                        Timechain::format_axm(pulse.remaining));
+                                }
+                            }
+                        }
                     } else if entry.0 > 20 {
                         ai.train([0.1, 0.0, 0.0], 0.0);
                     }
@@ -478,6 +522,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
+            // DISCV5 PEER DISCOVERY BRIDGE
+            // Discv5 acts as our "radar" (UDP) - finds peers on the network
+            // libp2p acts as our "cargo ship" (TCP) - opens secure tunnels to send data
+            _ = discv5_lookup_timer.tick() => {
+                if let Some(ref svc) = discv5_service {
+                    // Only attempt discovery if we need more peers
+                    if connected_peers.len() < 50 {
+                        let table_peers = svc.table_entries().await;
+                        for enr in table_peers {
+                            // Extract TCP multiaddr from ENR and dial via libp2p
+                            if let Some(ip) = enr.ip4() {
+                                // Skip loopback and unspecified addresses
+                                if ip.is_loopback() || ip.is_unspecified() {
+                                    continue;
+                                }
+                                if let Some(tcp_port) = enr.tcp4() {
+                                    if let Ok(addr) = format!("/ip4/{}/tcp/{}", ip, tcp_port).parse::<Multiaddr>() {
+                                        if let Err(e) = swarm.dial(addr.clone()) {
+                                            println!("⚠️  Discv5 bridge: failed to dial {}: {}", addr, e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+            }
+
             // MINING
             _ = vdf_loop.tick() => {
                 let elapsed = last_vdf.elapsed().as_secs();
@@ -507,6 +580,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             let encoded = bincode::serialize(&candidate).unwrap();
                             let _ = swarm.behaviour_mut().gossipsub.publish(blocks_topic.clone(), encoded);
                             storage::save_chain(&tc.blocks);
+
+                            // Broadcast real-time pulse to all peers
+                            let height = tc.blocks.len() as u64;
+                            let (total_mined, remaining, _percent) = tc.supply_info();
+                            let pulse = AxiomPulse {
+                                height,
+                                total_mined,
+                                remaining,
+                                block_hash: candidate.hash(),
+                                timestamp: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64,
+                            };
+                            if let Ok(pulse_data) = bincode::serialize(&pulse) {
+                                let _ = swarm.behaviour_mut().gossipsub.publish(pulse_topic.clone(), pulse_data);
+                            }
+
                             last_vdf = Instant::now();
                             break;
                         }

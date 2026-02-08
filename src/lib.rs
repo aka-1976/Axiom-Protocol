@@ -3,6 +3,25 @@ pub mod error;
 pub mod config;
 pub mod mempool;
 
+/// Real-time network pulse for instant block/supply synchronization.
+///
+/// Broadcast via Gossipsub topic `axiom/realtime/pulse/v1` the instant a
+/// new block is mined. Receivers verify freshness via the BLAKE3
+/// `block_hash` before updating their local state.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct AxiomPulse {
+    /// Current block height
+    pub height: u64,
+    /// Cumulative AXM mined (in smallest units)
+    pub total_mined: u64,
+    /// Remaining supply: TOTAL_SUPPLY - total_mined
+    pub remaining: u64,
+    /// BLAKE3 hash of the latest block
+    pub block_hash: [u8; 32],
+    /// Unix timestamp (seconds) for freshness check
+    pub timestamp: i64,
+}
+
 // Core modules
 pub mod zk;
 pub mod consensus; // VDF consensus implementation

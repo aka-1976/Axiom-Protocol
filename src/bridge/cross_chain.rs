@@ -209,7 +209,7 @@ impl BridgeContract {
     }
     
     fn generate_lock_proof(&self, _sender: String, _amount: u64) -> Result<Vec<u8>, String> {
-        // Generate ZK-SNARK proof that:
+        // Generate ZK-STARK proof that:
         // 1. User has sufficient balance
         // 2. Lock is authorized
         // 3. Amount is valid
@@ -219,7 +219,7 @@ impl BridgeContract {
     }
     
     fn verify_bridge_proof(&self, proof: &[u8]) -> Result<bool, String> {
-        // Verify ZK-SNARK proof on destination chain
+        // Verify ZK-STARK proof on destination chain
         // This is fast (~10ms) even though proof generation is slow
         
         Ok(!proof.is_empty()) // Placeholder verification

@@ -60,8 +60,8 @@ pub struct NetworkConfig {
     pub max_outbound_peers: usize,
     /// Enable mDNS local discovery
     pub enable_mdns: bool,
-    /// Enable Kademlia DHT
-    pub enable_kademlia: bool,
+    /// Enable Discv5 peer discovery
+    pub enable_discv5: bool,
     /// Connection timeout (seconds)
     pub connection_timeout: u64,
     /// Gossipsub heartbeat interval (seconds)
@@ -200,7 +200,7 @@ impl Default for NetworkConfig {
             max_inbound_peers: 30,
             max_outbound_peers: 20,
             enable_mdns: true,
-            enable_kademlia: true,
+            enable_discv5: true,
             connection_timeout: 30,
             gossip_heartbeat: 1,
             network_id: 1,
