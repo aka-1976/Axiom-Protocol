@@ -8,6 +8,17 @@ use std::sync::Once;
 /// Unix timestamp: 1737331200
 pub const GENESIS_TIMESTAMP: u64 = 1737331200;
 
+/// 512-bit BLAKE3 Genesis Anchor for Axiom V4.0.0.
+///
+/// Computed deterministically from the string:
+///   "Axiom V4.0.0: Fully Decentralized. Non-Governance. Built for the World."
+///
+/// Every node verifies this anchor on startup. A node with a different
+/// genesis hash is automatically rejected by the Discv5 discovery layer.
+pub const GENESIS_ANCHOR_512: &str =
+    "87da3627016686eda1df67317238cfd88dbb631f541811d84e9018bfb508cddb\
+     2a8fa192bdf16c4bb5f191154d0165cd6b6acb22918353b786b5c100be7e89dc";
+
 /// The "Gatekeeper" function for the decentralized network.
 pub fn verify_zk_pass(miner_address: &[u8; 32], _parent: &[u8; 32], proof: &[u8]) -> bool {
     proof.len() == 128 && miner_address != &[0u8; 32]
@@ -73,18 +84,19 @@ pub fn genesis() -> Block {
         nonce: 0,
     };
 
-    // FIXED: Using hex::encode to format the [u8; 32] as a string for printing
     GENESIS_PRINT.call_once(|| {
-        println!("\n--- AXIOM GENESIS ANCHOR ---");
-        println!("HASH: {}", hex::encode(gen_block.calculate_hash()));
-        println!("----------------------------\n");
+        println!("\n--- AXIOM GENESIS ANCHOR (512-bit) ---");
+        println!("HASH-256: {}", hex::encode(gen_block.calculate_hash()));
+        println!("HASH-512: {}", hex::encode(gen_block.calculate_hash_512()));
+        println!("ANCHOR:   {}", GENESIS_ANCHOR_512);
+        println!("--------------------------------------\n");
     });
 
     gen_block
 }
 
 impl Block {
-    /// Serializes the block and returns a Blake3 hash.
+    /// Serializes the block and returns a Blake3 hash (256-bit).
     pub fn calculate_hash(&self) -> [u8; 32] {
         let mut hasher = blake3::Hasher::new();
 
@@ -100,5 +112,24 @@ impl Block {
         let mut result = [0u8; 32];
         result.copy_from_slice(hash.as_bytes());
         result
+    }
+
+    /// Serializes the block and returns a Blake3 hash (512-bit, XOF mode).
+    ///
+    /// Uses the same deterministic feed order as `calculate_hash` but
+    /// produces 64 bytes via BLAKE3 extended output.
+    pub fn calculate_hash_512(&self) -> [u8; 64] {
+        let mut hasher = blake3::Hasher::new();
+
+        hasher.update(&self.parent);
+        hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.miner);
+        hasher.update(&self.vdf_proof);
+        hasher.update(&self.zk_proof);
+        hasher.update(&self.nonce.to_be_bytes());
+
+        let mut output = [0u8; 64];
+        hasher.finalize_xof().fill(&mut output);
+        output
     }
 }

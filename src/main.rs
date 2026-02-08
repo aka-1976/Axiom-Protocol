@@ -132,6 +132,11 @@ impl Block {
         hasher.finalize().into()
     }
 
+    /// 512-bit BLAKE3 block hash via extended output (XOF) mode.
+    pub fn hash_512(&self) -> [u8; 64] {
+        axiom_core::axiom_hash_512(&bincode::serialize(self).unwrap_or_default())
+    }
+
     pub fn meets_difficulty(&self, difficulty: u64) -> bool {
         let hash = self.hash();
         let hash_num = u64::from_le_bytes(hash[0..8].try_into().unwrap());
@@ -591,7 +596,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 height,
                                 total_mined,
                                 remaining,
-                                block_hash: candidate.hash(),
+                                block_hash: candidate.hash_512(),
+                                oracle_seal: [0u8; 64],
                                 timestamp: std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
