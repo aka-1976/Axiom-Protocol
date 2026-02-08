@@ -311,6 +311,12 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 // Deterministic AI Oracle — 512-bit seal generation
 // ---------------------------------------------------------------------------
 
+/// Local AI model used for deterministic oracle inference.
+const ORACLE_MODEL: &str = "llama3.2:1b";
+
+/// Fixed seed for deterministic LLM output (every node must use the same seed).
+const DETERMINISTIC_SEED: u64 = 42;
+
 /// Query a local AI model (Ollama) at temperature 0 and produce a
 /// deterministic 512-bit BLAKE3 seal of the response.
 ///
@@ -335,10 +341,10 @@ async fn query_local_model(query: &str) -> Result<String, String> {
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
     let body = serde_json::json!({
-        "model": "llama3.2:1b",
+        "model": ORACLE_MODEL,
         "prompt": query,
         "stream": false,
-        "options": { "temperature": 0.0, "seed": 42 }
+        "options": { "temperature": 0.0, "seed": DETERMINISTIC_SEED }
     });
 
     let resp = client
