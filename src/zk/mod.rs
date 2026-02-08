@@ -32,9 +32,9 @@ pub fn generate_transaction_proof(
     use winterfell::math::fields::f128::BaseElement;
 
     let secret_fr = circuit::bytes_to_field(secret_key);
-    let balance_fr = BaseElement::from(current_balance as u128);
-    let amount_fr = BaseElement::from(transfer_amount as u128);
-    let fee_fr = BaseElement::from(fee as u128);
+    let balance_fr = BaseElement::new(current_balance as u128);
+    let amount_fr = BaseElement::new(transfer_amount as u128);
+    let fee_fr = BaseElement::new(fee as u128);
 
     println!("[ZK-STARK DEBUG] Proof Generation:");
     println!("  balance:  {}", current_balance);
@@ -45,7 +45,7 @@ pub fn generate_transaction_proof(
     let system = circuit::ZkProofSystem::setup()
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
-    let nonce_fr = BaseElement::from(0u128);
+    let nonce_fr = BaseElement::new(0u128);
     let (proof, _public_inputs) = system
         .prove(secret_fr, balance_fr, nonce_fr, amount_fr, fee_fr)
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
@@ -70,7 +70,7 @@ pub fn verify_transaction_proof(
     std::io::stdout().flush().unwrap();
 
     use winterfell::math::fields::f128::BaseElement;
-    use winterfell::StarkProof;
+    use winterfell::Proof;
 
     // Mining proofs are fixed-size hash-based proofs (MINING_PROOF_SIZE bytes).
     // STARK proofs are larger and variable-sized.
@@ -85,7 +85,7 @@ pub fn verify_transaction_proof(
     }
 
     // STARK proof deserialization
-    let proof = match StarkProof::from_bytes(&proof_bytes) {
+    let proof = match Proof::from_bytes(&proof_bytes) {
         Ok(p) => p,
         Err(e) => {
             println!("[ZK-STARK DEBUG] Proof deserialization error: {:?}", e);
@@ -99,8 +99,8 @@ pub fn verify_transaction_proof(
 
     // Reconstruct public inputs from the address and transaction data
     let address_fr = circuit::bytes_to_field(public_address);
-    let amount_fr = BaseElement::from(transfer_amount as u128);
-    let fee_fr = BaseElement::from(fee as u128);
+    let amount_fr = BaseElement::new(transfer_amount as u128);
+    let fee_fr = BaseElement::new(fee as u128);
 
     // For verification, we need the original public inputs
     // In a full implementation these would be stored alongside the proof
@@ -114,7 +114,16 @@ pub fn verify_transaction_proof(
         new_balance_commitment,
     };
 
-    match winterfell::verify::<circuit::AxiomTransactionAir>(proof, pub_inputs) {
+    use winterfell::crypto::{hashers::Blake3_256, DefaultRandomCoin};
+    use winterfell::AcceptableOptions;
+
+    let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+
+    match winterfell::verify::<
+        circuit::AxiomTransactionAir,
+        Blake3_256<BaseElement>,
+        DefaultRandomCoin<Blake3_256<BaseElement>>,
+    >(proof, pub_inputs, &min_opts) {
         Ok(_) => {
             println!("[ZK-STARK DEBUG] Proof verification: VALID");
             std::io::stdout().flush().unwrap();

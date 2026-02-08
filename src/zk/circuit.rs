@@ -13,9 +13,13 @@ use std::path::Path;
 
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement, StarkField, ToElements},
+    crypto::{hashers::Blake3_256, DefaultRandomCoin},
     Air, AirContext, Assertion, EvaluationFrame, FieldExtension,
-    HashFunction, ProofOptions, TraceInfo, TransitionConstraintDegree,
-    StarkProof, Prover, Trace, TraceTable,
+    ProofOptions, TraceInfo, TransitionConstraintDegree,
+    Proof, Prover, Trace, TraceTable,
+    DefaultTraceLde, DefaultConstraintEvaluator,
+    AcceptableOptions, matrix::ColMatrix, StarkDomain, TracePolyTable,
+    AuxRandElements, ConstraintCompositionCoefficients,
 };
 
 // ========================
@@ -67,6 +71,8 @@ pub struct AxiomTransactionAir {
 impl Air for AxiomTransactionAir {
     type BaseField = BaseElement;
     type PublicInputs = TransactionPublicInputs;
+    type GkrProof = ();
+    type GkrVerifier = ();
 
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
         // We have 3 transition constraints of degree 1
@@ -199,6 +205,11 @@ impl Prover for AxiomTransactionProver {
     type BaseField = BaseElement;
     type Air = AxiomTransactionAir;
     type Trace = TraceTable<BaseElement>;
+    type HashFn = Blake3_256<BaseElement>;
+    type RandomCoin = DefaultRandomCoin<Self::HashFn>;
+    type TraceLde<E: FieldElement<BaseField = Self::BaseField>> = DefaultTraceLde<E, Self::HashFn>;
+    type ConstraintEvaluator<'a, E: FieldElement<BaseField = Self::BaseField>> =
+        DefaultConstraintEvaluator<'a, Self::Air, E>;
 
     fn get_pub_inputs(&self, _trace: &Self::Trace) -> TransactionPublicInputs {
         self.public_inputs.clone()
@@ -206,6 +217,24 @@ impl Prover for AxiomTransactionProver {
 
     fn options(&self) -> &ProofOptions {
         &self.options
+    }
+
+    fn new_trace_lde<E: FieldElement<BaseField = Self::BaseField>>(
+        &self,
+        trace_info: &TraceInfo,
+        main_trace: &ColMatrix<Self::BaseField>,
+        domain: &StarkDomain<Self::BaseField>,
+    ) -> (Self::TraceLde<E>, TracePolyTable<E>) {
+        DefaultTraceLde::new(trace_info, main_trace, domain)
+    }
+
+    fn new_evaluator<'a, E: FieldElement<BaseField = Self::BaseField>>(
+        &self,
+        air: &'a Self::Air,
+        aux_rand_elements: Option<AuxRandElements<E>>,
+        composition_coefficients: ConstraintCompositionCoefficients<E>,
+    ) -> Self::ConstraintEvaluator<'a, E> {
+        DefaultConstraintEvaluator::new(air, aux_rand_elements, composition_coefficients)
     }
 }
 
@@ -283,9 +312,9 @@ impl ZkProofSystem {
         nonce: BaseElement,
         transfer_amount: BaseElement,
         fee: BaseElement,
-    ) -> Result<(StarkProof, Vec<BaseElement>), String> {
+    ) -> Result<(Proof, Vec<BaseElement>), String> {
         // Pre-check: fail fast if balance is insufficient
-        if current_balance < transfer_amount + fee {
+        if current_balance.as_int() < (transfer_amount + fee).as_int() {
             return Err(format!(
                 "Insufficient balance: have {}, need {} (amount) + {} (fee)",
                 current_balance, transfer_amount, fee,
@@ -325,7 +354,7 @@ impl ZkProofSystem {
     pub fn prove_batch(
         &self,
         transactions: Vec<(BaseElement, BaseElement, BaseElement, BaseElement, BaseElement)>,
-    ) -> Result<Vec<(StarkProof, Vec<BaseElement>)>, String> {
+    ) -> Result<Vec<(Proof, Vec<BaseElement>)>, String> {
         transactions
             .into_iter()
             .map(|(sk, balance, nonce, amount, fee)| self.prove(sk, balance, nonce, amount, fee))
@@ -335,7 +364,7 @@ impl ZkProofSystem {
     /// Verify a STARK proof
     pub fn verify(
         &self,
-        proof: &StarkProof,
+        proof: &Proof,
         public_inputs: &[BaseElement],
     ) -> Result<bool, String> {
         if public_inputs.len() != 4 {
@@ -349,7 +378,13 @@ impl ZkProofSystem {
             new_balance_commitment: public_inputs[3],
         };
 
-        match winterfell::verify::<AxiomTransactionAir>(proof.clone(), pub_inputs) {
+        let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+
+        match winterfell::verify::<
+            AxiomTransactionAir,
+            Blake3_256<BaseElement>,
+            DefaultRandomCoin<Blake3_256<BaseElement>>,
+        >(proof.clone(), pub_inputs, &min_opts) {
             Ok(_) => Ok(true),
             Err(e) => {
                 // Verification failed - proof is invalid
@@ -371,13 +406,13 @@ pub fn bytes_to_field(bytes: &[u8]) -> BaseElement {
     buf.copy_from_slice(&hash[..16]);
     // Clear top bit to ensure we're within field modulus
     buf[15] &= 0x7f;
-    BaseElement::from(u128::from_le_bytes(buf))
+    BaseElement::new(u128::from_le_bytes(buf))
 }
 
 /// Generate a commitment from secret key and nonce
 pub fn generate_commitment(secret_key: &[u8], nonce: u64) -> BaseElement {
     let sk = bytes_to_field(secret_key);
-    let n = BaseElement::from(nonce as u128);
+    let n = BaseElement::new(nonce as u128);
     sk + n
 }
 
@@ -400,11 +435,11 @@ mod tests {
     fn test_proof_generation_and_verification() {
         let system = ZkProofSystem::setup().unwrap();
 
-        let secret_key = BaseElement::from(12345u128);
-        let balance = BaseElement::from(1000u128);
-        let nonce = BaseElement::from(1u128);
-        let amount = BaseElement::from(100u128);
-        let fee = BaseElement::from(10u128);
+        let secret_key = BaseElement::new(12345u128);
+        let balance = BaseElement::new(1000u128);
+        let nonce = BaseElement::new(1u128);
+        let amount = BaseElement::new(100u128);
+        let fee = BaseElement::new(10u128);
 
         let (proof, public_inputs) = system.prove(secret_key, balance, nonce, amount, fee).unwrap();
         let valid = system.verify(&proof, &public_inputs).unwrap();
@@ -416,11 +451,11 @@ mod tests {
     fn test_insufficient_balance_fails() {
         let system = ZkProofSystem::setup().unwrap();
 
-        let secret_key = BaseElement::from(12345u128);
-        let balance = BaseElement::from(50u128); // Not enough
-        let nonce = BaseElement::from(1u128);
-        let amount = BaseElement::from(100u128);
-        let fee = BaseElement::from(10u128);
+        let secret_key = BaseElement::new(12345u128);
+        let balance = BaseElement::new(50u128); // Not enough
+        let nonce = BaseElement::new(1u128);
+        let amount = BaseElement::new(100u128);
+        let fee = BaseElement::new(10u128);
 
         let result = system.prove(secret_key, balance, nonce, amount, fee);
         assert!(result.is_err(), "Should fail with insufficient balance");
@@ -431,11 +466,11 @@ mod tests {
     fn test_zero_amount_transaction() {
         let system = ZkProofSystem::setup().unwrap();
 
-        let secret_key = BaseElement::from(12345u128);
-        let balance = BaseElement::from(1000u128);
-        let nonce = BaseElement::from(1u128);
-        let amount = BaseElement::from(0u128);
-        let fee = BaseElement::from(10u128);
+        let secret_key = BaseElement::new(12345u128);
+        let balance = BaseElement::new(1000u128);
+        let nonce = BaseElement::new(1u128);
+        let amount = BaseElement::new(0u128);
+        let fee = BaseElement::new(10u128);
 
         let (proof, public_inputs) = system.prove(secret_key, balance, nonce, amount, fee).unwrap();
         let valid = system.verify(&proof, &public_inputs).unwrap();
@@ -447,11 +482,11 @@ mod tests {
     fn test_exact_balance_transaction() {
         let system = ZkProofSystem::setup().unwrap();
 
-        let secret_key = BaseElement::from(12345u128);
-        let balance = BaseElement::from(110u128);
-        let nonce = BaseElement::from(1u128);
-        let amount = BaseElement::from(100u128);
-        let fee = BaseElement::from(10u128);
+        let secret_key = BaseElement::new(12345u128);
+        let balance = BaseElement::new(110u128);
+        let nonce = BaseElement::new(1u128);
+        let amount = BaseElement::new(100u128);
+        let fee = BaseElement::new(10u128);
 
         let (proof, public_inputs) = system.prove(secret_key, balance, nonce, amount, fee).unwrap();
         let valid = system.verify(&proof, &public_inputs).unwrap();
@@ -464,9 +499,9 @@ mod tests {
         let system = ZkProofSystem::setup().unwrap();
 
         let transactions = vec![
-            (BaseElement::from(111u128), BaseElement::from(1000u128), BaseElement::from(1u128), BaseElement::from(100u128), BaseElement::from(10u128)),
-            (BaseElement::from(222u128), BaseElement::from(2000u128), BaseElement::from(2u128), BaseElement::from(200u128), BaseElement::from(20u128)),
-            (BaseElement::from(333u128), BaseElement::from(3000u128), BaseElement::from(3u128), BaseElement::from(300u128), BaseElement::from(30u128)),
+            (BaseElement::new(111u128), BaseElement::new(1000u128), BaseElement::new(1u128), BaseElement::new(100u128), BaseElement::new(10u128)),
+            (BaseElement::new(222u128), BaseElement::new(2000u128), BaseElement::new(2u128), BaseElement::new(200u128), BaseElement::new(20u128)),
+            (BaseElement::new(333u128), BaseElement::new(3000u128), BaseElement::new(3u128), BaseElement::new(300u128), BaseElement::new(30u128)),
         ];
 
         let results = system.prove_batch(transactions).unwrap();

@@ -5,9 +5,13 @@
 use serde::{Serialize, Deserialize};
 use winterfell::{
     math::{fields::f128::BaseElement, FieldElement, StarkField, ToElements},
+    crypto::{hashers::Blake3_256, DefaultRandomCoin},
     Air, AirContext, Assertion, EvaluationFrame, FieldExtension,
     ProofOptions, TraceInfo, TransitionConstraintDegree,
-    StarkProof, Prover, TraceTable,
+    Proof, Prover, TraceTable,
+    DefaultTraceLde, DefaultConstraintEvaluator,
+    AcceptableOptions, matrix::ColMatrix, StarkDomain, TracePolyTable,
+    AuxRandElements, ConstraintCompositionCoefficients,
 };
 use sha2::{Sha256, Digest};
 
@@ -80,6 +84,8 @@ pub struct TransactionAir {
 impl Air for TransactionAir {
     type BaseField = BaseElement;
     type PublicInputs = TxPublicInputs;
+    type GkrProof = ();
+    type GkrVerifier = ();
 
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
         let degrees = vec![
@@ -142,6 +148,11 @@ impl Prover for TransactionProver {
     type BaseField = BaseElement;
     type Air = TransactionAir;
     type Trace = TraceTable<BaseElement>;
+    type HashFn = Blake3_256<BaseElement>;
+    type RandomCoin = DefaultRandomCoin<Self::HashFn>;
+    type TraceLde<E: FieldElement<BaseField = Self::BaseField>> = DefaultTraceLde<E, Self::HashFn>;
+    type ConstraintEvaluator<'a, E: FieldElement<BaseField = Self::BaseField>> =
+        DefaultConstraintEvaluator<'a, Self::Air, E>;
 
     fn get_pub_inputs(&self, _trace: &Self::Trace) -> TxPublicInputs {
         self.public_inputs.clone()
@@ -149,6 +160,24 @@ impl Prover for TransactionProver {
 
     fn options(&self) -> &ProofOptions {
         &self.options
+    }
+
+    fn new_trace_lde<E: FieldElement<BaseField = Self::BaseField>>(
+        &self,
+        trace_info: &TraceInfo,
+        main_trace: &ColMatrix<Self::BaseField>,
+        domain: &StarkDomain<Self::BaseField>,
+    ) -> (Self::TraceLde<E>, TracePolyTable<E>) {
+        DefaultTraceLde::new(trace_info, main_trace, domain)
+    }
+
+    fn new_evaluator<'a, E: FieldElement<BaseField = Self::BaseField>>(
+        &self,
+        air: &'a Self::Air,
+        aux_rand_elements: Option<AuxRandElements<E>>,
+        composition_coefficients: ConstraintCompositionCoefficients<E>,
+    ) -> Self::ConstraintEvaluator<'a, E> {
+        DefaultConstraintEvaluator::new(air, aux_rand_elements, composition_coefficients)
     }
 }
 
@@ -177,7 +206,7 @@ fn bytes_to_field(bytes: &[u8]) -> BaseElement {
     let mut buf = [0u8; 16];
     buf.copy_from_slice(&hash[..16]);
     buf[15] &= 0x7f;
-    BaseElement::from(u128::from_le_bytes(buf))
+    BaseElement::new(u128::from_le_bytes(buf))
 }
 
 /// Prove: Generate STARK proof that transaction is valid
@@ -197,10 +226,10 @@ pub fn prove_transaction(
 ) -> Result<ProofData, String> {
     let sender_hash = bytes_to_field(from);
     let recipient_hash = bytes_to_field(to);
-    let amount_fe = BaseElement::from(amount as u128);
-    let fee_fe = BaseElement::from(fee as u128);
-    let nonce_fe = BaseElement::from(nonce as u128);
-    let balance_fe = BaseElement::from(sender_balance as u128);
+    let amount_fe = BaseElement::new(amount as u128);
+    let fee_fe = BaseElement::new(fee as u128);
+    let nonce_fe = BaseElement::new(nonce as u128);
+    let balance_fe = BaseElement::new(sender_balance as u128);
 
     // Pre-check solvency
     if sender_balance < amount + fee {
@@ -271,14 +300,14 @@ pub fn verify_zk_transaction_proof(
     nonce: u64,
     proof_data: &ProofData,
 ) -> Result<bool, String> {
-    let proof = StarkProof::from_bytes(&proof_data.proof)
+    let proof = Proof::from_bytes(&proof_data.proof)
         .map_err(|e| format!("Proof deserialization failed: {:?}", e))?;
 
     let sender_hash = bytes_to_field(from);
     let recipient_hash = bytes_to_field(to);
-    let amount_fe = BaseElement::from(amount as u128);
-    let fee_fe = BaseElement::from(fee as u128);
-    let nonce_fe = BaseElement::from(nonce as u128);
+    let amount_fe = BaseElement::new(amount as u128);
+    let fee_fe = BaseElement::new(fee as u128);
+    let nonce_fe = BaseElement::new(nonce as u128);
 
     let pub_inputs = TxPublicInputs {
         sender_hash,
@@ -288,7 +317,13 @@ pub fn verify_zk_transaction_proof(
         nonce: nonce_fe,
     };
 
-    winterfell::verify::<TransactionAir>(proof, pub_inputs)
+    let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+
+    winterfell::verify::<
+        TransactionAir,
+        Blake3_256<BaseElement>,
+        DefaultRandomCoin<Blake3_256<BaseElement>>,
+    >(proof, pub_inputs, &min_opts)
         .map(|_| true)
         .map_err(|e| format!("Verification failed: {:?}", e))
 }

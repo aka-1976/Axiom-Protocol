@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use tokio::time;
 use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
+use futures::StreamExt;
 
 // Import all necessary modules
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
@@ -40,6 +41,7 @@ mod ai_guardian {
 
 mod timechain {
     use super::Block;
+    use super::Transaction;
     pub struct Timechain {
         pub blocks: Vec<Block>,
         pub difficulty: u64,
@@ -189,9 +191,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect();
 
     let mut swarm: Swarm<axiom_core::network_legacy::TimechainBehaviour> = if !bootstrap_peers.is_empty() {
-        init_network_with_bootstrap(bootstrap_peers).await?
+        init_network_with_bootstrap(bootstrap_peers).await
+            .map_err(|e| -> Box<dyn Error> { e })?
     } else {
-        init_network().await?
+        init_network().await
+            .map_err(|e| -> Box<dyn Error> { e })?
     };
 
     // Port Binding Logic
@@ -547,7 +551,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                     }
-                }
                 }
             }
 
