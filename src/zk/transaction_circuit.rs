@@ -182,6 +182,10 @@ fn bytes_to_field(bytes: &[u8]) -> BaseElement {
 
 /// Prove: Generate STARK proof that transaction is valid
 /// No trusted setup needed - the prover generates everything from scratch.
+///
+/// Note: `sender_secret_key` is used indirectly through the `from` address
+/// (which is derived from the secret key). In STARKs, ownership is proven
+/// via the execution trace constraints, not explicit key revelation.
 pub fn prove_transaction(
     from: &[u8; 32],
     to: &[u8; 32],

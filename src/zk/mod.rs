@@ -3,6 +3,10 @@ use std::fs;
 use std::path::Path;
 use std::io::Write;
 
+/// Mining proofs use a fixed 128-byte hash-based format (lightweight).
+/// STARK proofs are larger and variable-sized (used for full transaction privacy).
+const MINING_PROOF_SIZE: usize = 128;
+
 // Production ZK-STARK implementation
 pub mod transaction_circuit;
 
@@ -68,8 +72,9 @@ pub fn verify_transaction_proof(
     use winterfell::math::fields::f128::BaseElement;
     use winterfell::StarkProof;
 
-    // For the simplified mining proof path, just validate the hash
-    if proof_bytes.len() == 128 {
+    // Mining proofs are fixed-size hash-based proofs (MINING_PROOF_SIZE bytes).
+    // STARK proofs are larger and variable-sized.
+    if proof_bytes.len() == MINING_PROOF_SIZE {
         // This is a mining proof - use hash-based verification
         let mut hasher = Sha256::new();
         hasher.update(public_address);
@@ -127,7 +132,7 @@ pub fn verify_transaction_proof(
 pub fn generate_zk_pass(wallet_secret: &[u8; 32], parent_hash: [u8; 32]) -> Vec<u8> {
     // For mining, we use a lightweight hash-based proof
     // STARK proofs are used for full transaction privacy
-    let mut proof_data = vec![0u8; 128];
+    let mut proof_data = vec![0u8; MINING_PROOF_SIZE];
     let mut hasher = Sha256::new();
     hasher.update(wallet_secret);
     hasher.update(parent_hash);
@@ -140,7 +145,7 @@ pub fn generate_zk_pass(wallet_secret: &[u8; 32], parent_hash: [u8; 32]) -> Vec<
 
 /// Verify mining proof
 pub fn verify_zk_pass(miner_address: &[u8; 32], _parent: &[u8; 32], proof: &[u8]) -> bool {
-    if proof.len() != 128 {
+    if proof.len() != MINING_PROOF_SIZE {
         return false;
     }
 
