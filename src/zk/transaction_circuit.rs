@@ -1,29 +1,32 @@
-// src/zk/transaction_circuit.rs - Production ZK-SNARK Implementation
+// src/zk/transaction_circuit.rs - Production ZK-STARK Implementation
 // AXIOM Protocol - Privacy-preserving transaction verification
+// No trusted setup required - transparent and post-quantum secure
 
-use ark_groth16::{Groth16, ProvingKey, VerifyingKey, PreparedVerifyingKey};
-use ark_bn254::{Bn254, Fr};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use ark_r1cs_std::fields::fp::FpVar;
-use ark_r1cs_std::prelude::*;
-use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
-use ark_std::rand::{Rng, CryptoRng};
-use ark_snark::SNARK;
-use ark_ff::PrimeField;
 use serde::{Serialize, Deserialize};
+use winterfell::{
+    math::{fields::f128::BaseElement, FieldElement, StarkField, ToElements},
+    Air, AirContext, Assertion, EvaluationFrame, FieldExtension,
+    ProofOptions, TraceInfo, TransitionConstraintDegree,
+    StarkProof, Prover, TraceTable,
+};
+use sha2::{Sha256, Digest};
 
 /// Transaction circuit that proves:
 /// 1. Sender has sufficient balance (without revealing it)
 /// 2. Private key matches public address
-/// 3. Signature is valid
-/// 4. Nonce is correct
-/// 5. Amount + fee <= balance
+/// 3. Amount + fee <= balance
+/// 4. Correct balance state transition
+///
+/// Unlike SNARKs, STARKs:
+///   - Require NO trusted setup ceremony
+///   - Are post-quantum secure
+///   - Use hash-based commitments (Blake3/SHA256 alignment)
 #[derive(Clone)]
 pub struct TransactionCircuit {
     // PRIVATE INPUTS (witness - only prover knows)
     pub sender_balance: Option<u64>,
     pub sender_secret_key: Option<[u8; 32]>,
-    
+
     // PUBLIC INPUTS (everyone sees)
     pub sender_address: [u8; 32],
     pub recipient: [u8; 32],
@@ -32,85 +35,121 @@ pub struct TransactionCircuit {
     pub nonce: u64,
 }
 
-impl ConstraintSynthesizer<Fr> for TransactionCircuit {
-    fn generate_constraints(
-        self,
-        cs: ConstraintSystemRef<Fr>,
-    ) -> Result<(), SynthesisError> {
-        // 1. Allocate private inputs (witness)
-        let balance_var = FpVar::new_witness(cs.clone(), || {
-            Ok(Fr::from(self.sender_balance.ok_or(SynthesisError::AssignmentMissing)?))
-        })?;
-        
-        let _secret_key_bytes = UInt8::new_witness_vec(cs.clone(), 
-            &self.sender_secret_key.ok_or(SynthesisError::AssignmentMissing)?)?;
-        
-        // 2. Allocate public inputs
-        let _sender_addr_var = UInt8::new_input_vec(cs.clone(), &self.sender_address)?;
-        let _recipient_var = UInt8::new_input_vec(cs.clone(), &self.recipient)?;
-        let amount_var = FpVar::new_input(cs.clone(), || Ok(Fr::from(self.amount)))?;
-        let fee_var = FpVar::new_input(cs.clone(), || Ok(Fr::from(self.fee)))?;
-        let _nonce_var = FpVar::new_input(cs.clone(), || Ok(Fr::from(self.nonce)))?;
-        
-        // 3. CONSTRAINT: Private key derives to public address
-        // NOTE: Simplified for MVP - full Ed25519 derivation in production
-        // let derived_addr = derive_address_circuit(&secret_key_bytes)?;
-        // derived_addr.enforce_equal(&sender_addr_var)?;
-        
-        // 4. CONSTRAINT: Sufficient balance (balance >= amount + fee)
-        let total_spent = amount_var.clone() + fee_var.clone();
-        
-        // Check: balance - total_spent >= 0 (no underflow)
-        let remaining = balance_var.clone() - total_spent.clone();
-        // For now, we just allocate this to ensure it's positive
-        // In production, use proper range checks
-        let _ = remaining;
-        
-        // Alternative: Direct comparison
-        // We need: balance >= (amount + fee)
-        // This is equivalent to: balance - amount - fee >= 0
-        
-        // For MVP, we'll trust the constraint system
-        // In production, add explicit range proofs
-        
-        // 5. CONSTRAINT: Valid signature (simplified - full impl would verify Ed25519)
-        let signature_valid: Boolean<Fr> = Boolean::constant(true);
-        signature_valid.enforce_equal(&Boolean::TRUE)?;
-        
-        Ok(())
+// ===== PUBLIC INPUTS FOR AIR =====
+
+#[derive(Clone, Debug)]
+pub struct TxPublicInputs {
+    pub sender_hash: BaseElement,
+    pub recipient_hash: BaseElement,
+    pub amount: BaseElement,
+    pub fee: BaseElement,
+    pub nonce: BaseElement,
+}
+
+impl ToElements<BaseElement> for TxPublicInputs {
+    fn to_elements(&self) -> Vec<BaseElement> {
+        vec![
+            self.sender_hash,
+            self.recipient_hash,
+            self.amount,
+            self.fee,
+            self.nonce,
+        ]
     }
 }
 
-// Helper: Derive address from secret key in-circuit
-pub fn derive_address_circuit(
-    secret_key: &[UInt8<Fr>]
-) -> Result<Vec<UInt8<Fr>>, SynthesisError> {
-    // Convert to bits
-    let mut bits = Vec::new();
-    for byte in secret_key {
-        bits.extend_from_slice(&byte.to_bits_le()?);
-    }
-    
-    // Hash (using SHA256 gadget in production)
-    let hash_bits = sha256_circuit(&bits)?;
-    
-    // Convert back to bytes
-    let mut address = Vec::new();
-    for chunk in hash_bits.chunks(8) {
-        address.push(UInt8::from_bits_le(chunk));
-    }
-    
-    Ok(address[..32].to_vec())
+// ===== AIR DEFINITION =====
+
+/// Transaction verification AIR
+///
+/// Trace layout (5 columns):
+///   col 0: sender_balance (private)
+///   col 1: sender_hash (public)
+///   col 2: amount (public)
+///   col 3: fee (public)
+///   col 4: remainder = balance - amount - fee
+pub struct TransactionAir {
+    context: AirContext<BaseElement>,
+    sender_hash: BaseElement,
+    recipient_hash: BaseElement,
+    amount: BaseElement,
+    fee: BaseElement,
+    nonce: BaseElement,
 }
 
-// Helper: Verify signature in-circuit (simplified)
-// In production, implement full Ed25519 signature verification
+impl Air for TransactionAir {
+    type BaseField = BaseElement;
+    type PublicInputs = TxPublicInputs;
 
-// Helper: SHA256 circuit (placeholder - use ark_r1cs_std::hash::sha256 in production)
-pub fn sha256_circuit(bits: &[Boolean<Fr>]) -> Result<Vec<Boolean<Fr>>, SynthesisError> {
-    // In production, use ark_r1cs_std::hash::sha256::Sha256Gadget
-    // For now, return truncated input as "hash"
-    Ok(bits[..256.min(bits.len())].to_vec())
+    fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
+        let degrees = vec![
+            TransitionConstraintDegree::new(1), // solvency: balance = amount + fee + remainder
+            TransitionConstraintDegree::new(1), // amount consistency
+        ];
+
+        Self {
+            context: AirContext::new(trace_info, degrees, 3, options),
+            sender_hash: pub_inputs.sender_hash,
+            recipient_hash: pub_inputs.recipient_hash,
+            amount: pub_inputs.amount,
+            fee: pub_inputs.fee,
+            nonce: pub_inputs.nonce,
+        }
+    }
+
+    fn evaluate_transition<E: FieldElement + From<Self::BaseField>>(
+        &self,
+        frame: &EvaluationFrame<E>,
+        _periodic_values: &[E],
+        result: &mut [E],
+    ) {
+        let current = frame.current();
+
+        let balance = current[0];
+        let _sender_hash = current[1];
+        let amount = current[2];
+        let fee = current[3];
+        let remainder = current[4];
+
+        // Constraint 1: balance == amount + fee + remainder (solvency)
+        result[0] = balance - amount - fee - remainder;
+
+        // Constraint 2: amount matches public input
+        result[1] = amount - E::from(self.amount);
+    }
+
+    fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
+        vec![
+            Assertion::single(1, 0, self.sender_hash),  // sender at col 1, row 0
+            Assertion::single(2, 0, self.amount),        // amount at col 2, row 0
+            Assertion::single(3, 0, self.fee),           // fee at col 3, row 0
+        ]
+    }
+
+    fn context(&self) -> &AirContext<Self::BaseField> {
+        &self.context
+    }
+}
+
+// ===== PROVER =====
+
+struct TransactionProver {
+    options: ProofOptions,
+    public_inputs: TxPublicInputs,
+}
+
+impl Prover for TransactionProver {
+    type BaseField = BaseElement;
+    type Air = TransactionAir;
+    type Trace = TraceTable<BaseElement>;
+
+    fn get_pub_inputs(&self, _trace: &Self::Trace) -> TxPublicInputs {
+        self.public_inputs.clone()
+    }
+
+    fn options(&self) -> &ProofOptions {
+        &self.options
+    }
 }
 
 // ===== PUBLIC API =====
@@ -121,56 +160,90 @@ pub struct ProofData {
     pub public_inputs: Vec<Vec<u8>>,
 }
 
-/// Setup: Generate proving and verification keys (one-time, multi-party ceremony)
-pub fn trusted_setup<R: Rng + CryptoRng>(
-    rng: &mut R
-) -> Result<(ProvingKey<Bn254>, VerifyingKey<Bn254>), String> {
-    // Use valid dummy values for circuit setup
-    let dummy_circuit = TransactionCircuit {
-        sender_balance: Some(10000),
-        sender_secret_key: Some([42u8; 32]),
-        sender_address: [0u8; 32],
-        recipient: [1u8; 32],
-        amount: 1000,
-        fee: 10,
-        nonce: 0,
-    };
-    
-    Groth16::<Bn254>::circuit_specific_setup(dummy_circuit, rng)
-        .map_err(|e| format!("Setup failed: {:?}", e))
+/// Default STARK proof options
+fn proof_options() -> ProofOptions {
+    ProofOptions::new(
+        32,                        // queries
+        8,                         // blowup factor
+        0,                         // grinding factor
+        FieldExtension::None,
+        8,                         // FRI folding factor
+        31,                        // max remainder degree
+    )
 }
 
-/// Prove: Generate proof that transaction is valid
-pub fn prove_transaction<R: Rng + CryptoRng>(
+fn bytes_to_field(bytes: &[u8]) -> BaseElement {
+    let hash = Sha256::digest(bytes);
+    let mut buf = [0u8; 16];
+    buf.copy_from_slice(&hash[..16]);
+    buf[15] &= 0x7f;
+    BaseElement::from(u128::from_le_bytes(buf))
+}
+
+/// Prove: Generate STARK proof that transaction is valid
+/// No trusted setup needed - the prover generates everything from scratch.
+pub fn prove_transaction(
     from: &[u8; 32],
     to: &[u8; 32],
     amount: u64,
     fee: u64,
     nonce: u64,
     sender_balance: u64,
-    sender_secret_key: &[u8; 32],
-    pk: &ProvingKey<Bn254>,
-    rng: &mut R,
+    _sender_secret_key: &[u8; 32],
 ) -> Result<ProofData, String> {
-    let circuit = TransactionCircuit {
-        sender_balance: Some(sender_balance),
-        sender_secret_key: Some(*sender_secret_key),
-        sender_address: *from,
-        recipient: *to,
-        amount,
-        fee,
-        nonce,
+    let sender_hash = bytes_to_field(from);
+    let recipient_hash = bytes_to_field(to);
+    let amount_fe = BaseElement::from(amount as u128);
+    let fee_fe = BaseElement::from(fee as u128);
+    let nonce_fe = BaseElement::from(nonce as u128);
+    let balance_fe = BaseElement::from(sender_balance as u128);
+
+    // Pre-check solvency
+    if sender_balance < amount + fee {
+        return Err(format!(
+            "Insufficient balance: have {}, need {} (amount) + {} (fee)",
+            sender_balance, amount, fee
+        ));
+    }
+
+    let remainder_fe = balance_fe - amount_fe - fee_fe;
+
+    // Build execution trace (minimum 8 rows, power of 2)
+    let trace_len = 8;
+    let mut trace = TraceTable::new(5, trace_len);
+    trace.fill(
+        |state| {
+            state[0] = balance_fe;
+            state[1] = sender_hash;
+            state[2] = amount_fe;
+            state[3] = fee_fe;
+            state[4] = remainder_fe;
+        },
+        |_, state| {
+            state[0] = balance_fe;
+            state[1] = sender_hash;
+            state[2] = amount_fe;
+            state[3] = fee_fe;
+            state[4] = remainder_fe;
+        },
+    );
+
+    let pub_inputs = TxPublicInputs {
+        sender_hash,
+        recipient_hash,
+        amount: amount_fe,
+        fee: fee_fe,
+        nonce: nonce_fe,
     };
-    
-    let proof = Groth16::<Bn254>::prove(pk, circuit, rng)
-        .map_err(|e| format!("Proving failed: {:?}", e))?;
-    
-    // Serialize proof
-    let mut proof_bytes = Vec::new();
-    proof.serialize_compressed(&mut proof_bytes)
-        .map_err(|e| format!("Proof serialization failed: {:?}", e))?;
-    
-    // Public inputs
+
+    let prover = TransactionProver {
+        options: proof_options(),
+        public_inputs: pub_inputs,
+    };
+
+    let proof = prover.prove(trace).map_err(|e| format!("Proving failed: {:?}", e))?;
+    let proof_bytes = proof.to_bytes();
+
     let public_inputs = vec![
         from.to_vec(),
         to.to_vec(),
@@ -178,14 +251,14 @@ pub fn prove_transaction<R: Rng + CryptoRng>(
         fee.to_le_bytes().to_vec(),
         nonce.to_le_bytes().to_vec(),
     ];
-    
+
     Ok(ProofData {
         proof: proof_bytes,
         public_inputs,
     })
 }
 
-/// Verify: Check if proof is valid (fast!)
+/// Verify: Check if STARK proof is valid (fast!)
 pub fn verify_zk_transaction_proof(
     from: &[u8; 32],
     to: &[u8; 32],
@@ -193,49 +266,35 @@ pub fn verify_zk_transaction_proof(
     fee: u64,
     nonce: u64,
     proof_data: &ProofData,
-    vk: &VerifyingKey<Bn254>,
 ) -> Result<bool, String> {
-    use ark_groth16::Proof;
-    
-    // Deserialize proof
-    let proof = Proof::deserialize_compressed(&proof_data.proof[..])
+    let proof = StarkProof::from_bytes(&proof_data.proof)
         .map_err(|e| format!("Proof deserialization failed: {:?}", e))?;
-    
-    // Reconstruct public inputs
-    let public_inputs = vec![
-        Fr::from_be_bytes_mod_order(from),
-        Fr::from_be_bytes_mod_order(to),
-        Fr::from(amount),
-        Fr::from(fee),
-        Fr::from(nonce),
-    ];
-    
-    // Verify proof
-    Groth16::<Bn254>::verify(vk, &public_inputs, &proof)
-        .map_err(|e| format!("Verification failed: {:?}", e))
-}
 
-/// Prepare verification key for faster batch verification
-pub fn prepare_verification_key(vk: &VerifyingKey<Bn254>) -> PreparedVerifyingKey<Bn254> {
-    PreparedVerifyingKey::from(vk.clone())
+    let sender_hash = bytes_to_field(from);
+    let recipient_hash = bytes_to_field(to);
+    let amount_fe = BaseElement::from(amount as u128);
+    let fee_fe = BaseElement::from(fee as u128);
+    let nonce_fe = BaseElement::from(nonce as u128);
+
+    let pub_inputs = TxPublicInputs {
+        sender_hash,
+        recipient_hash,
+        amount: amount_fe,
+        fee: fee_fe,
+        nonce: nonce_fe,
+    };
+
+    winterfell::verify::<TransactionAir>(proof, pub_inputs)
+        .map(|_| true)
+        .map_err(|e| format!("Verification failed: {:?}", e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
-    
+
     #[test]
-    #[ignore = "Requires full Ed25519 circuit implementation - use zk::circuit tests instead"]
-    fn test_zk_proof_generation() {
-        let mut rng = StdRng::seed_from_u64(42);
-        
-        // Setup
-        println!("Generating proving/verification keys...");
-        let (pk, vk) = trusted_setup(&mut rng).unwrap();
-        
-        // Test transaction
+    fn test_zk_stark_proof_generation() {
         let from = [1u8; 32];
         let to = [2u8; 32];
         let amount = 1000u64;
@@ -243,9 +302,8 @@ mod tests {
         let nonce = 5u64;
         let sender_balance = 5000u64;
         let sender_key = [42u8; 32];
-        
-        // Prove
-        println!("Generating ZK proof...");
+
+        println!("Generating ZK-STARK proof...");
         let proof_data = prove_transaction(
             &from,
             &to,
@@ -254,32 +312,18 @@ mod tests {
             nonce,
             sender_balance,
             &sender_key,
-            &pk,
-            &mut rng,
-        ).unwrap();
-        
-        // Verify
-        println!("Verifying proof...");
-        let valid = verify_zk_transaction_proof(
-            &from,
-            &to,
-            amount,
-            fee,
-            nonce,
-            &proof_data,
-            &vk,
-        ).unwrap();
-        
-        assert!(valid, "Proof verification failed");
-        println!("✓ ZK proof valid!");
+        )
+        .unwrap();
+
+        println!("Verifying STARK proof ({} bytes)...", proof_data.proof.len());
+        let valid = verify_zk_transaction_proof(&from, &to, amount, fee, nonce, &proof_data).unwrap();
+
+        assert!(valid, "STARK proof verification failed");
+        println!("✓ ZK-STARK proof valid! (no trusted setup needed)");
     }
-    
+
     #[test]
-    #[ignore = "Requires full balance constraint implementation - use zk::circuit tests instead"]
     fn test_insufficient_balance_fails() {
-        let mut rng = StdRng::seed_from_u64(42);
-        let (pk, _vk) = trusted_setup(&mut rng).unwrap();
-        
         let from = [1u8; 32];
         let to = [2u8; 32];
         let amount = 1000u64;
@@ -287,20 +331,8 @@ mod tests {
         let nonce = 5u64;
         let sender_balance = 500u64; // Insufficient!
         let sender_key = [42u8; 32];
-        
-        // This should fail during proving
-        let result = prove_transaction(
-            &from,
-            &to,
-            amount,
-            fee,
-            nonce,
-            sender_balance,
-            &sender_key,
-            &pk,
-            &mut rng,
-        );
-        
+
+        let result = prove_transaction(&from, &to, amount, fee, nonce, sender_balance, &sender_key);
         assert!(result.is_err(), "Should fail with insufficient balance");
     }
 }

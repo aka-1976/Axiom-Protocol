@@ -149,7 +149,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("🏛️  AXIOM CORE | PRIVACY-FIRST BLOCKCHAIN");
     println!("🛡️  VDF: 1800sec (30min) | PoW Hybrid | 124M Fixed Supply");
     println!("🤖 AI NEURAL GUARDIAN: ATTACK DETECTION ACTIVE");
-    println!("🔐 MANDATORY ZK-SNARK PRIVACY | ED25519 SIGNATURES");
+    println!("🔐 MANDATORY ZK-STARK PRIVACY | ED25519 SIGNATURES");
     println!("--------------------------------------------------");
 
     // 1. IDENTITY & STATE INITIALIZATION

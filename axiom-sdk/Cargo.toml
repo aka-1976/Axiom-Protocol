@@ -7,7 +7,7 @@ description = "Official Rust SDK for Axiom Protocol - Privacy-First Blockchain"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Ghost-84M/Axiom-Protocol"
 homepage = "https://axiom.network"
-keywords = ["blockchain", "cryptocurrency", "privacy", "zksnark", "axiom"]
+keywords = ["blockchain", "cryptocurrency", "privacy", "zkstark", "axiom"]
 categories = ["cryptography", "network-programming"]
 readme = "README.md"
 

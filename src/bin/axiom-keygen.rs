@@ -9,9 +9,9 @@ fn main() {
     } else {
         "zk_keys".to_string()
     };
-    println!("🔐 Axiom ZK-SNARK Key Generation");
+    println!("🔐 Axiom ZK-STARK Key Generation");
     println!("================================\n");
-    println!("⏳ Performing trusted setup...");
+    println!("⏳ Initializing STARK proof system (no trusted setup needed!)...");
     let start = Instant::now();
     match ZkProofSystem::setup() {
         Ok(system) => {

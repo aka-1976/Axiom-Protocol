@@ -17,7 +17,7 @@ use crate::vdf;
 use crate::state::State;
 
 impl Block {
-    /// Full block validation: VDF, ZK-SNARK, PoW, and transaction checks
+    /// Full block validation: VDF, ZK-STARK, PoW, and transaction checks
     pub fn validate(&self, parent_hash: [u8; 32], parent_slot: u64, state: &mut State, difficulty: u64, vdf_iterations: u32, vdf_n: &rug::Integer) -> Result<(), &'static str> {
         // 1. VDF verification
         let vdf_seed = vdf::evaluate(parent_hash, parent_slot);
@@ -31,10 +31,10 @@ impl Block {
             return Err("Block does not meet PoW difficulty");
         }
 
-        // 3. ZK-SNARK proof (for miner)
+        // 3. ZK-STARK proof (for miner)
         // For demonstration, skip if empty
         if self.zk_proof.is_empty() {
-            return Err("Missing miner ZK-SNARK proof");
+            return Err("Missing miner ZK-STARK proof");
         }
 
         // 4. Transaction checks

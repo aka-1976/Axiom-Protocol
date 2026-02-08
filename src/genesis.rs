@@ -27,14 +27,14 @@ pub fn generate_zk_pass(wallet: &Wallet, parent_hash: [u8; 32]) -> Vec<u8> {
     proof_data
 }
 
-/// Generate actual ZK-SNARK proof for a transaction
+/// Generate actual ZK-STARK proof for a transaction
 pub fn generate_transaction_proof(
     secret_key: &[u8; 32],
     current_balance: u64,
     transfer_amount: u64,
     fee: u64,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    // Simplified implementation - in production this would use full ZK-SNARK
+    // Simplified implementation - in production this would use full ZK-STARK
     // For now, create a deterministic proof based on inputs
     let mut proof_data = vec![0u8; 128];
     let mut hasher = blake3::Hasher::new();
@@ -47,14 +47,14 @@ pub fn generate_transaction_proof(
     Ok(proof_data)
 }
 
-/// Verify ZK-SNARK proof for a transaction
+/// Verify ZK-STARK proof for a transaction
 pub fn verify_transaction_proof(
     proof_bytes: &[u8],
     _public_address: &[u8; 32],
     _transfer_amount: u64,
     _fee: u64,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    // Real Groth16 verification
+    // Real STARK verification
     match zk::verify_transaction_proof(proof_bytes, _public_address, _transfer_amount, _fee) {
         Ok(valid) => Ok(valid),
         Err(e) => Err(e),

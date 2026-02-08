@@ -3,13 +3,13 @@ name = "axiom-core"
 version = "4.0.0"
 edition = "2021"
 authors = ["AXIOM Protocol Team"]
-description = "Decentralized 124M Layer-1 Blockchain with ZK-SNARKs, VDF (1800s) Consensus, Blake3 PoW, Guardian AI, and AI Enhancement Module"
+description = "Decentralized 124M Layer-1 Blockchain with ZK-STARKs, VDF (1800s) Consensus, Blake3 PoW, Guardian AI, and AI Enhancement Module"
 license = "MIT"
 repository = "https://github.com/Ghost-84M/Axiom-Protocol"
 homepage = "https://axiom.network"
 documentation = "https://docs.axiom.network"
 readme = "README.md"
-keywords = ["blockchain", "cryptocurrency", "zk-snarks", "vdf", "consensus"]
+keywords = ["blockchain", "cryptocurrency", "zk-starks", "vdf", "consensus"]
 categories = ["cryptography", "network-programming"]
 
 [dependencies]
@@ -56,17 +56,8 @@ sha2 = "0.10"
 sha3 = "0.10"
 blake3 = "1.5"
 
-# ZK-SNARKs (Arkworks)
-ark-bls12-381 = "0.5"
-ark-ff = "0.5"
-ark-ec = "0.5"
-ark-relations = { version = "0.5", default-features = false, features = [] }
-ark-snark = "0.5"
-ark-groth16 = "0.5"
-ark-serialize = { version = "0.5", features = ["derive"] }
-ark-std = "0.5"
-ark-r1cs-std = { version = "0.5", default-features = false }
-ark-bn254 = "0.5"
+# ZK-STARKs (Winterfell) - No trusted setup required!
+winterfell = "0.9"
 
 # AI/Security Engine
 parking_lot = "0.12"

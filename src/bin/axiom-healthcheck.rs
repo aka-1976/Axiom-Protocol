@@ -259,7 +259,7 @@ async fn info(data: web::Data<AppState>) -> impl Responder {
         "peers": peers,
         "network": "mainnet",
         "consensus": "VDF+PoW Hybrid",
-        "privacy": "ZK-SNARK",
+        "privacy": "ZK-STARK",
         "supply": {
             "total": 84_000_000,
             "unit": "AXM"
