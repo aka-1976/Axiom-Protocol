@@ -317,7 +317,7 @@ pub fn verify_zk_transaction_proof(
         nonce: nonce_fe,
     };
 
-    let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+    let min_opts = AcceptableOptions::MinConjecturedSecurity(super::circuit::MIN_SECURITY_BITS);
 
     winterfell::verify::<
         TransactionAir,

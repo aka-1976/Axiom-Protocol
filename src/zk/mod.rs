@@ -117,7 +117,7 @@ pub fn verify_transaction_proof(
     use winterfell::crypto::{hashers::Blake3_256, DefaultRandomCoin};
     use winterfell::AcceptableOptions;
 
-    let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+    let min_opts = AcceptableOptions::MinConjecturedSecurity(circuit::MIN_SECURITY_BITS);
 
     match winterfell::verify::<
         circuit::AxiomTransactionAir,

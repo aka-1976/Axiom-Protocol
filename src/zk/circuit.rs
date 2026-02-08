@@ -26,6 +26,9 @@ use winterfell::{
 // PUBLIC INPUTS
 // ========================
 
+/// Minimum conjectured security level (in bits) required for STARK proof verification.
+pub const MIN_SECURITY_BITS: u32 = 95;
+
 /// Public inputs for the transaction proof
 #[derive(Clone, Debug)]
 pub struct TransactionPublicInputs {
@@ -378,7 +381,7 @@ impl ZkProofSystem {
             new_balance_commitment: public_inputs[3],
         };
 
-        let min_opts = AcceptableOptions::MinConjecturedSecurity(95);
+        let min_opts = AcceptableOptions::MinConjecturedSecurity(MIN_SECURITY_BITS);
 
         match winterfell::verify::<
             AxiomTransactionAir,
