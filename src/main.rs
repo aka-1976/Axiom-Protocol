@@ -132,9 +132,18 @@ impl Block {
         hasher.finalize().into()
     }
 
-    /// 512-bit BLAKE3 block hash via extended output (XOF) mode.
+    /// 512-bit BLAKE3 block hash using deterministic field-by-field feed.
     pub fn hash_512(&self) -> [u8; 64] {
-        axiom_core::axiom_hash_512(&bincode::serialize(self).unwrap_or_default())
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&self.parent);
+        hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.miner);
+        hasher.update(&self.vdf_proof);
+        hasher.update(&self.zk_proof);
+        hasher.update(&self.nonce.to_be_bytes());
+        let mut output = [0u8; 64];
+        hasher.finalize_xof().fill(&mut output);
+        output
     }
 
     pub fn meets_difficulty(&self, difficulty: u64) -> bool {
