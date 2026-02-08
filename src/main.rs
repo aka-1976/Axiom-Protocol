@@ -14,6 +14,7 @@ use libp2p::swarm::SwarmEvent;
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
 use axiom_core::network::Discv5Service;
 use axiom_core::network::discv5_service::default_bootstrap_enrs;
+use axiom_core::AxiomPulse;
 
 // These are placeholders - adjust based on your actual module structure
 mod wallet {
@@ -310,12 +311,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let chain_topic = gossipsub::IdentTopic::new("timechain-chain");
     let blocks_topic = gossipsub::IdentTopic::new("timechain-blocks");
     let tx_topic = gossipsub::IdentTopic::new("timechain-transactions");
+    let pulse_topic = gossipsub::IdentTopic::new("axiom/realtime/pulse/v1");
 
     // Subscribe to topics
     swarm.behaviour_mut().gossipsub.subscribe(&req_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&chain_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&tx_topic)?;
+    swarm.behaviour_mut().gossipsub.subscribe(&pulse_topic)?;
 
     // Request chains from network
     let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
@@ -412,6 +415,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     println!("🔁 Synced chain from peer. New height: {}", peer_blocks.len());
                                     storage::save_chain(&peer_blocks);
                                     last_vdf = Instant::now();
+                                }
+                            }
+                        }
+                        // Handle real-time pulse (push-based sync)
+                        else if message.topic == pulse_topic.hash() {
+                            if let Ok(pulse) = bincode::deserialize::<AxiomPulse>(&message.data) {
+                                if pulse.height > tc.blocks.len() as u64 {
+                                    println!("🔥 Real-time Pulse: Height {} | Mined: {} AXM | Remaining: {} AXM",
+                                        pulse.height,
+                                        Timechain::format_axm(pulse.total_mined),
+                                        Timechain::format_axm(pulse.remaining));
                                 }
                             }
                         }
@@ -566,6 +580,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             let encoded = bincode::serialize(&candidate).unwrap();
                             let _ = swarm.behaviour_mut().gossipsub.publish(blocks_topic.clone(), encoded);
                             storage::save_chain(&tc.blocks);
+
+                            // Broadcast real-time pulse to all peers
+                            let height = tc.blocks.len() as u64;
+                            let (total_mined, remaining, _percent) = tc.supply_info();
+                            let pulse = AxiomPulse {
+                                height,
+                                total_mined,
+                                remaining,
+                                block_hash: candidate.hash(),
+                                timestamp: std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64,
+                            };
+                            if let Ok(pulse_data) = bincode::serialize(&pulse) {
+                                let _ = swarm.behaviour_mut().gossipsub.publish(pulse_topic.clone(), pulse_data);
+                            }
+
                             last_vdf = Instant::now();
                             break;
                         }
