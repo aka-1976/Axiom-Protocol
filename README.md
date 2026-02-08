@@ -1,8 +1,8 @@
 # AXIOM Protocol - Privacy-First Blockchain with AI Security
 
-**Status**: ✅ Production Mainnet | **Version**: v3.2.0 (Nuclear Network Cleanup) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
+**Status**: ✅ Production Mainnet | **Version**: v4.0.0 (Consolidated Release) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
-> 🚀 **v3.2.0 Nuclear Network Cleanup**: All legacy code and duplicate network logic removed. Network stack fully rewritten for production, with clean modular libp2p/discv5, deduplicated behaviour.rs, and zero build errors. Mainnet-ready and validated.
+> 🚀 **v4.0.0 Consolidated Release**: All v3.x features unified—5-layer AI threat detection, Guardian-enforced consensus, modular Discv5/libp2p networking, AI Oracle integration, SDK, explorer, bridge contracts, and full production cleanup. Mainnet-ready and validated.
 
 ---
 
@@ -37,7 +37,54 @@ watch -n 5 './target/release/axiom-node status'
 ---
 
 
-## 🚀 v3.1.0: Discv5 Network & Modular Upgrade
+## 🚀 v4.0.0: Consolidated Production Release
+
+**Release Date:** February 8, 2026
+
+v4.0.0 consolidates all v3.x line upgrades into a single production-validated release. All features below have been verified in the repository.
+
+### Highlights
+
+- **AI Oracle** (`ai-oracle/`): Claude API integration for on-chain AI oracle services
+- **AI Enhancement Module** (`axiom-ai-enhancement/`): Extended AI security and analytics
+- **Axiom SDK** (`axiom-sdk/`): Developer SDK for building on Axiom Protocol
+- **Bridge Contracts** (`bridge-contracts/`): Cross-chain bridge infrastructure (Hardhat)
+- **Block Explorer** (`explorer-backend/`, `explorer-frontend/`): Full-stack blockchain explorer
+- **Production Config** (`config/bootstrap.toml`): Mainnet bootstrap configuration
+- **Systemd Services** (`contrib/`): Production deployment services and logrotate
+
+### Included from v3.2.0 (Nuclear Network Cleanup)
+
+- All legacy code and duplicate network logic removed
+- Network stack fully rewritten for production
+- Clean modular libp2p/discv5, deduplicated `behaviour.rs`
+
+### Included from v3.1.0 (Discv5 Network & Modular Upgrade)
+
+- Production-grade Discv5/libp2p networking stack (Kademlia, Ping, Identify, Gossipsub, mDNS, Noise, TCP, DNS, etc.)
+- Modular network services: config, discv5_service, peer_manager, behaviour, gossip_handler, event_handler
+- Peer manager with reputation, LRU cache, ban logic, and metrics
+- Discv5Service for Ethereum-style peer discovery and ENR
+- GossipHandler for block/tx/sync/heartbeat routing and deduplication
+- EventHandler for async event dispatch
+- Metrics module for Prometheus-style node metrics
+- Main orchestrator integrates network, metrics, and CLI
+- Integration tests for network stack validation
+- Legacy network code moved to `network_legacy.rs`
+
+### Included from v3.0.0 (AI Guardian Security)
+
+- 5-Layer AI Threat Detection System
+- Guardian-Enforced Consensus Optimization
+- All 11 critical/medium protocol and test issues fixed
+- 78 tests passing, 0 failed
+- Guardian Safety Manifest, Multi-Layer Security Engine, AI Guardian Bridge
+
+---
+
+## 📜 Previous Release History
+
+### v3.1.0: Discv5 Network & Modular Upgrade
 
 
 **Release Date:** February 7, 2026
@@ -134,19 +181,14 @@ The Axiom Protocol is now upgraded to v3.0.0, featuring a robust 5-layer AI secu
 **Start Here**: [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) - Complete step-by-step integration procedures
 
 Complete documentation package:
-- 📖 [PRODUCTION_DEPLOYMENT_SUMMARY.md](PRODUCTION_DEPLOYMENT_SUMMARY.md) - Executive summary and approval checklist
-- 🔍 [CODE_REVIEW_DIAGNOSTICS.md](CODE_REVIEW_DIAGNOSTICS.md) - Complete security analysis and mainnet readiness verification
+- 📖 [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) - Step-by-step integration procedures
 - 🔧 [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) - All 11 fixes explained with implementations
-- ↔️ [BEFORE_AFTER_FIXES.md](BEFORE_AFTER_FIXES.md) - Side-by-side code comparisons proving all fixes work
-- ✅ [QUICK_REFERENCE_CHECKLIST.md](QUICK_REFERENCE_CHECKLIST.md) - Fast reference for integration teams
-- 🎯 [FINAL_DELIVERY_SUMMARY.md](FINAL_DELIVERY_SUMMARY.md) - Complete delivery documentation
-- 📋 [DEPLOYMENT_DELIVERABLES_INDEX.md](DEPLOYMENT_DELIVERABLES_INDEX.md) - Full index of all deliverables
+- 🎯 [FINAL_DELIVERY_SUMMARY.md](docs/archive/historical-fixes/FINAL_DELIVERY_SUMMARY.md) - Complete delivery documentation
 
 **Verification**: Run `./verify_mainnet_deployment.sh` to verify all fixes and deployment readiness
 
 ### Integration Status
 
-✅ PR #12 Open on [Ghost-84M/Axiom-Protocol](https://github.com/Ghost-84M/Axiom-Protocol/pull/12)
 ✅ Code compiles clean (no errors/warnings)
 ✅ All tests passing
 ✅ 100% backward compatible (no breaking changes)
@@ -404,16 +446,13 @@ Storage Layer
 
 ### For AI Enhancement & Deployment
 1. **[MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md)** - Step-by-step integration procedures (PRIMARY)
-2. **[PRODUCTION_DEPLOYMENT_SUMMARY.md](PRODUCTION_DEPLOYMENT_SUMMARY.md)** - Executive summary & approval checklist
-3. **[CODE_REVIEW_DIAGNOSTICS.md](CODE_REVIEW_DIAGNOSTICS.md)** - Security analysis & mainnet readiness
-4. **[MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md)** - All 11 fixes with implementations
-5. **[BEFORE_AFTER_FIXES.md](BEFORE_AFTER_FIXES.md)** - Side-by-side code comparisons
-6. **[DEPLOYMENT_DELIVERABLES_INDEX.md](DEPLOYMENT_DELIVERABLES_INDEX.md)** - Complete deliverables index
+2. **[MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md)** - All 11 fixes with implementations
+3. **[FINAL_DELIVERY_SUMMARY.md](docs/archive/historical-fixes/FINAL_DELIVERY_SUMMARY.md)** - Complete delivery documentation
 
 ### For Node Operators
 1. **[docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md)** - Comprehensive networking guide
 2. **[contrib/axiom-guardian.service](contrib/axiom-guardian.service)** - Systemd service setup
-3. **[docs/SECURITY.md](docs/SECURITY.md)** - Security audit results
+3. **[SECURITY.md](SECURITY.md)** - Security policy
 
 ### For Developers
 1. **[TECHNICAL_SPEC.md](TECHNICAL_SPEC.md)** - Implementation details
@@ -557,17 +596,17 @@ rm -rf ~/.axiom/blocks/
 | Link | Purpose |
 |------|---------|
 | [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) | AI system integration & deployment |
-| [CODE_REVIEW_DIAGNOSTICS.md](CODE_REVIEW_DIAGNOSTICS.md) | Security analysis & mainnet readiness |
+| [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) | All 11 deployment fixes |
 | [AXIOM_NETWORK_SYNC.md](AXIOM_NETWORK_SYNC.md) | Network quick start |
 | [docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md) | Comprehensive networking |
 | [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) | Implementation details |
 | [WHITEPAPER.md](WHITEPAPER.md) | Complete specification |
 | [POW_SPECIFICATION.md](POW_SPECIFICATION.md) | PoW algorithm |
-| [docs/SECURITY.md](docs/SECURITY.md) | Security audit |
+| [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) | Security model |
 
 ---
 
-## 🤖 AI Security System (v2.2.1)
+## 🤖 AI Security System (v4.0.0)
 
 The integrated 5-layer AI threat detection system enhances the Guardian sentinel with advanced anomaly detection and consensus optimization while maintaining all immutable constraints.
 
@@ -615,7 +654,7 @@ The Guardian sentinel now enforces AI decisions with mandatory validation:
 
 ### All 11 Issues Fully Resolved
 
-See [CODE_REVIEW_DIAGNOSTICS.md](CODE_REVIEW_DIAGNOSTICS.md) for complete security analysis.
+See [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) for complete security analysis.
 
 Critical Issue Fixes:
 ✅ Seasonal anomaly detection (was returning 0.0)
@@ -670,21 +709,23 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ## 📈 Project Status
 
-✅ **v2.2.1 AI Enhancement** - Production-ready for mainnet (all 11 fixes verified)
+✅ **v4.0.0 Consolidated Release** - All v3.x features unified, production-ready for mainnet
 ✅ **Mainnet Live** - Active since February 2025  
 ✅ **Core Features** - VDF, PoW, ZK-SNARKs, 5-layer AI threat detection
-✅ **Networking** - libp2p P2P with bootstrap nodes  
+✅ **Networking** - Modular Discv5/libp2p P2P with bootstrap nodes  
 ✅ **Guardian Sentinel** - 24/7 consensus enforcement + AI approval
+✅ **AI Oracle** - Claude API integration for on-chain AI services
+✅ **SDK & Explorer** - Developer SDK and full-stack block explorer
+✅ **Bridge Contracts** - Cross-chain bridge infrastructure
 ✅ **Documentation** - Complete technical specification + deployment procedures
 ✅ **Performance** - All metrics exceeded (3.2% CPU, 165MB memory, 4.2ms latency)
-✅ **Security** - All 11 critical/medium issues fixed (see CODE_REVIEW_DIAGNOSTICS.md)
+✅ **Security** - All 11 critical/medium issues fixed
 🔄 **Phase 2** - Cross-chain bridges (Q2 2026)  
 
 ---
 
-**Version**: 3.0.0 (AI Guardian Security Upgrade)  
-**Last Updated**: February 7, 2026  
+**Version**: 4.0.0 (Consolidated Production Release)  
+**Last Updated**: February 8, 2026  
 **Status**: Production Mainnet + AI Security Ready  
-**Network Health**: 4+ connected peers, fully synchronized, AI systems active  
-**PR Status**: v3.0.0 upgrade ready for review & merge
+**Network Health**: 4+ connected peers, fully synchronized, AI systems active
 
