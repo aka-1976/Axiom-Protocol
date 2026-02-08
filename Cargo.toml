@@ -28,7 +28,7 @@ actix-rt = "2.9"
 # Wesolowski VDF (Big Integer Support)
 rug = "1.20"
 
-libp2p = { version = "0.54", features = ["gossipsub", "identify", "noise", "tcp", "yamux", "dns"] }
+libp2p = { version = "0.54", features = ["gossipsub", "identify", "noise", "tcp", "yamux", "dns", "mdns", "kad", "request-response"] }
 libp2p-identity = "0.2"
 log = "0.4"
 env_logger = "0.11"
