@@ -7,4 +7,5 @@ pub use oracle::{
     OracleConsensus,
     OracleNode,
     OracleConsensusManager,
+    query_oracle,
 };

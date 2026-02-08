@@ -601,12 +601,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             // Broadcast real-time pulse to all peers
                             let height = tc.blocks.len() as u64;
                             let (total_mined, remaining, _percent) = tc.supply_info();
+                            // Generate deterministic AI oracle seal for this block
+                            let oracle_query = format!(
+                                "Axiom block {} mined with hash {}",
+                                tc.blocks.len(),
+                                hex::encode(candidate.hash())
+                            );
+                            let oracle_seal = axiom_core::ai::query_oracle(&oracle_query).await;
+
                             let pulse = AxiomPulse {
                                 height,
                                 total_mined,
                                 remaining,
                                 block_hash: candidate.hash_512(),
-                                oracle_seal: [0u8; 64],
+                                oracle_seal,
                                 timestamp: std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
