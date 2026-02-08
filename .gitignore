@@ -124,6 +124,8 @@ mainnet-status.json
 validator-*.json
 ai_stats.json
 *.log
+*.backup
+*.backup2
 
 # Private keys (NEVER commit)
 keys/

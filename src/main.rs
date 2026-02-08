@@ -1,5 +1,6 @@
 // Main orchestrator for AXIOM Protocol node
 // Integrates network, consensus, and AI Guardian
+// Architecture: Discv5 (UDP radar) discovers peers, libp2p (TCP) handles messaging
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -11,6 +12,8 @@ use libp2p::swarm::SwarmEvent;
 
 // Import all necessary modules
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
+use axiom_core::network::Discv5Service;
+use axiom_core::network::discv5_service::default_bootstrap_enrs;
 
 // These are placeholders - adjust based on your actual module structure
 mod wallet {
@@ -270,10 +273,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if bootstrap_connected == 0 {
-        println!("   🌐 Using mDNS for local peer discovery only");
+        println!("   🌐 Using mDNS and Discv5 for peer discovery");
     } else {
         println!("   ✅ {} bootstrap nodes queued for connection", bootstrap_connected);
     }
+
+    // 3b. DISCV5 PEER DISCOVERY (UDP Radar)
+    // Discv5 runs externally alongside the libp2p Swarm, not inside NetworkBehaviour.
+    // It scans the network (UDP) and discovered peers are manually dialed by the Swarm (TCP).
+    let discv5_listen_addr: std::net::SocketAddr = format!("0.0.0.0:{}", current_port + 3000)
+        .parse()
+        .expect("valid socket addr");
+    let discv5_key = discv5::enr::CombinedKey::generate_secp256k1();
+    let boot_enrs = default_bootstrap_enrs();
+
+    let discv5_service = match Discv5Service::new(discv5_listen_addr, discv5_key, boot_enrs).await {
+        Ok(svc) => {
+            println!("🔍 Discv5 discovery active on UDP port {}", current_port + 3000);
+            Some(svc)
+        }
+        Err(e) => {
+            println!("⚠️  Discv5 init warning (falling back to mDNS only): {}", e);
+            None
+        }
+    };
+    let mut discv5_lookup_timer = time::interval(Duration::from_secs(30));
 
     // 4. TOPICS
     let req_topic = gossipsub::IdentTopic::new("timechain-request");
@@ -475,6 +499,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let _ = swarm.dial(addr.clone());
                     }
                     last_bootstrap_retry = Instant::now();
+                }
+            }
+
+            // DISCV5 PEER DISCOVERY BRIDGE
+            // Discv5 acts as our "radar" (UDP) - finds peers on the network
+            // libp2p acts as our "cargo ship" (TCP) - opens secure tunnels to send data
+            _ = discv5_lookup_timer.tick() => {
+                if let Some(ref svc) = discv5_service {
+                    let table_peers = svc.table_entries().await;
+                    for enr in table_peers {
+                        // Extract TCP multiaddr from ENR and dial via libp2p
+                        if let Some(ip) = enr.ip4() {
+                            if let Some(tcp_port) = enr.tcp4() {
+                                let addr: Multiaddr = format!("/ip4/{}/tcp/{}", ip, tcp_port)
+                                    .parse()
+                                    .unwrap();
+                                let _ = swarm.dial(addr);
+                            }
+                        }
+                    }
                 }
             }
 

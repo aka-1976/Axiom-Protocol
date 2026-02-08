@@ -2,7 +2,6 @@ use libp2p::gossipsub::{Behaviour as Gossipsub, Event as GossipsubEvent, IdentTo
 use libp2p::identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent};
 use libp2p::swarm::NetworkBehaviour;
 use libp2p::identity::Keypair;
-use libp2p_swarm_derive::NetworkBehaviour;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "AxiomEvent")]
