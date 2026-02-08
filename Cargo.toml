@@ -1,9 +1,9 @@
 [package]
 name = "axiom-core"
-version = "2.2.0"
+version = "3.1.0"
 edition = "2021"
 authors = ["AXIOM Protocol Team"]
-description = "Decentralized 124M Layer-1 Blockchain with ZK-SNARKs, VDF (1800s) Consensus, Blake3 PoW, Guardian AI, and AI Enhancement Module - 4 Genesis Nodes"
+description = "Decentralized 124M Layer-1 Blockchain with ZK-SNARKs, VDF (1800s) Consensus, Blake3 PoW, Guardian AI, and AI Enhancement Module"
 license = "MIT"
 repository = "https://github.com/Ghost-84M/Axiom-Protocol"
 homepage = "https://axiom.network"
@@ -11,63 +11,71 @@ documentation = "https://docs.axiom.network"
 readme = "README.md"
 keywords = ["blockchain", "cryptocurrency", "zk-snarks", "vdf", "consensus"]
 categories = ["cryptography", "network-programming"]
-default-run = "axiom"
 
 [dependencies]
+libp2p-swarm-derive = "0.35.1"
 once_cell = "1.19"
+
 # AI/ML Framework
 onnxruntime = "0.0.14"
 ndarray = "0.15"
 dirs = "5.0"
+
 # Web server for health/metrics endpoints
 actix-web = "4.4"
 actix-rt = "2.9"
+
 # Wesolowski VDF (Big Integer Support)
 rug = "1.20"
-# Networking (Hardened P2P)
-libp2p = { version = "0.54", features = ["macros", "gossipsub", "mdns", "kad", "identify", "tcp", "quic", "websocket", "tokio", "noise", "yamux", "dns", "request-response"] }
+
+libp2p = { version = "0.54", features = ["gossipsub", "identify", "noise", "tcp", "yamux", "dns"] }
+libp2p-identity = "0.2"
+log = "0.4"
+env_logger = "0.11"
+
+# Discv5 peer discovery
+discv5 = "0.5"
+enr = { version = "0.11", features = ["serde", "k256"] }
+
+# Async runtime
 tokio = { version = "1.35", features = ["full"] }
 futures = "0.3"
+async-trait = "0.1"
 
 # Serialization & Identity
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3.3"
 serde_json = "1.0"
 toml = "0.8"
-async-trait = "0.1"
 hex = "0.4"
+
+# Cryptography
 rand = "0.8"
 rand_core = { version = "0.6", features = ["std"] }
-
-# AI/Security Engine
-parking_lot = "0.12"  # Faster synchronization primitives for multi-layer security
-
-# Peer management & caching
-dashmap = "5.5"       # Concurrent HashMap
-lru = "0.12"          # LRU cache for peers
-
-# Additional networking & crypto
-sha3 = "0.10"
-
-# Cryptography & ZK-Pass
 ed25519-dalek = "2.1"
 sha2 = "0.10"
+sha3 = "0.10"
 blake3 = "1.5"
+
+# ZK-SNARKs (Arkworks)
 ark-bls12-381 = "0.5"
 ark-ff = "0.5"
 ark-ec = "0.5"
 ark-relations = { version = "0.5", default-features = false, features = [] }
 ark-snark = "0.5"
 ark-groth16 = "0.5"
-
 ark-serialize = { version = "0.5", features = ["derive"] }
 ark-std = "0.5"
-# Add Arkworks R1CS gadgets for ZK circuits
 ark-r1cs-std = { version = "0.5", default-features = false }
-ark-bn254 = "0.5"  # BN254 curve for Groth16 ZK proofs
+ark-bn254 = "0.5"
+
+# AI/Security Engine
+parking_lot = "0.12"
+dashmap = "5.5"
+lru = "0.12"
 
 # Storage
-sled = "0.34" # Embedded database for self-healing chain storage
+sled = "0.34"
 
 # VDF dependencies
 num-bigint = "0.4"
@@ -77,54 +85,31 @@ num-integer = "0.1"
 # AI Oracle dependencies (Claude API integration)
 reqwest = { version = "0.11", features = ["json"] }
 
-# Production dependencies
+# Production utilities
 thiserror = "1.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 num_cpus = "1.16"
 chrono = "0.4"
-log = "0.4.29"
 
-# 2026 Best Practices Dependencies
 # Privacy: View keys & selective disclosure
 aes-gcm = "0.10"
 
-# Monitoring: Prometheus metrics (optional feature)
+# Monitoring: Prometheus metrics (optional)
 prometheus = { version = "0.13", optional = true }
 lazy_static = { version = "1.4", optional = true }
 
 [features]
 default = []
-prometheus = ["dep:prometheus", "dep:lazy_static"]
+metrics = ["prometheus", "lazy_static"]
 
 [profile.release]
-opt-level = 3            # Maximum speed for VDF loops
-lto = "fat"              # Full Link-Time Optimization for cross-crate speed
-codegen-units = 1        # Better optimization at the cost of slower compile time
-panic = "abort"          # Smaller binary and faster execution
-strip = "symbols"        # Minimizes binary size and obscures internals
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
 
-[[bin]]
-name = "axiom"
-path = "src/main.rs"
-
-[[bin]]
-name = "axiom-wallet"
-path = "src/bin/axiom-wallet.rs"
-
-[[bin]]
-name = "axiom-supply"
-path = "src/bin/axiom-supply.rs"
-
-[[bin]]
-name = "trusted-setup"
-path = "src/bin/trusted-setup.rs"
-
-[[bin]]
-name = "axiom-keygen"
-path = "src/bin/axiom-keygen.rs"
-
-[[bin]]
-name = "axiom-healthcheck"
-path = "src/bin/axiom-healthcheck.rs"
+[profile.dev]
+opt-level = 0
+debug = true
