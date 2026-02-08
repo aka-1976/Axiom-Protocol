@@ -512,10 +512,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         // Extract TCP multiaddr from ENR and dial via libp2p
                         if let Some(ip) = enr.ip4() {
                             if let Some(tcp_port) = enr.tcp4() {
-                                let addr: Multiaddr = format!("/ip4/{}/tcp/{}", ip, tcp_port)
-                                    .parse()
-                                    .unwrap();
-                                let _ = swarm.dial(addr);
+                                if let Ok(addr) = format!("/ip4/{}/tcp/{}", ip, tcp_port).parse::<Multiaddr>() {
+                                    if let Err(e) = swarm.dial(addr.clone()) {
+                                        println!("⚠️  Discv5 bridge: failed to dial {}: {}", addr, e);
+                                    }
+                                }
                             }
                         }
                     }
