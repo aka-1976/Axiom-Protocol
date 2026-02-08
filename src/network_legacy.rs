@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use libp2p::{gossipsub, mdns, kad, identify, swarm::{NetworkBehaviour, Swarm}, Multiaddr};
+use libp2p::{gossipsub, mdns, kad, identify, swarm::{NetworkBehaviour, Swarm}, Multiaddr, StreamProtocol};
+use libp2p_swarm_derive::NetworkBehaviour;
 use log;
 use std::error::Error;
 use libp2p::identity;
@@ -51,7 +52,7 @@ pub struct ChainCodec;
 
 #[async_trait::async_trait]
 impl request_response::Codec for ChainCodec {
-    type Protocol = &'static str;
+    type Protocol = StreamProtocol;
     type Request = ChainRequest;
     type Response = ChainResponse;
 
@@ -89,7 +90,7 @@ impl request_response::Codec for ChainCodec {
 }
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "TimechainBehaviourEvent")]
+#[behaviour(to_swarm = "TimechainBehaviourEvent")]
 pub struct TimechainBehaviour {
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
@@ -169,8 +170,8 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
                     // Support multiple protocol versions for compatibility
                     request_response::Behaviour::new(
                         vec![
-                            ("/axiom/chain-sync/1.0.0", ProtocolSupport::Full),
-                            ("/axiom/chain-sync/0.9.0", ProtocolSupport::Full),
+                            (StreamProtocol::new("/axiom/chain-sync/1.0.0"), ProtocolSupport::Full),
+                            (StreamProtocol::new("/axiom/chain-sync/0.9.0"), ProtocolSupport::Full),
                         ],
                         request_response::Config::default(),
                     )

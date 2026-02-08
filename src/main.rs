@@ -10,7 +10,7 @@ use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
 
 // Import all necessary modules
-use network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
+use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
 
 // These are placeholders - adjust based on your actual module structure
 mod wallet {
@@ -184,7 +184,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|s| s.trim().to_string())
         .collect();
 
-    let mut swarm: Swarm<network_legacy::TimechainBehaviour> = if !bootstrap_peers.is_empty() {
+    let mut swarm: Swarm<axiom_core::network_legacy::TimechainBehaviour> = if !bootstrap_peers.is_empty() {
         init_network_with_bootstrap(bootstrap_peers).await?
     } else {
         init_network().await?
