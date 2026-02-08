@@ -10,7 +10,6 @@ use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
 
 // Import all necessary modules
-mod network_legacy;
 use network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
 
 // These are placeholders - adjust based on your actual module structure
