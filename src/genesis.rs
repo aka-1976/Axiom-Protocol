@@ -8,10 +8,11 @@ use std::sync::Once;
 /// Unix timestamp: 1737331200
 pub const GENESIS_TIMESTAMP: u64 = 1737331200;
 
-/// 512-bit BLAKE3 Genesis Anchor for Axiom V4.0.0.
+/// 512-bit BLAKE3 Genesis Anchor for Axiom (introduced in V4.0.0, current V4.1.0).
 ///
 /// Computed deterministically from the string:
 ///   "Axiom V4.0.0: Fully Decentralized. Non-Governance. Built for the World."
+/// Note: The anchor input string is intentionally unchanged to preserve chain continuity.
 ///
 /// Every node verifies this anchor on startup. A node with a different
 /// genesis hash is automatically rejected by the Discv5 discovery layer.

@@ -1,8 +1,8 @@
 # AXIOM Protocol - Privacy-First Blockchain with AI Security
 
-**Status**: ✅ Production Mainnet | **Version**: v4.0.0 (Consolidated Release) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
+**Status**: ✅ Production Mainnet | **Version**: v4.1.0 | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
-> 🚀 **v4.0.0 Consolidated Release**: All v3.x features unified—5-layer AI threat detection, Guardian-enforced consensus, modular Discv5/libp2p networking, AI Oracle integration, SDK, explorer, bridge contracts, and full production cleanup. Mainnet-ready and validated.
+> 🚀 **v4.1.0**: 512-bit BLAKE3 security upgrade, deterministic AI Oracle integration, winterfell 0.9 ZK-STARK migration, and full production cleanup. Mainnet-ready and validated.
 
 ---
 
@@ -37,13 +37,22 @@ watch -n 5 './target/release/axiom-node status'
 ---
 
 
-## 🚀 v4.0.0: Consolidated Production Release
+## 🚀 v4.1.0: 512-Bit Security & AI Oracle Release
 
 **Release Date:** February 8, 2026
 
-v4.0.0 consolidates all v3.x line upgrades into a single production-validated release.
+### What's New in v4.1.0
 
-### Highlights
+- **512-bit BLAKE3 Hashing**: Protocol-wide upgrade from 256-bit to 512-bit using BLAKE3 XOF mode (`axiom_hash_512`)
+- **Genesis Anchor (512-bit)**: Hardcoded `GENESIS_ANCHOR_512` for chain identity verification
+- **Deterministic AI Oracle**: Local Ollama integration (`query_oracle`) with temperature 0, seed 42 for reproducible on-chain AI seals
+- **AxiomPulse Upgrade**: Real-time network pulse now carries 512-bit `block_hash` and `oracle_seal` fields
+- **Winterfell 0.9 Migration**: Full ZK-STARK API update (`Proof`, `AcceptableOptions`, expanded `Prover`/`Air` traits)
+- **Build Fixes**: All compilation errors resolved, clean build with zero errors
+
+### Consolidated from v4.0.0
+
+v4.0.0 unified all v3.x line upgrades into a single production release:
 
 - **AI Oracle** (`ai-oracle/`): Claude API integration for on-chain AI oracle services
 - **AI Enhancement Module** (`axiom-ai-enhancement/`): Extended AI security and analytics
@@ -474,7 +483,7 @@ rm -rf ~/.axiom/blocks/
 
 ---
 
-## 🤖 AI Security System (v4.0.0)
+## 🤖 AI Security System (v4.1.0)
 
 The integrated 5-layer AI threat detection system enhances the Guardian sentinel with advanced anomaly detection and consensus optimization while maintaining all immutable constraints.
 
@@ -558,7 +567,7 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ## 📈 Project Status
 
-✅ **v4.0.0 Consolidated Release** - All v3.x features unified, production-ready for mainnet
+✅ **v4.1.0 Release** — 512-bit security, AI Oracle, winterfell 0.9 migration
 ✅ **Mainnet Live** - Active since February 2025  
 ✅ **Core Features** - VDF, PoW, ZK-SNARKs, 5-layer AI threat detection
 ✅ **Networking** - Modular Discv5/libp2p P2P with bootstrap nodes  
@@ -573,8 +582,8 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ---
 
-**Version**: 4.0.0 (Consolidated Production Release)  
+**Version**: 4.1.0  
 **Last Updated**: February 8, 2026  
-**Status**: Production Mainnet + AI Security Ready  
+**Status**: Production Mainnet + 512-bit Security + AI Oracle Active  
 **Network Health**: 4+ connected peers, fully synchronized, AI systems active
 
