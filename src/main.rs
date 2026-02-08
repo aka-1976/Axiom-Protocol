@@ -281,21 +281,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 3b. DISCV5 PEER DISCOVERY (UDP Radar)
     // Discv5 runs externally alongside the libp2p Swarm, not inside NetworkBehaviour.
     // It scans the network (UDP) and discovered peers are manually dialed by the Swarm (TCP).
-    let discv5_listen_addr: std::net::SocketAddr = format!("0.0.0.0:{}", current_port + 3000)
-        .parse()
-        .expect("valid socket addr");
-    let discv5_key = discv5::enr::CombinedKey::generate_secp256k1();
-    let boot_enrs = default_bootstrap_enrs();
+    let discv5_udp_port = current_port as u32 + 3000;
+    let discv5_service = if discv5_udp_port <= 65535 {
+        let discv5_listen_addr: std::net::SocketAddr = format!("0.0.0.0:{}", discv5_udp_port)
+            .parse()
+            .expect("valid socket addr");
+        let discv5_key = discv5::enr::CombinedKey::generate_secp256k1();
+        let boot_enrs = default_bootstrap_enrs();
 
-    let discv5_service = match Discv5Service::new(discv5_listen_addr, discv5_key, boot_enrs).await {
-        Ok(svc) => {
-            println!("🔍 Discv5 discovery active on UDP port {}", current_port + 3000);
-            Some(svc)
+        match Discv5Service::new(discv5_listen_addr, discv5_key, boot_enrs).await {
+            Ok(svc) => {
+                println!("🔍 Discv5 discovery active on UDP port {}", discv5_udp_port);
+                Some(svc)
+            }
+            Err(e) => {
+                println!("⚠️  Discv5 init warning (falling back to mDNS only): {}", e);
+                None
+            }
         }
-        Err(e) => {
-            println!("⚠️  Discv5 init warning (falling back to mDNS only): {}", e);
-            None
-        }
+    } else {
+        println!("⚠️  Discv5 UDP port {} exceeds valid range, falling back to mDNS only", discv5_udp_port);
+        None
     };
     let mut discv5_lookup_timer = time::interval(Duration::from_secs(30));
 
@@ -507,19 +513,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // libp2p acts as our "cargo ship" (TCP) - opens secure tunnels to send data
             _ = discv5_lookup_timer.tick() => {
                 if let Some(ref svc) = discv5_service {
-                    let table_peers = svc.table_entries().await;
-                    for enr in table_peers {
-                        // Extract TCP multiaddr from ENR and dial via libp2p
-                        if let Some(ip) = enr.ip4() {
-                            if let Some(tcp_port) = enr.tcp4() {
-                                if let Ok(addr) = format!("/ip4/{}/tcp/{}", ip, tcp_port).parse::<Multiaddr>() {
-                                    if let Err(e) = swarm.dial(addr.clone()) {
-                                        println!("⚠️  Discv5 bridge: failed to dial {}: {}", addr, e);
+                    // Only attempt discovery if we need more peers
+                    if connected_peers.len() < 50 {
+                        let table_peers = svc.table_entries().await;
+                        for enr in table_peers {
+                            // Extract TCP multiaddr from ENR and dial via libp2p
+                            if let Some(ip) = enr.ip4() {
+                                // Skip loopback and unspecified addresses
+                                if ip.is_loopback() || ip.is_unspecified() {
+                                    continue;
+                                }
+                                if let Some(tcp_port) = enr.tcp4() {
+                                    if let Ok(addr) = format!("/ip4/{}/tcp/{}", ip, tcp_port).parse::<Multiaddr>() {
+                                        if let Err(e) = swarm.dial(addr.clone()) {
+                                            println!("⚠️  Discv5 bridge: failed to dial {}: {}", addr, e);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                }
                 }
             }
 
