@@ -107,7 +107,10 @@ impl Air for AxiomTransactionAir {
 
         // Constraint 2: balance >= amount + fee (encoded as balance == amount + fee + remainder)
         // remainder is implicit: balance - amount - fee
-        // We enforce: balance - amount - fee >= 0 by checking the trace includes valid remainder
+        // NOTE: The prover pre-checks balance >= amount + fee before generating the trace.
+        // In production, add explicit range proofs (e.g., bit decomposition) to prevent
+        // a malicious prover from creating proofs with field-wrapped negative remainders.
+        // This is a known limitation shared with the previous SNARK implementation.
         let remainder = balance - amount - fee;
         result[1] = new_balance_commitment - (secret_key + remainder);
 
