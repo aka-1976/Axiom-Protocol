@@ -27,6 +27,7 @@ pub mod bridge;
 pub mod time;
 pub mod storage;
 pub mod network;
+pub mod network_legacy; // Legacy network implementation with TimechainBehaviour
 pub mod network_config; // NEW: Network configuration and peer discovery
 pub mod guardian_sentinel; // NEW: Sovereign Guardian sentinel with eternal monitoring
 pub mod neural_guardian; // NEW: AI-powered security with federated learning

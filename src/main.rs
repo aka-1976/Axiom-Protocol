@@ -1,7 +1,5 @@
-mod network;
-
-//! Main orchestrator for AXIOM Protocol node
-//! Integrates network, consensus, and AI Guardian
+// Main orchestrator for AXIOM Protocol node
+// Integrates network, consensus, and AI Guardian
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
@@ -12,7 +10,8 @@ use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
 
 // Import all necessary modules
-use crate::network::TimechainBehaviourEvent;
+mod network_legacy;
+use network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
 
 // These are placeholders - adjust based on your actual module structure
 mod wallet {
@@ -25,14 +24,14 @@ mod wallet {
 }
 
 mod ai_guardian {
+    pub struct Stats;
+    
     pub struct NeuralGuardian;
     impl NeuralGuardian {
         pub fn new() -> Self { Self }
         pub fn predict_trust(&mut self, _a: f32, _b: f32, _c: f32) -> bool { true }
         pub fn train(&mut self, _input: [f32; 3], _output: f32) {}
         pub fn log_stats(&self) {}
-        pub struct Stats;
-        pub stats: Stats = Stats;
     }
 }
 
@@ -186,10 +185,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|s| s.trim().to_string())
         .collect();
 
-    let mut swarm = if !bootstrap_peers.is_empty() {
-        network::init_network_with_bootstrap(bootstrap_peers).await?
+    let mut swarm: Swarm<network_legacy::TimechainBehaviour> = if !bootstrap_peers.is_empty() {
+        init_network_with_bootstrap(bootstrap_peers).await?
     } else {
-        network::init_network().await?
+        init_network().await?
     };
 
     // Port Binding Logic
