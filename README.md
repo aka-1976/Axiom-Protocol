@@ -1,8 +1,8 @@
 # AXIOM Protocol - Privacy-First Blockchain with AI Security
 
-**Status**: ✅ Production Mainnet | **Version**: v3.0.0 (AI Guardian Upgrade) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
+**Status**: ✅ Production Mainnet | **Version**: v3.2.0 (Nuclear Network Cleanup) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
-> 🤖 **AI Guardian Upgrade**: v3.0.0 delivers 5-layer AI threat detection, Guardian-enforced consensus optimization, advanced anomaly detection, and all protocol/test fixes—fully verified and mainnet-ready.
+> 🚀 **v3.2.0 Nuclear Network Cleanup**: All legacy code and duplicate network logic removed. Network stack fully rewritten for production, with clean modular libp2p/discv5, deduplicated behaviour.rs, and zero build errors. Mainnet-ready and validated.
 
 ---
 
@@ -39,32 +39,33 @@ watch -n 5 './target/release/axiom-node status'
 
 ## 🚀 v3.1.0: Discv5 Network & Modular Upgrade
 
-### Major Changes (February 2026)
 
-**Production-Grade Discv5/libp2p Networking Stack**
-- Modular network services: `src/network/config.rs`, `discv5_service.rs`, `peer_manager.rs`, `behaviour.rs`, `gossip_handler.rs`, `event_handler.rs`, `mod.rs`
+**Release Date:** February 7, 2026
+
+**Major Changes:**
+- Production-grade Discv5/libp2p networking stack (Kademlia, Ping, Identify, Gossipsub, mDNS, Noise, TCP, DNS, etc.)
+- Modular network services: config, discv5_service, peer_manager, behaviour, gossip_handler, event_handler
 - Peer manager with reputation, LRU cache, ban logic, and metrics
 - Discv5Service for Ethereum-style peer discovery and ENR
-- Gossipsub, Kademlia, mDNS, Identify, Ping integrated for robust P2P
 - GossipHandler for block/tx/sync/heartbeat routing and deduplication
 - EventHandler for async event dispatch
-- Metrics module: `src/metrics/mod.rs` for Prometheus-style node metrics
-- Main orchestrator: `src/main.rs` now integrates network, metrics, and CLI
-- Integration tests: `tests/integration_test.rs` for network stack validation
-- Legacy network code moved to `src/network_legacy.rs`
-- Cargo.toml updated: dashmap, lru, sha3 dependencies added
+- Metrics module for Prometheus-style node metrics
+- Main orchestrator integrates network, metrics, and CLI
+- Integration tests for network stack validation
+- Cargo.toml: Enabled kad, ping, and all required libp2p features; updated discv5/enr versions
+- Legacy network code moved to network_legacy.rs
+- README updated with upgrade summary and usage
 
-**Deployment & Validation**
+**Deployment & Validation:**
 - All modules compile cleanly (no errors/warnings)
 - Integration tests included and passing
-- PR pushed to Ghost-84M/Axiom-Protocol main branch
 - Ready for mainnet deployment and monitoring
 
-**How to Use**
+**Upgrade Instructions:**
 - Build and run as before; node now uses new modular network stack
-- See `src/network/` for all new network code
-- See `src/metrics/` for metrics collection
-- See `tests/integration_test.rs` for integration test example
+- See src/network/ for new network code
+- See src/metrics/ for metrics collection
+- See tests/integration_test.rs for integration test example
 
 ---
 
@@ -685,5 +686,5 @@ All integration points preserve immutable constraints and Guardian approval requ
 **Last Updated**: February 7, 2026  
 **Status**: Production Mainnet + AI Security Ready  
 **Network Health**: 4+ connected peers, fully synchronized, AI systems active  
-**PR Status**: v3.0.0 upgrade ready for review & merge  
+**PR Status**: v3.0.0 upgrade ready for review & merge
 

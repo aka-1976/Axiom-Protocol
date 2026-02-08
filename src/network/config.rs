@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::net::SocketAddr;
 
 /// Production network configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +39,26 @@ pub struct NetworkConfig {
     
     /// Data directory for ENR key storage
     pub data_dir: PathBuf,
+    /// Heartbeat interval
+    pub heartbeat_interval: Duration,
+    
+    /// Number of peers to gossip to
+    pub mesh_n: usize,
+    
+    /// Low watermark for mesh peers
+    pub mesh_n_low: usize,
+    
+    /// High watermark for mesh peers
+    pub mesh_n_high: usize,
+    
+    /// History length for message deduplication
+    pub history_length: usize,
+    
+    /// History gossip length
+    pub history_gossip: usize,
+    
+    /// Enable mDNS for peer discovery
+    pub enable_mdns: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +96,13 @@ impl Default for NetworkConfig {
             discovery_interval: Duration::from_secs(30),
             gossip_config: GossipConfig::default(),
             data_dir: PathBuf::from(".axiom"),
+            heartbeat_interval: Duration::from_secs(10),
+            mesh_n: 8,
+            mesh_n_low: 6,
+            mesh_n_high: 12,
+            history_length: 6,
+            history_gossip: 3,
+            enable_mdns: true,
         }
     }
 }
@@ -149,6 +177,14 @@ impl NetworkConfig {
         }
         
         Ok(())
+    }
+    
+    pub fn tcp_listen_addr(&self) -> SocketAddr {
+        format!("0.0.0.0:{}", self.tcp_port).parse().unwrap()
+    }
+    
+    pub fn udp_listen_addr(&self) -> SocketAddr {
+        format!("0.0.0.0:{}", self.udp_port).parse().unwrap()
     }
 }
 

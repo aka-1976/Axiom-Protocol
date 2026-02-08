@@ -1,7 +1,9 @@
 use bincode::{deserialize, serialize};
+use libp2p::gossipsub::{IdentTopic, TopicHash};
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, RwLock};
@@ -189,6 +191,8 @@ pub struct GossipHandler {
     transaction_tx: mpsc::UnboundedSender<ProcessedMessage>,
     sync_tx: mpsc::UnboundedSender<ProcessedMessage>,
     metrics: Arc<RwLock<GossipMetrics>>,
+    subscribed_topics: HashSet<TopicHash>,
+    processed_messages: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -221,12 +225,30 @@ impl GossipHandler {
             transaction_tx,
             sync_tx,
             metrics: Arc::new(RwLock::new(GossipMetrics::default())),
+            subscribed_topics: HashSet::new(),
+            processed_messages: HashSet::new(),
         };
         
         // Start cache cleanup loop
         handler.start_cache_cleanup();
         
         (handler, block_rx, transaction_rx, sync_rx)
+    }
+    
+    pub fn subscribe_topic(&mut self, topic: &IdentTopic) {
+        self.subscribed_topics.insert(topic.hash());
+    }
+    
+    pub fn is_subscribed(&self, topic_hash: &TopicHash) -> bool {
+        self.subscribed_topics.contains(topic_hash)
+    }
+    
+    pub fn mark_processed(&mut self, message_id: String) -> bool {
+        self.processed_messages.insert(message_id)
+    }
+    
+    pub fn was_processed(&self, message_id: &str) -> bool {
+        self.processed_messages.contains(message_id)
     }
     
     pub async fn handle_message(
