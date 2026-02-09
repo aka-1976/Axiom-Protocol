@@ -33,7 +33,7 @@ To build the **world's most energy-efficient blockchain** while maintaining unco
 - ✅ **Dual-key cryptography** implemented
 - ✅ **Selective disclosure** working
 - ✅ **View keys** deployed
-- ✅ **ZK-SNARK privacy** mandatory
+- ✅ **ZK-STARK privacy** mandatory
 
 ### Infrastructure
 - ✅ **5 validators** deployed globally

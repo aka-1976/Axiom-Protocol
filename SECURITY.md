@@ -77,7 +77,7 @@ The following are **out of scope**:
 
 **2. Manual Code Review**
 - **Focus Areas:**
-  - Cryptographic operations (Blake3 PoW, ZK-SNARKs, VDF)
+  - Cryptographic operations (Blake3 PoW, ZK-STARKs, VDF)
   - Networking layer (libp2p, consensus)
   - Wallet & key management
   - Supply cap enforcement (124M AXM)
@@ -132,7 +132,7 @@ The following are **out of scope**:
 - ✅ **blake3 1.5** - Latest version, actively maintained
 - ✅ **ed25519-dalek 2.1** - Latest version, well-reviewed
 - ✅ **ark-bls12-381 0.5** - Part of arkworks, mature ecosystem
-- ✅ **ark-groth16 0.5** - Production-grade ZK library
+- ✅ **winterfell 0.9** - Production-grade ZK-STARK library
 
 **Networking Dependencies:**
 - ✅ **libp2p 0.54** - Actively maintained P2P framework
@@ -152,7 +152,7 @@ The tracing-subscriber crate (via ark-relations) has a medium-severity advisory 
 - Guardian Sentinel maintains network consistency
 
 ✅ **Cryptographic Security:**
-- ZK-SNARKs enforced for all transactions
+- ZK-STARKs enforced for all transactions
 - Ed25519 key generation secure
 - No weak cryptographic primitives used
 

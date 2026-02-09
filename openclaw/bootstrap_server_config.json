@@ -56,9 +56,9 @@
     "encryption": {
       "enabled": true,
       "algo": "libp2p/noise",
-      "zk_snark_mandatory": true,
-      "curve": "BLS12-381",
-      "hash": "Groth16"
+      "zk_stark_mandatory": true,
+      "proof_system": "Winterfell",
+      "hash": "Blake3"
     },
 
     "privacy": {

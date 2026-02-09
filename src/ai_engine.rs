@@ -1,4 +1,6 @@
+#[cfg(feature = "onnx")]
 use onnxruntime::{environment::Environment, session::Session, tensor::OrtOwnedTensor, LoggingLevel};
+#[cfg(feature = "onnx")]
 use once_cell::sync::Lazy;
 use serde::{Serialize, Deserialize};
 use std::fs::OpenOptions;
@@ -8,6 +10,7 @@ use chrono;
 /// AI Attack Detection Model
 /// Static ONNX environment for all model sessions.
 /// Uses once_cell::sync::Lazy to ensure only one global environment is created.
+#[cfg(feature = "onnx")]
 static ONNX_ENV: Lazy<Environment> = Lazy::new(|| {
     Environment::builder()
         .with_name("axiom-onnx-env")
@@ -16,14 +19,19 @@ static ONNX_ENV: Lazy<Environment> = Lazy::new(|| {
         .expect("Failed to initialize ONNX environment")
 });
 
+#[cfg(feature = "onnx")]
 pub struct AttackDetectionModel {
     session: Session<'static>,
 }
 
+#[cfg(not(feature = "onnx"))]
+pub struct AttackDetectionModel {
+    _private: (),
+}
+
+#[cfg(feature = "onnx")]
 impl AttackDetectionModel {
     /// Load an ONNX model from file
-    /// Load an ONNX model from a static file path. The ONNX environment is static and shared.
-    /// The model_path must have a 'static lifetime (e.g., a global constant or string literal).
     pub fn load(model_path: &'static str) -> Result<Self, Box<dyn std::error::Error + 'static>> {
         let session = ONNX_ENV
             .new_session_builder()?
@@ -33,12 +41,10 @@ impl AttackDetectionModel {
 
     /// Run inference on network metrics
     pub fn predict(&mut self, features: &[f32]) -> Result<f32, Box<dyn std::error::Error>> {
-        // ONNX expects input as ndarray
         let input_shape = vec![1, features.len()];
         let input_array = ndarray::Array::from_shape_vec(input_shape.clone(), features.to_vec())?;
         let outputs: Vec<OrtOwnedTensor<f32, _>> = self.session.run(vec![input_array])?;
         
-        // Safely extract first output - prevents panic on empty results
         let first_output = outputs.first()
             .ok_or("ONNX model produced no outputs")?;
         let output_slice = first_output.as_slice()
@@ -50,15 +56,26 @@ impl AttackDetectionModel {
     }
 }
 
+#[cfg(not(feature = "onnx"))]
+impl AttackDetectionModel {
+    /// ONNX not available — always returns an error so callers use the heuristic fallback.
+    pub fn load(_model_path: &'static str) -> Result<Self, Box<dyn std::error::Error + 'static>> {
+        Err("ONNX runtime not enabled (build with --features onnx)".into())
+    }
+
+    /// ONNX not available — always returns an error.
+    pub fn predict(&mut self, _features: &[f32]) -> Result<f32, Box<dyn std::error::Error>> {
+        Err("ONNX runtime not enabled".into())
+    }
+}
+
 /// Collect and label network data for training
 pub fn collect_network_metrics() -> Vec<(Vec<f32>, f32)> {
-    // Placeholder: collect metrics such as peer count, block time, tx rate, etc.
     vec![ (vec![0.5, 0.8, 0.2], 1.0), (vec![0.1, 0.2, 0.9], 0.0) ]
 }
 
 /// Dynamic reputation scoring based on AI outputs
 pub fn calculate_peer_trust_score(model: &mut AttackDetectionModel, metrics: &[f32]) -> Result<f32, Box<dyn std::error::Error>> {
-    // Require &mut AttackDetectionModel for ONNX inference
     let score = model.predict(metrics)?;
     Ok(score)
 }

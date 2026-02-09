@@ -15,9 +15,9 @@ categories = ["cryptography", "network-programming"]
 [dependencies]
 once_cell = "1.19"
 
-# AI/ML Framework
-onnxruntime = "0.0.14"
-ndarray = "0.15"
+# AI/ML Framework (optional — requires ONNX Runtime download)
+onnxruntime = { version = "0.0.14", optional = true }
+ndarray = { version = "0.15", optional = true }
 dirs = "5.0"
 
 # Web server for health/metrics endpoints
@@ -93,6 +93,7 @@ lazy_static = { version = "1.4", optional = true }
 [features]
 default = []
 metrics = ["prometheus", "lazy_static"]
+onnx = ["onnxruntime", "ndarray"]
 
 [profile.release]
 opt-level = 3

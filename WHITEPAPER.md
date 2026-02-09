@@ -62,7 +62,7 @@ AXIOM's architecture is guided by three core principles:
 
 **Mathematical Certainty**: Consensus rules enforced by cryptographic time-locks and verifiable delay functions eliminate human governance attack vectors.
 
-**Privacy with Accountability**: Mandatory ZK-SNARK privacy protects users while dual-key cryptography enables selective disclosure for compliance when required.
+**Privacy with Accountability**: Mandatory ZK-STARK privacy protects users while dual-key cryptography enables selective disclosure for compliance when required.
 
 **Institutional Grade**: Real-time energy monitoring, enterprise-grade tooling, and formal verification make AXIOM suitable for regulated institutions.
 
@@ -120,7 +120,7 @@ Institutional investors require verified ESG metrics. Bitcoin's energy consumpti
 
 **Verifiable Delay Functions**: First formalized by Boneh et al. (2018) [1], VDFs provide time-based consensus without trust assumptions. Chia Network pioneered VDF use in production blockchains (2021).
 
-**Zero-Knowledge Privacy**: Zcash (2016) introduced zk-SNARKs for transaction privacy [2]. However, optional privacy led to limited adoption. AXIOM makes privacy mandatory.
+**Zero-Knowledge Privacy**: Zcash (2016) introduced zk-SNARKs for transaction privacy [2]. However, optional privacy led to limited adoption. AXIOM makes privacy mandatory using ZK-STARKs (no trusted setup required).
 
 **Dual-Key Systems**: Monero's view keys (2014) enable read-only wallet access [3]. AXIOM extends this concept with selective disclosure and compliance features.
 
@@ -136,7 +136,7 @@ AXIOM Protocol consists of five integrated layers:
 ┌─────────────────────────────────────────────┐
 │        Application Layer (DApps)            │
 ├─────────────────────────────────────────────┤
-│     Privacy Layer (ZK-SNARKs, View Keys)    │
+│     Privacy Layer (ZK-STARKs, View Keys)    │
 ├─────────────────────────────────────────────┤
 │   Consensus Layer (VDF + PoW + LWMA)        │
 ├─────────────────────────────────────────────┤
@@ -160,11 +160,11 @@ AXIOM Protocol consists of five integrated layers:
 - **Target**: Dynamic adjustment for 30-minute average
 - **Purpose**: Sybil resistance and network security
 
-#### 3.2.3 ZK-SNARK Circuit
-- **Scheme**: Groth16 pairing-based SNARKs
-- **Trusted Setup**: Multi-party computation ceremony (300+ participants)
-- **Proof Size**: 192 bytes constant size
-- **Verification**: 5ms average time
+#### 3.2.3 ZK-STARK Circuit
+- **Scheme**: Winterfell-based STARKs (transparent, no trusted setup)
+- **Trusted Setup**: None required (STARKs are transparent)
+- **Proof Size**: Larger than SNARKs but post-quantum secure
+- **Verification**: Sub-second verification time
 
 #### 3.2.4 Network Stack
 - **Protocol**: libp2p with Gossipsub 1.1
@@ -231,7 +231,7 @@ AXIOM combines VDF time-locks with proof-of-work for secure, fair consensus:
 3. **Block Validation**:
    - Verify VDF proof (5ms)
    - Verify PoW meets difficulty
-   - Validate all ZK-SNARK proofs
+   - Validate all ZK-STARK proofs
    - Check state transitions
 
 **Security Properties**:
@@ -280,7 +280,7 @@ If multiple chains have equal length, the chain with earlier VDF timestamps wins
 
 ## 5. Privacy Layer
 
-### 5.1 Mandatory ZK-SNARK Privacy
+### 5.1 Mandatory ZK-STARK Privacy
 
 Unlike optional privacy systems (Zcash), AXIOM enforces privacy for ALL transactions:
 
@@ -290,7 +290,7 @@ Unlike optional privacy systems (Zcash), AXIOM enforces privacy for ALL transact
 - Sender anonymity (ring signatures)
 - No metadata leakage (stealth addresses)
 
-**ZK-SNARK Circuit**:
+**ZK-STARK Circuit**:
 ```
 Public Inputs:
 - Merkle root (current UTXO set)
@@ -753,7 +753,7 @@ AXIOM implements federated learning for attack detection:
 - **Auto-Launch Integration**: OpenClaw tasks automatically spawn with node startup
 
 **Capabilities**:
-- Distributed credential generation for ZK-SNARK trusted setup
+- Distributed credential generation for ZK-STARK transparent setup
 - Automated monitoring of network health and validator performance
 - Cross-node coordination for ceremony phases
 - Fallback mechanisms for node failures
@@ -772,7 +772,7 @@ AXIOM implements federated learning for attack detection:
 | **Signature Scheme** | Ed25519 | 128-bit |
 | **Key Exchange** | X25519 | 128-bit |
 | **Encryption** | AES-256-GCM | 256-bit |
-| **ZK-SNARK** | Groth16 | 128-bit |
+| **ZK-STARK** | Winterfell | 95-bit conjectured |
 | **VDF** | Wesolowski | Time-based |
 
 ### 8.5 Formal Security Proofs
@@ -785,7 +785,7 @@ P(reorg > k) ≤ (α/(1-α))^k × e^(-λk)
 
 where α is the attacker's hashrate fraction and λ is the VDF security parameter.
 
-**Theorem 2 (Privacy)**: Given a ZK-SNARK proof π for transaction T, an adversary with polynomial computational power cannot distinguish π from a simulation without knowledge of the witness with probability > 1/2 + negl(λ).
+**Theorem 2 (Privacy)**: Given a ZK-STARK proof π for transaction T, an adversary with polynomial computational power cannot distinguish π from a simulation without knowledge of the witness with probability > 1/2 + negl(λ).
 
 *Proofs available in technical appendix.*
 
@@ -959,7 +959,7 @@ Bridge contracts undergo Certora formal verification:
 
 **Solution**:
 ```
-1. Alice creates transaction with ZK-SNARK proof
+1. Alice creates transaction with ZK-STARK proof
 2. Amount and recipient encrypted
 3. Bob receives funds privately
 4. Blockchain shows only: "Transaction occurred"
@@ -1099,7 +1099,7 @@ AXIOM Protocol represents a paradigm shift in blockchain design—combining priv
 
 **Key Contributions**:
 
-1. **Technical Innovation**: First blockchain combining VDF + PoW + ZK-SNARKs with proven security properties and 230,000x better energy efficiency than Bitcoin.
+1. **Technical Innovation**: First blockchain combining VDF + PoW + ZK-STARKs with proven security properties and 230,000x better energy efficiency than Bitcoin.
 
 2. **Privacy with Compliance**: Dual-key system enables mandatory privacy for users while providing selective disclosure for regulatory requirements—solving the compliance dilemma.
 
@@ -1181,7 +1181,7 @@ The future of finance is private, compliant, and sustainable. The future is AXIO
 ## Appendix C: Glossary
 
 - **VDF**: Verifiable Delay Function - cryptographic function requiring specific time to compute
-- **ZK-SNARK**: Zero-Knowledge Succinct Non-Interactive Argument of Knowledge
+- **ZK-STARK**: Zero-Knowledge Scalable Transparent Argument of Knowledge
 - **LWMA**: Linear Weighted Moving Average difficulty adjustment
 - **Satoshi**: Smallest unit of AXM (10⁻⁸)
 - **View Key**: Cryptographic key enabling read-only wallet access

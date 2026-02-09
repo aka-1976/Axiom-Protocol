@@ -91,7 +91,7 @@ All SDKs provide:
    - Query chain info (height, supply, difficulty)
 
 4. **Advanced Features**
-   - ZK-SNARK proof generation for private transactions
+   - ZK-STARK proof generation for private transactions
    - VDF proof verification
    - Neural Guardian threat detection queries
 
@@ -108,7 +108,7 @@ All SDKs connect to a Axiom node via JSON-RPC. Default endpoint: `http://localho
 - `get_block` - Get block by hash or index
 - `get_latest_block` - Get latest block
 - `get_chain_info` - Get blockchain statistics
-- `generate_zk_proof` - Generate ZK-SNARK proof
+- `generate_zk_proof` - Generate ZK-STARK proof
 - `verify_vdf` - Verify VDF proof
 - `neural_guardian_query` - Query threat detection
 
@@ -170,11 +170,11 @@ let tx_hash = client.send(
 println!("Transaction sent: {}", tx_hash);
 ```
 
-### Private Transaction with ZK-SNARK
+### Private Transaction with ZK-STARK
 
 **Python:**
 ```python
-# Private transaction using ZK-SNARK proof
+# Private transaction using ZK-STARK proof
 tx_hash = client.send(
     wallet=wallet,
     recipient=recipient_address,
@@ -185,7 +185,7 @@ tx_hash = client.send(
 
 **JavaScript:**
 ```javascript
-// Private transaction using ZK-SNARK proof
+// Private transaction using ZK-STARK proof
 const txHash = await client.send(
     wallet,
     recipientAddress,
@@ -197,7 +197,7 @@ const txHash = await client.send(
 
 **Rust:**
 ```rust
-// Private transaction using ZK-SNARK proof
+// Private transaction using ZK-STARK proof
 let tx_hash = client.send(
     &wallet,
     recipient_address,
@@ -256,7 +256,7 @@ cargo test
 
 2. **HTTPS**: Always use HTTPS for production RPC endpoints to prevent man-in-the-middle attacks.
 
-3. **ZK-SNARKs**: Private transactions using ZK-SNARKs hide amounts and balances but not sender/recipient addresses.
+3. **ZK-STARKs**: Private transactions using ZK-STARKs hide amounts and balances but not sender/recipient addresses.
 
 4. **Fee Estimation**: Set appropriate fees based on network conditions. Too low = slow confirmation.
 

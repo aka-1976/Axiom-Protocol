@@ -1,7 +1,7 @@
 # AXIOM Protocol - Technical Specification
 
 ## 1. Overview
-AXIOM Protocol is a production-grade privacy-first blockchain with autonomous OpenClaw agents for network security and optimization. VDF-based consensus enforces 30-minute blocks with cryptographic fairness. ZK-SNARK privacy is mandatory. All core features are fully implemented and deployed on mainnet.
+AXIOM Protocol is a production-grade privacy-first blockchain with autonomous OpenClaw agents for network security and optimization. VDF-based consensus enforces 30-minute blocks with cryptographic fairness. ZK-STARK privacy is mandatory. All core features are fully implemented and deployed on mainnet.
 
 **Current Status**: Production Mainnet (February 5, 2026)
 
@@ -10,7 +10,7 @@ AXIOM Protocol is a production-grade privacy-first blockchain with autonomous Op
 - **Database:** sled (embedded, production-grade)
 - **Networking:** libp2p 0.54.1 (P2P transport with Gossipsub)
 - **Consensus:** VDF (Wesolowski proof) + PoW (Blake3) hybrid
-- **Privacy:** ZK-SNARKs (Groth16 on BLS12-381, Pedersen commitments)
+- **Privacy:** ZK-STARKs (Winterfell 0.9, Pedersen commitments, no trusted setup)
 - **AI/Security:** Neural Guardian (ONNX Runtime) + OpenClaw agents (Python)
 - **Automation:** 4 autonomous agents with auto-startup, auto-restart capabilities
 - **Bootstrap**: GCP instance 34.10.172.20:6000 with flexible configuration
@@ -20,7 +20,7 @@ AXIOM Protocol is a production-grade privacy-first blockchain with autonomous Op
 - **Chain:** Chain management, fork resolution, block addition, longest-chain + VDF timestamp ordering
 - **State:** Account-based state, nonce tracking, ZK-proof settlement, sled-backed persistence
 - **Network:** P2P messaging, peer management, bootstrap discovery, agent communication
-- **Transaction:** Encrypted recipients, Pedersen commitments, ZK-SNARK proofs
+- **Transaction:** Encrypted recipients, Pedersen commitments, ZK-STARK proofs
 - **Wallet:** Ed25519 key generation, self-custodial, mandatory ZK-proof creation
 - **OpenClaw Integration:** Agent spawning, process lifecycle management, health monitoring
 
@@ -35,8 +35,8 @@ AXIOM Protocol is a production-grade privacy-first blockchain with autonomous Op
 - **Attack Immunity:** 51% attack requires both VDF time + processing power
 
 ## 5. Privacy
-- **ZK-SNARKs:** Groth16 circuit, mandatory for all transactions
-- **Curve:** BLS12-381 (448-bit security)
+- **ZK-STARKs:** Winterfell circuit, mandatory for all transactions (no trusted setup)
+- **Field:** f128 (128-bit field elements)
 - **Commitments:** Pedersen (balance confidentiality)
 - **Encryption:** ElGamal (recipient privacy)
 - **Signatures:** Ed25519 for transaction authentication
@@ -276,7 +276,7 @@ Supports running multiple nodes on same machine:
 
 ### Production Ready ✅
 - Consensus: VDF + PoW hybrid (audited)
-- Privacy: ZK-SNARKs mandatory (Groth16, deployed)
+- Privacy: ZK-STARKs mandatory (Winterfell 0.9, deployed)
 - Networking: libp2p P2P (tested, 1000+ peer capable)
 - AI Defense: Neural Guardian + OpenClaw agents (active)
 - Storage: sled database (proven, fast)

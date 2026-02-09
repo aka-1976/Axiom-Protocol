@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Axiom Protocol achieves **99.99% better energy efficiency** than Bitcoin while maintaining strong security guarantees through hybrid VDF+PoW consensus and mandatory ZK-SNARK privacy.
+Axiom Protocol achieves **99.99% better energy efficiency** than Bitcoin while maintaining strong security guarantees through hybrid VDF+PoW consensus and mandatory ZK-STARK privacy.
 
 ## Energy Consumption Metrics
 
@@ -112,7 +112,7 @@ Bitcoin's **72,200 tons CO2/year** equals:
 
 ### Social
 - ✅ **Fair launch**: 0% premine
-- ✅ **Privacy first**: ZK-SNARK mandatory
+- ✅ **Privacy first**: ZK-STARK mandatory
 - ✅ **Inclusion**: Mobile mining accessible
 - ✅ **Financial empowerment**: Low fee structure
 
