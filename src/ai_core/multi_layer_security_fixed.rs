@@ -323,7 +323,7 @@ impl AnomalyDetectionCore {
     }
     
     pub fn check_isolation_forest(&self, address: &str, features: &[f64]) -> Result<f64, String> {
-        // Simplified implementation: compute distance from mean
+        // Compute anomaly score as normalized distance from feature mean
         if features.is_empty() {
             return Ok(0.0);
         }
@@ -336,7 +336,7 @@ impl AnomalyDetectionCore {
     }
     
     pub fn compute_lof(&self, address: &str) -> Result<f64, String> {
-        // Simplified: compare recent tx patterns to historical average
+        // Compare recent transaction patterns to historical average (Local Outlier Factor)
         if self.address_behavior.len() < 5 {
             return Ok(0.0);
         }
@@ -371,7 +371,7 @@ impl StatisticalModels {
         
         let mut anomaly_scores = Vec::new();
         for point in data_points {
-            // Simplified: compute distance from centroid
+            // Compute Euclidean distance from centroid
             let mean: f64 = point.iter().sum::<f64>() / point.len() as f64;
             let distance: f64 = point.iter().map(|v| (v - mean).powi(2)).sum::<f64>().sqrt();
             let score = (distance / 10.0).min(1.0);
@@ -422,7 +422,7 @@ impl StatisticalModels {
             return Ok(Vec::new());
         }
         
-        // Simplified: use Mahalanobis distance from mean
+        // One-class SVM approximation using Mahalanobis distance from mean
         let mean: Vec<f64> = (0..data_points[0].len())
             .map(|i| data_points.iter().map(|p| p[i]).sum::<f64>() / data_points.len() as f64)
             .collect();

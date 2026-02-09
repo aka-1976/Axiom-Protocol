@@ -192,8 +192,9 @@ impl StarkProver {
         // `methods/build.rs` when the risc0 toolchain compiles the Guest.
         // They are linked via the `methods` crate dependency.
         //
-        // For now we reference them as external constants; the actual
-        // symbols are provided by the `methods` crate at link time.
+        // These external constants are linked via the `methods` crate
+        // at build time, produced by `methods/build.rs` when the risc0
+        // toolchain compiles the Guest binary.
         extern "Rust" {
             static AXIOM_INTEGRITY_ELF: &'static [u8];
             static AXIOM_INTEGRITY_ID: [u32; 8];

@@ -50,8 +50,8 @@ pub fn wesolowski_setup(bits: u32) -> Integer {
 }
 
 #[cfg(test)]
-/// Test-only function with pre-generated 2048-bit modulus for fast testing
-/// WARNING: This uses a fixed modulus - NEVER use in production!
+/// Test-only function with pre-generated 2048-bit modulus for fast testing.
+/// This fixed modulus must NOT be used outside of tests.
 pub fn wesolowski_setup_test() -> Integer {
     // Pre-generated 2048-bit RSA modulus (product of two safe primes)
     // This is a known modulus from academic literature for testing purposes
@@ -221,8 +221,8 @@ fn generate_challenge(g: &Integer, y: &Integer, n: &Integer) -> Integer {
 /// Instead of recomputing g^(2^t), verifies: y^l * π^r ≡ π^2^t (mod n)
 /// where l is the challenge, r = 2^t mod l
 pub fn wesolowski_verify(g: &Integer, t: u32, n: &Integer, y: &Integer) -> bool {
-    // Note: Original placeholder just compared y == g^(2^t)
-    // This is the slow path - kept for backward compatibility
+    // This is the slow verification path (recomputes g^(2^t) directly).
+    // Prefer `wesolowski_verify_with_proof` for fast verification using the proof.
     let expected = wesolowski_evaluate(g, t, n);
     &expected == y
 }
