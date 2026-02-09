@@ -563,8 +563,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let trust_pulse_hex = hex::encode(&health.trust_pulse_512);
 
                     // Chain the pulse: store this hash for next iteration
-                    if let Ok(arr) = health.trust_pulse_512.as_slice().try_into() {
-                        last_pulse_hash = arr;
+                    match health.trust_pulse_512.as_slice().try_into() {
+                        Ok(arr) => last_pulse_hash = arr,
+                        Err(_) => eprintln!("⚠️  PULSE CHAIN INTEGRITY: trust_pulse_512 is not 64 bytes — chain link skipped"),
                     }
 
                     let mut api = api_state.lock().unwrap();
@@ -715,17 +716,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 struct TooManyRequests;
 impl warp::reject::Reject for TooManyRequests {}
 
-async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, std::convert::Infallible> {
+async fn handle_rejection(err: warp::Rejection) -> Result<Box<dyn warp::Reply>, std::convert::Infallible> {
     if err.find::<TooManyRequests>().is_some() {
         let body = warp::reply::json(&serde_json::json!({
             "error": "Too Many Requests",
             "retry_after_secs": API_RATE_LIMIT_PER_MINUTE
         }));
         let with_status = warp::reply::with_status(body, warp::http::StatusCode::TOO_MANY_REQUESTS);
-        Ok(warp::reply::with_header(with_status, "Retry-After", API_RATE_LIMIT_PER_MINUTE.to_string()))
+        Ok(Box::new(warp::reply::with_header(with_status, "Retry-After", API_RATE_LIMIT_PER_MINUTE.to_string())))
     } else {
         let body = warp::reply::json(&serde_json::json!({"error": "Not Found"}));
-        let with_status = warp::reply::with_status(body, warp::http::StatusCode::NOT_FOUND);
-        Ok(warp::reply::with_header(with_status, "Retry-After", "0"))
+        Ok(Box::new(warp::reply::with_status(body, warp::http::StatusCode::NOT_FOUND)))
     }
 }
