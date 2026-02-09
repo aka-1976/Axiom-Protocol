@@ -15,12 +15,14 @@ use futures::StreamExt;
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
 use axiom_core::network::Discv5Service;
 use axiom_core::network::discv5_service::default_bootstrap_enrs;
+use axiom_core::network::config::{NetworkConfig, DiscoveryStrategy};
 use axiom_core::AxiomPulse;
 use axiom_core::wallet::Wallet;
 use axiom_core::chain::Timechain;
 use axiom_core::block::Block;
 use axiom_core::transaction::Transaction;
 use axiom_core::neural_guardian::NeuralGuardian;
+use axiom_core::main_helper::get_network_health;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -107,12 +109,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // 3. BOOTSTRAP CONFIGURATION
-    println!("🌍 Bootstrap Configuration:");
+    // 3. MULTI-VECTOR BOOTSTRAP (DiscoveryStrategy)
+    println!("🌍 Bootstrap Configuration (Multi-Vector):");
     let mut bootstrap_connected = 0;
     let mut bootstrap_addrs: Vec<(String, Multiaddr)> = Vec::new();
 
-    // Try environment variable first
+    // Environment variable overrides all strategies
     let env_bootstrap_peers: Vec<String> = std::env::var("AXIOM_BOOTSTRAP_PEERS")
         .unwrap_or_default()
         .split(',')
@@ -120,41 +122,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|s| s.trim().to_string())
         .collect();
 
-    if !env_bootstrap_peers.is_empty() {
+    let resolved_addrs = if !env_bootstrap_peers.is_empty() {
         println!("   📌 Using AXIOM_BOOTSTRAP_PEERS environment variable");
-        for addr_str in &env_bootstrap_peers {
-            if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                bootstrap_addrs.push((addr_str.clone(), addr.clone()));
-                match swarm.dial(addr.clone()) {
-                    Ok(_) => {
-                        println!("   ✅ Dialing bootstrap node: {}", addr_str);
-                        bootstrap_connected += 1;
-                    }
-                    Err(e) => println!("   ⚠️  Failed to dial bootstrap node {}: {:?}", addr_str, e),
-                }
-            }
-        }
+        env_bootstrap_peers
     } else if let Ok(bootstrap_content) = std::fs::read_to_string("config/bootstrap.toml") {
         // Fallback to config file
+        let mut addrs = Vec::new();
         if let Ok(bootstrap_config) = toml::from_str::<toml::Value>(&bootstrap_content) {
             if let Some(bootnodes) = bootstrap_config.get("bootnodes").and_then(|v| v.as_array()) {
                 if !bootnodes.is_empty() {
                     println!("   📌 Using config/bootstrap.toml addresses");
                     for bootnode in bootnodes {
-                        if let Some(addr_str) = bootnode.as_str() {
-                            if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                                bootstrap_addrs.push((addr_str.to_string(), addr.clone()));
-                                match swarm.dial(addr.clone()) {
-                                    Ok(_) => {
-                                        println!("   ✅ Dialing bootstrap node: {}", addr_str);
-                                        bootstrap_connected += 1;
-                                    }
-                                    Err(e) => println!("   ⚠️  Failed to dial: {:?}", e),
-                                }
-                            }
+                        if let Some(s) = bootnode.as_str() {
+                            addrs.push(s.to_string());
                         }
                     }
                 }
+            }
+        }
+        addrs
+    } else {
+        // Use multi-vector discovery strategies from NetworkConfig
+        let net_config = NetworkConfig::default();
+        println!("   📌 Using {} discovery strategies:", net_config.discovery_strategies.len());
+        for (i, strat) in net_config.discovery_strategies.iter().enumerate() {
+            let label = match strat {
+                DiscoveryStrategy::StaticList(v) => format!("StaticList ({} addrs)", v.len()),
+                DiscoveryStrategy::KademliaDHT { protocol } => format!("KademliaDHT ({})", protocol),
+                DiscoveryStrategy::DnsDiscovery { domain } => format!("DnsDiscovery ({})", domain),
+            };
+            println!("      {}. {}", i + 1, label);
+        }
+        net_config.resolve_all_bootstrap_addrs()
+    };
+
+    for addr_str in &resolved_addrs {
+        if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+            bootstrap_addrs.push((addr_str.clone(), addr.clone()));
+            match swarm.dial(addr.clone()) {
+                Ok(_) => {
+                    println!("   ✅ Dialing bootstrap node: {}", addr_str);
+                    bootstrap_connected += 1;
+                }
+                Err(e) => println!("   ⚠️  Failed to dial {}: {:?}", addr_str, e),
             }
         }
     }
@@ -198,6 +208,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let blocks_topic = gossipsub::IdentTopic::new("timechain-blocks");
     let tx_topic = gossipsub::IdentTopic::new("timechain-transactions");
     let pulse_topic = gossipsub::IdentTopic::new("axiom/realtime/pulse/v1");
+    let health_topic = gossipsub::IdentTopic::new("axiom/health/trust-pulse/v1");
 
     // Subscribe to topics
     swarm.behaviour_mut().gossipsub.subscribe(&req_topic)?;
@@ -205,6 +216,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&tx_topic)?;
     swarm.behaviour_mut().gossipsub.subscribe(&pulse_topic)?;
+    swarm.behaviour_mut().gossipsub.subscribe(&health_topic)?;
 
     // Request chains from network
     let _ = swarm.behaviour_mut().gossipsub.publish(req_topic.clone(), b"REQ_CHAIN".to_vec());
@@ -518,6 +530,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             };
                             if let Ok(pulse_data) = bincode::serialize(&pulse) {
                                 let _ = swarm.behaviour_mut().gossipsub.publish(pulse_topic.clone(), pulse_data);
+                            }
+
+                            // Broadcast Global Trust Pulse every 100 blocks
+                            if height % 100 == 0 {
+                                let stats = ai_guardian.lock().unwrap().get_stats();
+                                let health = get_network_health(
+                                    height,
+                                    total_mined,
+                                    remaining,
+                                    connected_peers.len(),
+                                    stats,
+                                );
+                                println!("💎 Global Trust Pulse @ H-{}: 512-bit commitment broadcast", height);
+                                if let Ok(health_data) = bincode::serialize(&health) {
+                                    let _ = swarm.behaviour_mut().gossipsub.publish(health_topic.clone(), health_data);
+                                }
                             }
 
                             last_vdf = Instant::now();

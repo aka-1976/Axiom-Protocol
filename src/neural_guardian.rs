@@ -354,15 +354,108 @@ impl NeuralGuardian {
             training_samples: self.training_data.len(),
         }
     }
+
+    /// Produce a verifiable audit proof for an AI trust decision.
+    ///
+    /// This method re-runs inference on the given `event`, captures the
+    /// current model-weights hash and the resulting trust score, then
+    /// commits all three into a 512-bit BLAKE3 digest.  Any third party
+    /// holding the same model weights can replay the decision and verify
+    /// the audit hash matches — proving the AI is not arbitrarily banning
+    /// peers but is following the coded math.
+    pub fn audit_decision(&self, event: &NetworkEvent) -> AuditProof {
+        // 1. Deterministic inference
+        let features = self.extract_features(event);
+        let predictions = self.model.forward(&features);
+        let max_threat_prob = predictions.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let trust_score = 1.0 - max_threat_prob;
+
+        let mut threats = Vec::new();
+        if predictions[0] > 0.7 { threats.push(ThreatType::SelfishMining); }
+        if predictions[1] > 0.8 { threats.push(ThreatType::SybilAttack); }
+        if predictions[2] > 0.6 { threats.push(ThreatType::EclipseAttack); }
+        if predictions[3] > 0.7 { threats.push(ThreatType::DoS); }
+        if predictions[4] > 0.6 { threats.push(ThreatType::TimestampManip); }
+
+        // 2. Model weights hash (deterministic fingerprint)
+        let weights_hash = self.compute_gradients_hash();
+
+        // 3. Commit (event ∥ weights_hash ∥ trust_score ∥ threats) → 512-bit BLAKE3
+        let mut hasher = blake3::Hasher::new();
+        // Feed the event fields deterministically
+        hasher.update(event.peer_id.as_bytes());
+        hasher.update(&event.block_interval.to_le_bytes());
+        hasher.update(&event.block_size.to_le_bytes());
+        hasher.update(&event.tx_count.to_le_bytes());
+        hasher.update(&event.propagation_time.to_le_bytes());
+        hasher.update(&event.peer_count.to_le_bytes());
+        hasher.update(&event.fork_count.to_le_bytes());
+        hasher.update(&event.orphan_rate.to_le_bytes());
+        hasher.update(&event.reorg_depth.to_le_bytes());
+        hasher.update(&event.bandwidth_usage.to_le_bytes());
+        hasher.update(&event.connection_churn.to_le_bytes());
+        hasher.update(&event.timestamp.to_le_bytes());
+        // Feed the model weights hash
+        hasher.update(&weights_hash);
+        // Feed the trust score
+        hasher.update(&trust_score.to_le_bytes());
+        // Feed each threat variant index
+        for t in &threats {
+            let idx: u8 = match t {
+                ThreatType::SelfishMining => 0,
+                ThreatType::SybilAttack => 1,
+                ThreatType::EclipseAttack => 2,
+                ThreatType::DoS => 3,
+                ThreatType::TimestampManip => 4,
+                ThreatType::Benign => 5,
+            };
+            hasher.update(&[idx]);
+        }
+        let mut audit_hash_512 = [0u8; 64];
+        hasher.finalize_xof().fill(&mut audit_hash_512);
+
+        AuditProof {
+            audit_hash_512: audit_hash_512.to_vec(),
+            weights_hash,
+            trust_score,
+            detected_threats: threats,
+            timestamp: current_timestamp(),
+        }
+    }
 }
 
 /// Statistics about the Neural Guardian
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuardianStats {
     pub total_events: usize,
     pub unique_peers: usize,
     pub cached_assessments: usize,
     pub training_samples: usize,
+}
+
+/// Cryptographic audit proof that a NeuralGuardian decision followed the
+/// coded math rather than an arbitrary black-box judgement.
+///
+/// The proof anchors three pieces of data into a single 512-bit BLAKE3
+/// digest:
+///   1. The `NetworkEvent` that triggered the decision.
+///   2. The SHA-256 hash of the current model weights (deterministic).
+///   3. The resulting `ThreatAssessment` (trust score + threats).
+///
+/// Any independent verifier who holds the same model weights can replay
+/// the decision and confirm the audit hash matches.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuditProof {
+    /// 512-bit BLAKE3 commitment over (event ∥ weights_hash ∥ assessment)
+    pub audit_hash_512: Vec<u8>,
+    /// SHA-256 hash of the model weights at the time of the decision
+    pub weights_hash: [u8; 32],
+    /// The trust score that was produced
+    pub trust_score: f32,
+    /// The threats that were detected (if any)
+    pub detected_threats: Vec<ThreatType>,
+    /// Unix timestamp of the audit
+    pub timestamp: u64,
 }
 
 /// Normalize time values (seconds)
@@ -555,5 +648,100 @@ mod tests {
             determine_action(&[ThreatType::SybilAttack, ThreatType::DoS]),
             Action::BanPeer
         );
+    }
+
+    #[test]
+    fn test_audit_decision_determinism() {
+        let guardian = NeuralGuardian::new();
+
+        let event = NetworkEvent {
+            peer_id: "audit_peer".to_string(),
+            block_interval: 1800.0,
+            block_size: 512.0,
+            tx_count: 50.0,
+            propagation_time: 100.0,
+            peer_count: 10.0,
+            fork_count: 0.0,
+            orphan_rate: 0.0,
+            reorg_depth: 0.0,
+            bandwidth_usage: 100.0,
+            connection_churn: 0.5,
+            timestamp: 1700000000,
+        };
+
+        let proof1 = guardian.audit_decision(&event);
+        let proof2 = guardian.audit_decision(&event);
+
+        assert_eq!(proof1.audit_hash_512, proof2.audit_hash_512,
+            "Same event + same model must produce identical audit hash");
+        assert_eq!(proof1.weights_hash, proof2.weights_hash);
+        assert_eq!(proof1.trust_score, proof2.trust_score);
+        assert_eq!(proof1.detected_threats, proof2.detected_threats);
+        assert_eq!(proof1.audit_hash_512.len(), 64, "Audit hash must be 512 bits");
+    }
+
+    #[test]
+    fn test_audit_decision_different_events() {
+        let guardian = NeuralGuardian::new();
+
+        let event_a = NetworkEvent {
+            peer_id: "peerA".to_string(),
+            block_interval: 1800.0,
+            block_size: 100.0,
+            tx_count: 10.0,
+            propagation_time: 50.0,
+            peer_count: 5.0,
+            fork_count: 0.0,
+            orphan_rate: 0.0,
+            reorg_depth: 0.0,
+            bandwidth_usage: 50.0,
+            connection_churn: 0.1,
+            timestamp: 1700000000,
+        };
+
+        let event_b = NetworkEvent {
+            peer_id: "peerB".to_string(),
+            block_interval: 10.0,
+            block_size: 2000.0,
+            tx_count: 500.0,
+            propagation_time: 5000.0,
+            peer_count: 200.0,
+            fork_count: 50.0,
+            orphan_rate: 0.9,
+            reorg_depth: 8.0,
+            bandwidth_usage: 10000.0,
+            connection_churn: 9.0,
+            timestamp: 1700000001,
+        };
+
+        let proof_a = guardian.audit_decision(&event_a);
+        let proof_b = guardian.audit_decision(&event_b);
+
+        assert_ne!(proof_a.audit_hash_512, proof_b.audit_hash_512,
+            "Different events must produce different audit hashes");
+    }
+
+    #[test]
+    fn test_audit_proof_has_valid_trust_score() {
+        let guardian = NeuralGuardian::new();
+
+        let event = NetworkEvent {
+            peer_id: "score_peer".to_string(),
+            block_interval: 1800.0,
+            block_size: 256.0,
+            tx_count: 20.0,
+            propagation_time: 80.0,
+            peer_count: 15.0,
+            fork_count: 1.0,
+            orphan_rate: 0.02,
+            reorg_depth: 1.0,
+            bandwidth_usage: 200.0,
+            connection_churn: 0.3,
+            timestamp: 1700000000,
+        };
+
+        let proof = guardian.audit_decision(&event);
+        assert!(proof.trust_score >= 0.0 && proof.trust_score <= 1.0,
+            "Trust score must be in [0.0, 1.0], got {}", proof.trust_score);
     }
 }
