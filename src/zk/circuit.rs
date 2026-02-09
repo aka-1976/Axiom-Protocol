@@ -55,7 +55,7 @@ impl ToElements<BaseElement> for TransactionPublicInputs {
 
 /// The Axiom Transaction AIR - Algebraic Intermediate Representation for STARKs
 ///
-/// Trace layout (7 columns):
+/// Trace layout (8 columns):
 ///   col 0: secret_key
 ///   col 1: current_balance
 ///   col 2: nonce
@@ -63,6 +63,8 @@ impl ToElements<BaseElement> for TransactionPublicInputs {
 ///   col 4: transfer_amount
 ///   col 5: fee
 ///   col 6: new_balance_commitment = secret_key + (balance - amount - fee)
+///   col 7: step counter (0, 1, 2, ..., N-1) — ensures non-constant trace
+///          polynomials for DEEP composition soundness
 pub struct AxiomTransactionAir {
     context: AirContext<BaseElement>,
     commitment: BaseElement,
@@ -78,14 +80,14 @@ impl Air for AxiomTransactionAir {
     type GkrVerifier = ();
 
     fn new(trace_info: TraceInfo, pub_inputs: Self::PublicInputs, options: ProofOptions) -> Self {
-        // We have 3 transition constraints of degree 1
         let degrees = vec![
             TransitionConstraintDegree::new(1), // commitment = sk + nonce
-            TransitionConstraintDegree::new(1), // solvency: balance = amount + fee + remainder
-            TransitionConstraintDegree::new(1), // new commitment = sk + remainder
+            TransitionConstraintDegree::new(1), // solvency: new_commitment = sk + remainder
+            TransitionConstraintDegree::new(1), // integrity: new_commitment = sk + balance - amount - fee
+            TransitionConstraintDegree::new(1), // step counter: next_step = current_step + 1
         ];
 
-        let num_assertions = 4; // 4 boundary assertions for public inputs
+        let num_assertions = 5;
         Self {
             context: AirContext::new(trace_info, degrees, num_assertions, options),
             commitment: pub_inputs.commitment,
@@ -102,6 +104,7 @@ impl Air for AxiomTransactionAir {
         result: &mut [E],
     ) {
         let current = frame.current();
+        let next = frame.next();
 
         let secret_key = current[0];
         let balance = current[1];
@@ -124,17 +127,19 @@ impl Air for AxiomTransactionAir {
         result[1] = new_balance_commitment - (secret_key + remainder);
 
         // Constraint 3: new_balance_commitment == secret_key + (balance - amount - fee)
-        // This is redundant with constraint 2 but reinforces integrity
         result[2] = new_balance_commitment - secret_key - balance + amount + fee;
+
+        // Constraint 4: step counter increments by 1 each row
+        result[3] = next[7] - current[7] - E::ONE;
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // Assert public input values at row 0
         vec![
             Assertion::single(3, 0, self.commitment),              // commitment at col 3, row 0
             Assertion::single(4, 0, self.transfer_amount),         // amount at col 4, row 0
             Assertion::single(5, 0, self.fee),                     // fee at col 5, row 0
             Assertion::single(6, 0, self.new_balance_commitment),  // new_commitment at col 6, row 0
+            Assertion::single(7, 0, BaseElement::ZERO),            // step counter starts at 0
         ]
     }
 
@@ -175,9 +180,16 @@ impl AxiomTransactionProver {
 
         // STARK traces must have length that is a power of 2, minimum 8
         let trace_len = 8;
-        let mut trace = TraceTable::new(7, trace_len);
+        let mut trace = TraceTable::new(8, trace_len);
 
-        // Fill all rows with the same values (single-step computation)
+        // Step counter to ensure at least one column is non-constant.
+        // Winterfell 0.9 DEEP composition requires trace polynomials of degree
+        // trace_length - 2; a constant trace produces degree-0 polynomials which
+        // violate this invariant.
+        let step = std::cell::Cell::new(0u128);
+
+        // Fill all rows: cols 0-6 hold constant transaction data,
+        // col 7 is the incrementing step counter.
         trace.fill(
             |state| {
                 state[0] = secret_key;
@@ -187,9 +199,10 @@ impl AxiomTransactionProver {
                 state[4] = transfer_amount;
                 state[5] = fee;
                 state[6] = new_balance_commitment;
+                state[7] = BaseElement::new(step.get());
+                step.set(step.get() + 1);
             },
             |_, state| {
-                // Transition: keep same values (single-step proof)
                 state[0] = secret_key;
                 state[1] = current_balance;
                 state[2] = nonce;
@@ -197,6 +210,8 @@ impl AxiomTransactionProver {
                 state[4] = transfer_amount;
                 state[5] = fee;
                 state[6] = new_balance_commitment;
+                state[7] = BaseElement::new(step.get());
+                step.set(step.get() + 1);
             },
         );
 

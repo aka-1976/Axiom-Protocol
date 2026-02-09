@@ -54,7 +54,7 @@ impl EventHandler {
                 use libp2p::gossipsub::Event;
                 match gossip_event {
                     Event::Message { propagation_source, message_id, message } => {
-                        debug!("📡 Received gossipsub message from {}", propagation_source);
+                        debug!("📡 Received gossipsub message {} from {}", message_id, propagation_source);
                         self.peer_manager.record_message_received(&propagation_source);
                         self.peer_manager.update_peer_activity(&propagation_source);
                     }
@@ -66,6 +66,24 @@ impl EventHandler {
                     }
                     _ => {
                         debug!("📡 Other gossipsub event");
+                    }
+                }
+            }
+
+            AxiomEvent::Kademlia(kad_event) => {
+                use libp2p::kad::Event;
+                match kad_event {
+                    Event::RoutingUpdated { peer, addresses, .. } => {
+                        debug!("🗺️ Kademlia routing updated for peer: {} ({} addrs)", peer, addresses.len());
+                    }
+                    Event::InboundRequest { request } => {
+                        debug!("🗺️ Kademlia inbound request: {:?}", request);
+                    }
+                    Event::OutboundQueryProgressed { id, result, .. } => {
+                        debug!("🗺️ Kademlia query {:?} progressed: {:?}", id, result);
+                    }
+                    _ => {
+                        debug!("🗺️ Other Kademlia event");
                     }
                 }
             }
@@ -86,6 +104,22 @@ impl EventHandler {
                     }
                     Event::Error { peer_id, error, .. } => {
                         warn!("🔍 Identify error with {}: {}", peer_id, error);
+                    }
+                }
+            }
+
+            AxiomEvent::Mdns(mdns_event) => {
+                use libp2p::mdns::Event;
+                match mdns_event {
+                    Event::Discovered(peers) => {
+                        for (peer_id, addr) in peers {
+                            info!("📡 mDNS discovered peer: {} at {}", peer_id, addr);
+                        }
+                    }
+                    Event::Expired(peers) => {
+                        for (peer_id, addr) in peers {
+                            debug!("📡 mDNS peer expired: {} at {}", peer_id, addr);
+                        }
                     }
                 }
             }

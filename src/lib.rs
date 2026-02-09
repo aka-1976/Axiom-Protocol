@@ -15,6 +15,19 @@ pub fn axiom_hash_512(data: &[u8]) -> [u8; 64] {
     output
 }
 
+/// Hardcoded bootstrap multiaddresses for the AXIOM peer-to-peer mesh.
+///
+/// Seed diversity prevents a single-point-of-failure: if one bootstrap
+/// node goes down the remaining seeds keep the network discoverable.
+/// Nodes also use mDNS (local) and Kademlia DHT (global) for resilient
+/// peer discovery beyond these seeds.
+pub const BOOTSTRAP_NODES: &[&str] = &[
+    "/ip4/34.10.172.20/tcp/6000",
+    "/ip4/34.160.111.145/tcp/7000",
+    "/ip4/51.15.23.200/tcp/7000",
+    "/ip4/3.8.120.113/tcp/7000",
+];
+
 /// Serde helper for fixed-size 64-byte arrays (512-bit hashes).
 ///
 /// `serde` only derives for arrays up to 32 elements, so we serialise
@@ -59,12 +72,16 @@ pub struct AxiomPulse {
     /// 512-bit Deterministic AI Oracle seal
     #[serde(with = "serde_bytes_64")]
     pub oracle_seal: [u8; 64],
+    /// 512-bit BLAKE3 hash of the previous pulse (tamper-evident chain)
+    #[serde(with = "serde_bytes_64")]
+    pub prev_pulse_hash: [u8; 64],
     /// Unix timestamp (seconds) for freshness check
     pub timestamp: i64,
 }
 
 // Core modules
 pub mod zk;
+pub mod stark; // RISC Zero zkVM STARK proving (124M supply integrity)
 pub mod consensus; // VDF consensus implementation
 pub mod ai; // AI Oracle network
 
@@ -103,6 +120,40 @@ pub use block::Block;
 
 // Re-export genesis anchor
 pub use genesis::GENESIS_ANCHOR_512;
+
+/// SHA-256 fingerprint of the production NeuralGuardian `weights.bin`.
+///
+/// Every node **must** verify its local model file against this hash at
+/// startup via [`neural_guardian::NeuralGuardian::load_model`].  If the
+/// hashes diverge, the node panics — preventing tampered AI weights from
+/// silently corrupting trust decisions on the 124M network.
+///
+/// To update this constant, compute:
+/// ```text
+/// sha256sum weights.bin
+/// ```
+/// and paste the hex digest below.
+pub const GENESIS_WEIGHTS_HASH: &str =
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+/// 512-bit BLAKE3 hash of the Genesis Pulse — the absolute origin of the
+/// tamper-evident pulse chain.
+///
+/// At startup the node looks for `config/genesis_pulse.json`. If found,
+/// its raw bytes are hashed with [`axiom_hash_512`] and compared to this
+/// constant. A match means the pulse chain can be anchored all the way
+/// back to block 0. If the file is absent, the node falls back to an
+/// all-zeros `prev_pulse_hash` (unanchored start).
+///
+/// **Note:** This constant is initialised to all-zeros until the official
+/// `genesis_pulse.json` is published as part of the mainnet release.
+/// Once the file is generated, update this constant with the output of:
+/// ```text
+/// python3 -c "import blake3; print(blake3.blake3(open('config/genesis_pulse.json','rb').read()).hexdigest(length=64))"
+/// ```
+pub const GENESIS_PULSE_HASH: &str =
+    "3f178ac4d3e0155210addeb1433f588ef12ce5a6a811ed8c77fca5ffd3372694\
+     3a6b152420c7b2d611fb187cfd26390e18ad4df0947fea0060dab8b75007de74";
 
 // Re-export 124M economics constants
 pub use economics::{

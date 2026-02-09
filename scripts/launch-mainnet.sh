@@ -36,7 +36,7 @@ echo "Checking required files..."
 required_files=(
     "generate-genesis.sh"
     "deploy-cloud-validators.sh"
-    "target/release/qubit"
+    "target/release/axiom-node"
 )
 
 for file in "${required_files[@]}"; do
@@ -44,7 +44,7 @@ for file in "${required_files[@]}"; do
         echo -e "${GREEN}✓ $file${NC}"
     else
         echo -e "${RED}✗ $file not found${NC}"
-        if [ "$file" == "target/release/qubit" ]; then
+        if [ "$file" == "target/release/axiom-node" ]; then
             echo "  Run: cargo build --release"
         fi
         exit 1
@@ -214,7 +214,7 @@ EOF
         docker-compose up -d
         cd ..
         echo -e "${GREEN}✓ Monitoring stack started${NC}"
-        echo "  Grafana: http://localhost:3000 (admin/axiom_admin_2025)"
+        echo "  Grafana: http://localhost:3000 (admin/<set-your-password>)"
         echo "  Prometheus: http://localhost:9090"
     fi
 else
@@ -251,7 +251,7 @@ echo -e "${YELLOW}Launch Commands (SSH to each server):${NC}"
 echo ""
 echo "  ssh user@server-ip"
 echo "  cd ~/Axiom-Protocol"
-echo "  nohup ./target/release/qubit --config axiom-validator.toml > validator.log 2>&1 &"
+echo "  nohup ./target/release/axiom-node --config axiom-validator.toml > validator.log 2>&1 &"
 echo ""
 
 echo -e "${YELLOW}Verify Launch:${NC}"
@@ -285,7 +285,7 @@ if [ "$launch_now" == "y" ] || [ "$launch_now" == "Y" ]; then
             echo "Starting validator $current_validator on $ip..."
             ssh -o StrictHostKeyChecking=no "$user@$ip" << 'ENDSSH' &
 cd ~/Axiom-Protocol
-nohup ./target/release/qubit --config axiom-validator.toml > validator.log 2>&1 &
+nohup ./target/release/axiom-node --config axiom-validator.toml > validator.log 2>&1 &
 echo "Validator started. Check logs: tail -f validator.log"
 ENDSSH
             

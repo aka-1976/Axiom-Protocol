@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use libp2p::{gossipsub, mdns, identify, swarm::{NetworkBehaviour, Swarm}, Multiaddr, StreamProtocol};
+use libp2p::{gossipsub, mdns, identify, kad, swarm::{NetworkBehaviour, Swarm}, Multiaddr, StreamProtocol};
 use log;
 use std::error::Error;
 use libp2p::identity;
@@ -96,6 +96,7 @@ pub struct TimechainBehaviour {
     pub mdns: mdns::tokio::Behaviour,
     pub identify: identify::Behaviour,
     pub request_response: request_response::Behaviour<ChainCodec>,
+    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 #[derive(Debug)]
@@ -104,6 +105,7 @@ pub enum TimechainBehaviourEvent {
     Mdns(mdns::Event),
     Identify(identify::Event),
     RequestResponse(request_response::Event<ChainRequest, ChainResponse>),
+    Kademlia(kad::Event),
 }
 
 // Convert sub-events into our main event enum
@@ -119,14 +121,20 @@ impl From<identify::Event> for TimechainBehaviourEvent {
 impl From<request_response::Event<ChainRequest, ChainResponse>> for TimechainBehaviourEvent {
     fn from(event: request_response::Event<ChainRequest, ChainResponse>) -> Self { Self::RequestResponse(event) }
 }
+impl From<kad::Event> for TimechainBehaviourEvent {
+    fn from(event: kad::Event) -> Self { Self::Kademlia(event) }
+}
 
 // Ensure this is PUB so main.rs can call it
-/// Default hardcoded real-world bootstrap peers
+/// Default hardcoded real-world bootstrap peers.
+///
+/// Seed diversity prevents single-point-of-failure: if one node goes
+/// down, the remaining seeds keep the network discoverable.
 const DEFAULT_BOOTSTRAP_PEERS: &[&str] = &[
-    // Replace these with real, public Axiom nodes as they become available
-    "/ip4/34.160.111.145/tcp/7000", // Example: Google Cloud VM
-    "/ip4/51.15.23.200/tcp/7000",   // Example: Scaleway/OVH
-    "/ip4/3.8.120.113/tcp/7000",    // Example: AWS EC2
+    "/ip4/34.10.172.20/tcp/6000",   // Google Cloud VM (primary)
+    "/ip4/34.160.111.145/tcp/7000", // Google Cloud VM (secondary)
+    "/ip4/51.15.23.200/tcp/7000",   // Scaleway/OVH
+    "/ip4/3.8.120.113/tcp/7000",    // AWS EC2
 ];
 
 pub async fn init_network() -> Result<Swarm<TimechainBehaviour>, Box<dyn Error + Send + Sync>> {
@@ -152,12 +160,17 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
             || yamux_config.clone(),
         )?
         .with_behaviour(|key| {
+            let peer_id = key.public().to_peer_id();
+            let kad_store = kad::store::MemoryStore::new(peer_id);
+            let mut kademlia = kad::Behaviour::new(peer_id, kad_store);
+            kademlia.set_mode(Some(kad::Mode::Server));
+
             Ok(TimechainBehaviour {
                 gossipsub: gossipsub::Behaviour::new(
                     gossipsub::MessageAuthenticity::Signed(key.clone()),
                     gossipsub::Config::default(),
                 )?,
-                mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?,
+                mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), peer_id)?,
                 identify: identify::Behaviour::new(identify::Config::new("axiom/1.0.0".into(), key.public())),
                 request_response: {
                     // Support multiple protocol versions for compatibility
@@ -169,6 +182,7 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
                         request_response::Config::default(),
                     )
                 },
+                kademlia,
             })
         })?
         .with_swarm_config(|cfg| {

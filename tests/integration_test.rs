@@ -1,21 +1,33 @@
 //! Integration test for AXIOM Protocol network stack
 
-use axiom_protocol::network::{config::NetworkConfig, discv5_service::Discv5Service, peer_manager::PeerManager, behaviour::AxiomBehaviour, gossip_handler::GossipHandler, event_handler::EventHandler};
-use axiom_protocol::metrics::MetricsCollector;
+use axiom_core::network::{
+    config::NetworkConfig,
+    peer_manager::PeerManager,
+    behaviour::AxiomHybridBehaviour,
+    event_handler::EventHandler,
+};
+use libp2p::identity::Keypair;
 
 #[test]
 fn test_network_stack_initialization() {
     let config = NetworkConfig::default();
-    let metrics = MetricsCollector::new();
-    let discv5 = Discv5Service::new(&config, &metrics);
-    let peer_manager = PeerManager::new(&config, &metrics);
-    let behaviour = AxiomBehaviour::new(&config, &metrics);
-    let gossip_handler = GossipHandler::new(&config, &metrics);
-    let event_handler = EventHandler::new();
-    // Assert that all components are initialized
-    assert!(discv5.is_initialized());
-    assert!(peer_manager.is_initialized());
-    assert!(behaviour.is_initialized());
-    assert!(gossip_handler.is_initialized());
-    assert!(event_handler.is_initialized());
+    config.validate().expect("Default config must be valid");
+
+    let peer_manager = PeerManager::new(config.max_peers);
+    assert_eq!(peer_manager.peer_count(), 0);
+
+    let event_handler = EventHandler::new(config.max_peers);
+    assert_eq!(event_handler.peer_count(), 0);
+}
+
+#[tokio::test]
+async fn test_hybrid_behaviour_initialization() {
+    let keypair = Keypair::generate_ed25519();
+    let config = NetworkConfig::default();
+    let behaviour = AxiomHybridBehaviour::new_with_config(&keypair, &config);
+    assert!(behaviour.is_ok(), "Hybrid behaviour must initialize from config");
+
+    let mut b = behaviour.unwrap();
+    assert_eq!(b.connected_peers(), 0);
+    assert!(b.subscribe_to_topic("axiom/test").is_ok());
 }

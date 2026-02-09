@@ -17,7 +17,8 @@ fn test_block_validation_and_state() {
 
 #[test]
 fn test_mining_reward_halving() {
-    assert_eq!(Block::mining_reward(0), 50_000_000);
-    assert_eq!(Block::mining_reward(840_000), 25_000_000);
-    assert_eq!(Block::mining_reward(1_680_000), 12_500_000);
+    // AXIOM halving interval is 1,240,000 blocks (not Bitcoin's 210k or 840k)
+    assert_eq!(Block::mining_reward(0), 50_000_000);                // 50 AXM initial
+    assert_eq!(Block::mining_reward(1_240_000), 25_000_000);        // 25 AXM after 1st halving
+    assert_eq!(Block::mining_reward(2_480_000), 12_500_000);        // 12.5 AXM after 2nd halving
 }

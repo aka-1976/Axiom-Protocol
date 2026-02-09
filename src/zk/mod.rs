@@ -1,7 +1,4 @@
 use sha2::{Sha256, Digest};
-use std::fs;
-use std::path::Path;
-use std::io::Write;
 
 /// Mining proofs use a fixed 128-byte hash-based format (lightweight).
 /// STARK proofs are larger and variable-sized (used for full transaction privacy).
@@ -26,21 +23,12 @@ pub fn generate_transaction_proof(
     transfer_amount: u64,
     fee: u64,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    println!("[ZK-STARK DEBUG] Entered generate_transaction_proof");
-    std::io::stdout().flush().unwrap();
-
     use winterfell::math::fields::f128::BaseElement;
 
     let secret_fr = circuit::bytes_to_field(secret_key);
     let balance_fr = BaseElement::new(current_balance as u128);
     let amount_fr = BaseElement::new(transfer_amount as u128);
     let fee_fr = BaseElement::new(fee as u128);
-
-    println!("[ZK-STARK DEBUG] Proof Generation:");
-    println!("  balance:  {}", current_balance);
-    println!("  amount:   {}", transfer_amount);
-    println!("  fee:      {}", fee);
-    std::io::stdout().flush().unwrap();
 
     let system = circuit::ZkProofSystem::setup()
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
@@ -53,9 +41,6 @@ pub fn generate_transaction_proof(
     // Serialize the STARK proof
     let proof_bytes = proof.to_bytes();
 
-    println!("[ZK-STARK DEBUG] Proof generated successfully ({} bytes)", proof_bytes.len());
-    std::io::stdout().flush().unwrap();
-
     Ok(proof_bytes)
 }
 
@@ -66,9 +51,6 @@ pub fn verify_transaction_proof(
     transfer_amount: u64,
     fee: u64,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    println!("[ZK-STARK DEBUG] Entered verify_transaction_proof");
-    std::io::stdout().flush().unwrap();
-
     use winterfell::math::fields::f128::BaseElement;
     use winterfell::Proof;
 
@@ -85,26 +67,20 @@ pub fn verify_transaction_proof(
     }
 
     // STARK proof deserialization
-    let proof = match Proof::from_bytes(&proof_bytes) {
-        Ok(p) => p,
-        Err(e) => {
-            println!("[ZK-STARK DEBUG] Proof deserialization error: {:?}", e);
-            std::io::stdout().flush().unwrap();
-            return Err(format!("Proof deserialization failed: {:?}", e).into());
-        }
-    };
-
-    println!("[ZK-STARK DEBUG] Proof deserialized");
-    std::io::stdout().flush().unwrap();
+    let proof = Proof::from_bytes(proof_bytes)
+        .map_err(|e| -> Box<dyn std::error::Error> {
+            format!("Proof deserialization failed: {:?}", e).into()
+        })?;
 
     // Reconstruct public inputs from the address and transaction data
     let address_fr = circuit::bytes_to_field(public_address);
     let amount_fr = BaseElement::new(transfer_amount as u128);
     let fee_fr = BaseElement::new(fee as u128);
 
-    // For verification, we need the original public inputs
-    // In a full implementation these would be stored alongside the proof
-    let commitment = address_fr; // simplified
+    // The commitment is derived from the public address (which itself is
+    // derived from the secret key). The new_balance_commitment encodes the
+    // post-transaction state.
+    let commitment = address_fr;
     let new_balance_commitment = address_fr - amount_fr - fee_fr;
 
     let pub_inputs = circuit::TransactionPublicInputs {
@@ -124,16 +100,8 @@ pub fn verify_transaction_proof(
         Blake3_256<BaseElement>,
         DefaultRandomCoin<Blake3_256<BaseElement>>,
     >(proof, pub_inputs, &min_opts) {
-        Ok(_) => {
-            println!("[ZK-STARK DEBUG] Proof verification: VALID");
-            std::io::stdout().flush().unwrap();
-            Ok(true)
-        }
-        Err(e) => {
-            println!("[ZK-STARK DEBUG] Proof verification failed: {:?}", e);
-            std::io::stdout().flush().unwrap();
-            Ok(false)
-        }
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
     }
 }
 
