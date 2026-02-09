@@ -116,10 +116,11 @@ impl AxiomHybridBehaviour {
 
         let identify = Identify::new(IdentifyConfig::new("/axiom/1.0.0".to_string(), keypair.public()));
 
+        // Note: mDNS cannot be fully disabled via config; when `enable_mdns`
+        // is false we disable IPv6 to reduce chatter but IPv4 mDNS still runs.
         let mdns_config = if config.enable_mdns {
             mdns::Config::default()
         } else {
-            // Disable mDNS by using a very long query interval
             let mut c = mdns::Config::default();
             c.enable_ipv6 = false;
             c
