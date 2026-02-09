@@ -265,7 +265,12 @@ CEREMONY_MASTER_SKILL = {
 
 
 async def run_ceremony_daemon():
-    """Run the Ceremony Coordinator as a persistent daemon"""
+    """Run the Ceremony Coordinator as a persistent daemon.
+
+    The actual ceremony coordination (miner handoff, zkey verification)
+    is driven externally via the CeremonyMaster class. This loop keeps
+    the agent process alive for the AgentManager and logs heartbeats.
+    """
     print("📜 Ceremony Coordinator Agent Starting...")
 
     iteration = 0

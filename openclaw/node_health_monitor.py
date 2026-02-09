@@ -6,6 +6,7 @@ Continuously monitors network health and peer connectivity
 
 import asyncio
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -326,7 +327,6 @@ NODE_HEALTH_MONITOR_SKILL = {
 
 
 if __name__ == "__main__":
-    import os
     node_id = os.environ.get("HOSTNAME", "axiom-node-1")
     monitor = NodeHealthMonitor(node_id, check_interval_seconds=30)
     asyncio.run(monitor.start_monitoring())
