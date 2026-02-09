@@ -24,13 +24,12 @@ pub const GENESIS_ANCHOR_512: &str =
 /// Verifies a mining proof by checking its format and the deterministic
 /// binding between the miner address, parent hash, and proof content.
 ///
-/// The proof layout is:
-///   bytes  0..32  — secret commitment: blake3(secret_key || parent_hash)
-///   bytes 32..64  — public commitment:  blake3(miner_address || parent_hash)
-///   bytes 64..128 — reserved (zero-padded)
+/// The proof layout is (all commitments use blake3 512-bit XOF):
+///   bytes  0..64  — secret commitment: blake3_512(secret_key || parent_hash)
+///   bytes 64..128 — public commitment:  blake3_512(miner_address || parent_hash)
 ///
 /// Verification recomputes the public commitment from the miner's address
-/// and the parent hash, then checks it matches bytes 32..64 of the proof.
+/// and the parent hash, then checks it matches bytes 64..128 of the proof.
 /// This cryptographically binds the proof to the miner's identity.
 pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8]) -> bool {
     if proof.len() != 128 {
@@ -39,42 +38,43 @@ pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8])
     if miner_address == &[0u8; 32] {
         return false;
     }
-    // The secret commitment (bytes 0..32) must be non-zero — proves the
+    // The secret commitment (bytes 0..64) must be non-zero — proves the
     // miner knew their secret key at proof generation time.
-    if proof[..32] == [0u8; 32] {
+    if proof[..64] == [0u8; 64] {
         return false;
     }
-    // Recompute the public commitment and verify it matches the proof.
+    // Recompute the 512-bit public commitment and verify it matches the proof.
     let mut hasher = blake3::Hasher::new();
     hasher.update(miner_address);
     hasher.update(parent);
-    let expected = hasher.finalize();
-    proof[32..64] == *expected.as_bytes()
+    let mut expected = [0u8; 64];
+    hasher.finalize_xof().fill(&mut expected);
+    proof[64..128] == expected
 }
 
 static GENESIS_PRINT: Once = Once::new();
 
 pub fn generate_zk_pass(wallet: &Wallet, parent_hash: [u8; 32]) -> Vec<u8> {
-    // Mining proofs use a lightweight 128-byte hash-based format.
+    // Mining proofs use a lightweight 128-byte hash-based format with
+    // blake3 512-bit (XOF mode) commitments for full collision resistance.
     // Full ZK-STARK proofs are used for transaction privacy (see zk/ module).
     //
-    // Layout:
-    //   bytes  0..32  — blake3(secret_key || parent_hash)   [secret commitment]
-    //   bytes 32..64  — blake3(address    || parent_hash)   [public commitment]
-    //   bytes 64..128 — reserved (zero-padded)
+    // Layout (all commitments are 512-bit blake3 XOF):
+    //   bytes  0..64  — blake3_512(secret_key || parent_hash)  [secret commitment]
+    //   bytes 64..128 — blake3_512(address    || parent_hash)  [public commitment]
     let mut proof_data = vec![0u8; 128];
 
-    // Secret commitment — unpredictable without the secret key
+    // Secret commitment (512-bit) — unpredictable without the secret key
     let mut hasher = blake3::Hasher::new();
     hasher.update(&wallet.secret_key);
     hasher.update(&parent_hash);
-    proof_data[..32].copy_from_slice(hasher.finalize().as_bytes());
+    hasher.finalize_xof().fill(&mut proof_data[..64]);
 
-    // Public commitment — verifiable by any node from the miner address
+    // Public commitment (512-bit) — verifiable by any node from the miner address
     let mut hasher = blake3::Hasher::new();
     hasher.update(&wallet.address);
     hasher.update(&parent_hash);
-    proof_data[32..64].copy_from_slice(hasher.finalize().as_bytes());
+    hasher.finalize_xof().fill(&mut proof_data[64..128]);
 
     proof_data
 }
@@ -97,28 +97,27 @@ pub fn generate_transaction_proof(
         Err(e) => {
             eprintln!("⚠️  ZK-STARK circuit unavailable, using hash-based fallback: {}", e);
             // Deterministic hash-based fallback (128-byte format).
-            // Layout matches mining proofs:
-            //   bytes  0..32  — blake3(secret_key || balance || amount || fee)
-            //   bytes 32..64  — blake3(address    || amount  || fee)  [verifiable]
-            //   bytes 64..128 — reserved (zero-padded)
+            // Uses blake3 512-bit XOF for full collision resistance:
+            //   bytes  0..64  — blake3_512(secret_key || balance || amount || fee)
+            //   bytes 64..128 — blake3_512(address    || amount  || fee)  [verifiable]
             let mut proof_data = vec![0u8; 128];
 
-            // Secret commitment
+            // Secret commitment (512-bit)
             let mut hasher = blake3::Hasher::new();
             hasher.update(secret_key);
             hasher.update(&current_balance.to_le_bytes());
             hasher.update(&transfer_amount.to_le_bytes());
             hasher.update(&fee.to_le_bytes());
-            proof_data[..32].copy_from_slice(hasher.finalize().as_bytes());
+            hasher.finalize_xof().fill(&mut proof_data[..64]);
 
-            // Public commitment — derive address from secret key
+            // Public commitment (512-bit) — derive address from secret key
             let signing_key = ed25519_dalek::SigningKey::from_bytes(secret_key);
             let address = ed25519_dalek::VerifyingKey::from(&signing_key).to_bytes();
             let mut hasher = blake3::Hasher::new();
             hasher.update(&address);
             hasher.update(&transfer_amount.to_le_bytes());
             hasher.update(&fee.to_le_bytes());
-            proof_data[32..64].copy_from_slice(hasher.finalize().as_bytes());
+            hasher.finalize_xof().fill(&mut proof_data[64..128]);
 
             Ok(proof_data)
         }

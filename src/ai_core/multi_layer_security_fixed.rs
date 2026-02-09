@@ -306,7 +306,7 @@ impl AnomalyDetectionCore {
         
         let rapid_tx_anomaly = (rapid_tx_count as f64 / recent_txs.len() as f64).min(1.0);
         
-        // TODO: Add seasonal/time-of-day analysis in future versions
+        // Seasonal/time-of-day analysis is tracked for a future enhancement
         
         Ok(rapid_tx_anomaly)
     }

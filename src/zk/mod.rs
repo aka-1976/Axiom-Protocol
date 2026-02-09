@@ -1,4 +1,4 @@
-/// Mining proofs use a fixed 128-byte hash-based format (lightweight).
+/// Mining proofs use a fixed 128-byte hash-based format (blake3 512-bit XOF).
 /// STARK proofs are larger and variable-sized (used for full transaction privacy).
 const MINING_PROOF_SIZE: usize = 128;
 
@@ -72,14 +72,15 @@ pub fn verify_transaction_proof(
     // Mining proofs are fixed-size hash-based proofs (MINING_PROOF_SIZE bytes).
     // STARK proofs are larger and variable-sized.
     if proof_bytes.len() == MINING_PROOF_SIZE {
-        // Hash-based fallback: verify the public commitment in bytes 32..64
-        // which is blake3(public_address || amount || fee).
+        // Hash-based verification: the public commitment is in bytes 64..128
+        // (512-bit blake3 XOF of public_address || amount || fee).
         let mut hasher = blake3::Hasher::new();
         hasher.update(public_address);
         hasher.update(&transfer_amount.to_le_bytes());
         hasher.update(&fee.to_le_bytes());
-        let expected = hasher.finalize();
-        return Ok(proof_bytes[32..64] == *expected.as_bytes());
+        let mut expected = [0u8; 64];
+        hasher.finalize_xof().fill(&mut expected);
+        return Ok(proof_bytes[64..128] == expected);
     }
 
     // STARK proof: extract commitment and new_balance_commitment from
@@ -131,12 +132,11 @@ pub fn verify_transaction_proof(
     }
 }
 
-/// Generate ZK proof for mining (lightweight hash-based format).
+/// Generate ZK proof for mining (128-byte hash-based format, blake3 512-bit XOF).
 ///
 /// Layout (128 bytes):
-///   bytes  0..32  — blake3(wallet_secret || parent_hash)  [secret commitment]
-///   bytes 32..64  — blake3(address       || parent_hash)  [public commitment]
-///   bytes 64..128 — reserved (zero-padded)
+///   bytes  0..64  — blake3_512(wallet_secret || parent_hash)  [secret commitment]
+///   bytes 64..128 — blake3_512(address       || parent_hash)  [public commitment]
 ///
 /// The public commitment is derived from the miner's Ed25519 public key
 /// (address) so that any node can verify the proof without the secret key.
@@ -145,25 +145,25 @@ pub fn generate_zk_pass(wallet_secret: &[u8; 32], parent_hash: [u8; 32]) -> Vec<
 
     let mut proof_data = vec![0u8; MINING_PROOF_SIZE];
 
-    // Secret commitment
+    // Secret commitment (512-bit)
     let mut hasher = blake3::Hasher::new();
     hasher.update(wallet_secret);
     hasher.update(&parent_hash);
-    proof_data[..32].copy_from_slice(hasher.finalize().as_bytes());
+    hasher.finalize_xof().fill(&mut proof_data[..64]);
 
-    // Public commitment — derive address from secret key
+    // Public commitment (512-bit) — derive address from secret key
     let signing_key = SigningKey::from_bytes(wallet_secret);
     let address = VerifyingKey::from(&signing_key).to_bytes();
     let mut hasher = blake3::Hasher::new();
     hasher.update(&address);
     hasher.update(&parent_hash);
-    proof_data[32..64].copy_from_slice(hasher.finalize().as_bytes());
+    hasher.finalize_xof().fill(&mut proof_data[64..128]);
 
     proof_data
 }
 
-/// Verify mining proof by recomputing the public commitment from the
-/// miner address and parent hash.
+/// Verify mining proof by recomputing the 512-bit public commitment from
+/// the miner address and parent hash.
 pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8]) -> bool {
     if proof.len() != MINING_PROOF_SIZE {
         return false;
@@ -172,13 +172,14 @@ pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8])
         return false;
     }
     // Secret commitment must be non-zero
-    if proof[..32] == [0u8; 32] {
+    if proof[..64] == [0u8; 64] {
         return false;
     }
-    // Recompute and verify public commitment
+    // Recompute and verify 512-bit public commitment
     let mut hasher = blake3::Hasher::new();
     hasher.update(miner_address);
     hasher.update(parent);
-    let expected = hasher.finalize();
-    proof[32..64] == *expected.as_bytes()
+    let mut expected = [0u8; 64];
+    hasher.finalize_xof().fill(&mut expected);
+    proof[64..128] == expected
 }
