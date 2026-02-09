@@ -201,14 +201,16 @@ class NetworkBooster:
         return sum(self.throughput_stats.values()) / len(self.throughput_stats)
 
     def calculate_block_rate(self) -> float:
-        """Calculate blocks synced per minute based on peer count"""
-        # Estimate based on active peer throughput
+        """Calculate blocks synced per minute based on peer count and latency.
+
+        Uses average latency (ms) to estimate propagation speed:
+        blocks/min ≈ peers × (1000 ms / avg_latency_ms) × 0.1 scaling factor.
+        """
         if not self.peer_latencies:
             return 0.0
         avg_latency = self.calculate_avg_latency()
         if avg_latency <= 0:
             return 0.0
-        # Peers with lower latency propagate blocks faster
         return len(self.peer_latencies) * (1000.0 / max(avg_latency, 1.0)) * 0.1
 
     def count_failed_connections(self) -> int:
@@ -223,9 +225,13 @@ class NetworkBooster:
         """Get memory usage percentage from the OS"""
         try:
             with open('/proc/meminfo', 'r') as f:
-                lines = f.readlines()
-            mem_total = int(lines[0].split()[1])
-            mem_available = int(lines[2].split()[1])
+                meminfo = {}
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        meminfo[parts[0].rstrip(':')] = int(parts[1])
+            mem_total = meminfo.get('MemTotal', 0)
+            mem_available = meminfo.get('MemAvailable', 0)
             if mem_total > 0:
                 return ((mem_total - mem_available) / mem_total) * 100.0
         except Exception:

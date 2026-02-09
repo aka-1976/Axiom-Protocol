@@ -7,6 +7,7 @@ Continuously monitors network health and peer connectivity
 import asyncio
 import json
 import os
+import urllib.request
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -115,8 +116,6 @@ class NodeHealthMonitor:
     async def _get_peer_metrics(self) -> List[PeerMetrics]:
         """Fetch peer connectivity metrics from the Axiom node API"""
         try:
-            # Query the local node API for connected peer information
-            import urllib.request
             req = urllib.request.Request('http://127.0.0.1:8080/v1/status')
             req.add_header('User-Agent', 'axiom-health-monitor/1.0')
             with urllib.request.urlopen(req, timeout=5) as resp:
@@ -149,12 +148,16 @@ class NodeHealthMonitor:
             "process_threads": 0,
         }
 
-        # Memory from /proc/meminfo (Linux)
+        # Memory from /proc/meminfo (Linux) — key-based parsing for robustness
         try:
             with open('/proc/meminfo', 'r') as f:
-                lines = f.readlines()
-            mem_total_kb = int(lines[0].split()[1])
-            mem_available_kb = int(lines[2].split()[1])
+                meminfo = {}
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        meminfo[parts[0].rstrip(':')] = int(parts[1])
+            mem_total_kb = meminfo.get('MemTotal', 0)
+            mem_available_kb = meminfo.get('MemAvailable', 0)
             metrics["memory_mb"] = (mem_total_kb - mem_available_kb) / 1024.0
             metrics["memory_available_mb"] = mem_available_kb / 1024.0
         except Exception:
@@ -170,15 +173,24 @@ class NodeHealthMonitor:
         except Exception:
             pass
 
-        # CPU from /proc/stat (Linux)
+        # CPU from /proc/stat (Linux) — sample twice to get current utilization
         try:
-            with open('/proc/stat', 'r') as f:
-                line = f.readline()
-            parts = line.split()
-            idle = int(parts[4])
-            total_cpu = sum(int(p) for p in parts[1:])
-            if total_cpu > 0:
-                metrics["cpu_percent"] = ((total_cpu - idle) / total_cpu) * 100.0
+            def read_cpu_times():
+                with open('/proc/stat', 'r') as f:
+                    line = f.readline()
+                parts = line.split()
+                idle = int(parts[4])
+                total_cpu = sum(int(p) for p in parts[1:])
+                return idle, total_cpu
+
+            idle1, total1 = read_cpu_times()
+            await asyncio.sleep(0.1)  # Brief sampling interval
+            idle2, total2 = read_cpu_times()
+
+            idle_delta = idle2 - idle1
+            total_delta = total2 - total1
+            if total_delta > 0:
+                metrics["cpu_percent"] = ((total_delta - idle_delta) / total_delta) * 100.0
         except Exception:
             pass
 

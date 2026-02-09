@@ -67,7 +67,8 @@ pub fn generate_transaction_proof(
     // unavailable (e.g. constrained environments).
     match zk::generate_transaction_proof(secret_key, current_balance, transfer_amount, fee) {
         Ok(proof) => Ok(proof),
-        Err(_) => {
+        Err(e) => {
+            eprintln!("⚠️  ZK-STARK circuit unavailable, using hash-based fallback: {}", e);
             // Deterministic hash-based fallback (same 128-byte mining-proof format)
             let mut proof_data = vec![0u8; 128];
             let mut hasher = blake3::Hasher::new();
