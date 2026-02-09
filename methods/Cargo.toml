@@ -1,0 +1,11 @@
+[package]
+name = "axiom-methods"
+version = "0.1.0"
+edition = "2021"
+description = "AXIOM Protocol — RISC Zero method builder (compiles Guest to ELF + ImageID)"
+
+[build-dependencies]
+risc0-build = "3.0"
+
+[package.metadata.risc0]
+methods = ["guest"]

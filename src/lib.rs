@@ -78,6 +78,7 @@ pub struct AxiomPulse {
 
 // Core modules
 pub mod zk;
+pub mod stark; // RISC Zero zkVM STARK proving (124M supply integrity)
 pub mod consensus; // VDF consensus implementation
 pub mod ai; // AI Oracle network
 

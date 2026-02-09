@@ -1,0 +1,11 @@
+[package]
+name = "axiom-guest"
+version = "0.1.0"
+edition = "2021"
+description = "AXIOM Protocol 124M Supply Integrity Law — RISC Zero Guest (zkVM)"
+
+[dependencies]
+risc0-zkvm = { version = "3.0", default-features = false, features = ["std"] }
+blake3 = { version = "1.5", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+bincode = "1.3"
