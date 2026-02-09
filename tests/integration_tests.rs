@@ -30,7 +30,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Skip in CI - requires valid ZK keys
     fn test_transaction_validation() {
         let wallet = Wallet::load_or_create();
         let to_address = [1u8; 32];
@@ -216,12 +215,24 @@ mod tests {
         // Zero miner address should fail
         assert!(!genesis::verify_zk_pass(&[0u8; 32], &parent_hash, &proof));
 
-        // All-zero commitment (first 32 bytes) should fail
-        let mut bad_proof = vec![0u8; 128];
+        // All-zero proof should fail (no secret commitment)
+        let bad_proof = vec![0u8; 128];
         assert!(!genesis::verify_zk_pass(&wallet.address, &parent_hash, &bad_proof));
 
-        // Non-zero commitment should pass
-        bad_proof[0] = 1;
-        assert!(genesis::verify_zk_pass(&wallet.address, &parent_hash, &bad_proof));
+        // Proof with non-zero secret commitment but invalid public commitment should fail
+        let mut bad_proof = vec![0u8; 128];
+        bad_proof[0] = 1; // fake secret commitment
+        assert!(!genesis::verify_zk_pass(&wallet.address, &parent_hash, &bad_proof),
+            "Proof with incorrect public commitment must be rejected");
+
+        // Proof verified against wrong parent hash should fail
+        let wrong_parent = [0xFFu8; 32];
+        assert!(!genesis::verify_zk_pass(&wallet.address, &wrong_parent, &proof),
+            "Proof verified against wrong parent hash must be rejected");
+
+        // Proof verified against wrong miner address should fail
+        let wrong_miner = [0xABu8; 32];
+        assert!(!genesis::verify_zk_pass(&wrong_miner, &parent_hash, &proof),
+            "Proof verified against wrong miner address must be rejected");
     }
 }

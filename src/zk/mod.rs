@@ -1,5 +1,3 @@
-use sha2::{Sha256, Digest};
-
 /// Mining proofs use a fixed 128-byte hash-based format (lightweight).
 /// STARK proofs are larger and variable-sized (used for full transaction privacy).
 const MINING_PROOF_SIZE: usize = 128;
@@ -24,6 +22,7 @@ pub fn generate_transaction_proof(
     fee: u64,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     use winterfell::math::fields::f128::BaseElement;
+    use winterfell::math::StarkField;
 
     let secret_fr = circuit::bytes_to_field(secret_key);
     let balance_fr = BaseElement::new(current_balance as u128);
@@ -34,14 +33,24 @@ pub fn generate_transaction_proof(
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
     let nonce_fr = BaseElement::new(0u128);
-    let (proof, _public_inputs) = system
+    let (proof, public_inputs) = system
         .prove(secret_fr, balance_fr, nonce_fr, amount_fr, fee_fr)
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
-    // Serialize the STARK proof
+    // Serialize the STARK proof with public inputs prepended.
+    // Layout: [commitment: 16 bytes] [new_balance_commitment: 16 bytes] [proof bytes...]
+    // The verifier needs the commitment and new_balance_commitment to
+    // reconstruct the public inputs that match the proof.
     let proof_bytes = proof.to_bytes();
+    let commitment_bytes = public_inputs[0].as_int().to_le_bytes();
+    let new_balance_bytes = public_inputs[3].as_int().to_le_bytes();
 
-    Ok(proof_bytes)
+    let mut encoded = Vec::with_capacity(32 + proof_bytes.len());
+    encoded.extend_from_slice(&commitment_bytes);
+    encoded.extend_from_slice(&new_balance_bytes);
+    encoded.extend_from_slice(&proof_bytes);
+
+    Ok(encoded)
 }
 
 /// Verify ZK-STARK proof for a transaction
@@ -57,31 +66,42 @@ pub fn verify_transaction_proof(
     // Mining proofs are fixed-size hash-based proofs (MINING_PROOF_SIZE bytes).
     // STARK proofs are larger and variable-sized.
     if proof_bytes.len() == MINING_PROOF_SIZE {
-        // This is a mining proof - use hash-based verification
-        let mut hasher = Sha256::new();
+        // Hash-based fallback: verify the public commitment in bytes 32..64
+        // which is blake3(public_address || amount || fee).
+        let mut hasher = blake3::Hasher::new();
         hasher.update(public_address);
         hasher.update(&transfer_amount.to_le_bytes());
         hasher.update(&fee.to_le_bytes());
-        let hash = hasher.finalize();
-        return Ok(proof_bytes[..32] == hash[..32]);
+        let expected = hasher.finalize();
+        return Ok(proof_bytes[32..64] == *expected.as_bytes());
     }
 
-    // STARK proof deserialization
-    let proof = Proof::from_bytes(proof_bytes)
+    // STARK proof: extract commitment and new_balance_commitment from
+    // the prepended 32-byte header, then deserialize the actual proof.
+    // Layout: [commitment: 16 bytes] [new_balance_commitment: 16 bytes] [proof...]
+    if proof_bytes.len() < 32 {
+        return Err("STARK proof too short".into());
+    }
+
+    let commitment_int = u128::from_le_bytes(
+        proof_bytes[0..16].try_into().map_err(|_| "bad commitment bytes")?
+    );
+    let new_balance_int = u128::from_le_bytes(
+        proof_bytes[16..32].try_into().map_err(|_| "bad new_balance bytes")?
+    );
+    let stark_proof_data = &proof_bytes[32..];
+
+    let proof = Proof::from_bytes(stark_proof_data)
         .map_err(|e| -> Box<dyn std::error::Error> {
             format!("Proof deserialization failed: {:?}", e).into()
         })?;
 
-    // Reconstruct public inputs from the address and transaction data
-    let address_fr = circuit::bytes_to_field(public_address);
+    // Reconstruct public inputs using the commitment values embedded
+    // in the proof envelope and the transaction data.
+    let commitment = BaseElement::new(commitment_int);
     let amount_fr = BaseElement::new(transfer_amount as u128);
     let fee_fr = BaseElement::new(fee as u128);
-
-    // The commitment is derived from the public address (which itself is
-    // derived from the secret key). The new_balance_commitment encodes the
-    // post-transaction state.
-    let commitment = address_fr;
-    let new_balance_commitment = address_fr - amount_fr - fee_fr;
+    let new_balance_commitment = BaseElement::new(new_balance_int);
 
     let pub_inputs = circuit::TransactionPublicInputs {
         commitment,
@@ -105,37 +125,54 @@ pub fn verify_transaction_proof(
     }
 }
 
-/// Generate ZK proof for mining (simplified for performance)
+/// Generate ZK proof for mining (lightweight hash-based format).
+///
+/// Layout (128 bytes):
+///   bytes  0..32  — blake3(wallet_secret || parent_hash)  [secret commitment]
+///   bytes 32..64  — blake3(address       || parent_hash)  [public commitment]
+///   bytes 64..128 — reserved (zero-padded)
+///
+/// The public commitment is derived from the miner's Ed25519 public key
+/// (address) so that any node can verify the proof without the secret key.
 pub fn generate_zk_pass(wallet_secret: &[u8; 32], parent_hash: [u8; 32]) -> Vec<u8> {
-    // For mining, we use a lightweight hash-based proof
-    // STARK proofs are used for full transaction privacy
+    use ed25519_dalek::{SigningKey, VerifyingKey};
+
     let mut proof_data = vec![0u8; MINING_PROOF_SIZE];
-    let mut hasher = Sha256::new();
+
+    // Secret commitment
+    let mut hasher = blake3::Hasher::new();
     hasher.update(wallet_secret);
-    hasher.update(parent_hash);
-    hasher.update(b"mining_proof_stark");
-    let hash = hasher.finalize();
-    proof_data[..32].copy_from_slice(&hash);
+    hasher.update(&parent_hash);
+    proof_data[..32].copy_from_slice(hasher.finalize().as_bytes());
+
+    // Public commitment — derive address from secret key
+    let signing_key = SigningKey::from_bytes(wallet_secret);
+    let address = VerifyingKey::from(&signing_key).to_bytes();
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&address);
+    hasher.update(&parent_hash);
+    proof_data[32..64].copy_from_slice(hasher.finalize().as_bytes());
 
     proof_data
 }
 
-/// Verify mining proof
-pub fn verify_zk_pass(miner_address: &[u8; 32], _parent: &[u8; 32], proof: &[u8]) -> bool {
+/// Verify mining proof by recomputing the public commitment from the
+/// miner address and parent hash.
+pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8]) -> bool {
     if proof.len() != MINING_PROOF_SIZE {
         return false;
     }
-
     if miner_address == &[0u8; 32] {
         return false;
     }
-
-    // Fallback to hash-based verification
-    let mut hasher = Sha256::new();
+    // Secret commitment must be non-zero
+    if proof[..32] == [0u8; 32] {
+        return false;
+    }
+    // Recompute and verify public commitment
+    let mut hasher = blake3::Hasher::new();
     hasher.update(miner_address);
-    hasher.update(_parent);
-    hasher.update(b"mining_proof_stark");
-    let expected_hash = hasher.finalize();
-
-    proof[..32] == expected_hash[..32]
+    hasher.update(parent);
+    let expected = hasher.finalize();
+    proof[32..64] == *expected.as_bytes()
 }
