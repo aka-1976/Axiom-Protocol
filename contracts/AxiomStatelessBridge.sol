@@ -111,6 +111,11 @@ contract AxiomStatelessBridge {
 
         // Verify the RISC Zero receipt on-chain.
         // Reverts if the proof is invalid.
+        // Note: The journalDigest is the SHA-256 commitment produced by
+        // the guest program, which internally binds to the supply state.
+        // The caller is responsible for ensuring that height, pulseHash,
+        // and timestamp are consistent with the journal content; the
+        // guest program enforces the supply invariant.
         verifier.verify(seal, guestImageId, journalDigest);
 
         // Update anchored state.

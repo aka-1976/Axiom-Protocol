@@ -435,7 +435,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         // Contextual API logging: inform the operator about the bind mode.
         if api_bind.is_loopback() {
-            println!("💡 TIP: API is local-only (127.0.0.1). To enable public observability, set API_BIND_ADDRESS=0.0.0.0:8080.");
+            println!("💡 TIP: API is local-only (127.0.0.1). To enable public observability, set API_BIND_ADDRESS=0.0.0.0:{}.", api_port);
         } else {
             println!("⚠️  WARNING: API is publicly accessible at {}:{}. Rate-limiting is active ({} req/min).", api_bind, api_port, API_RATE_LIMIT_PER_MINUTE);
         }

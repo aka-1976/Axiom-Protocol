@@ -124,9 +124,11 @@ impl NetworkConfig {
 /// }
 /// ```
 ///
-/// In the current release this is a no-op attribute; full procedural macro
-/// expansion (compiling to RISC-V ELF and wrapping with a host prover) is
-/// planned for the next SDK version.
+/// In the current release (v1.0) this is a no-op attribute that
+/// preserves the function as-is. Full procedural macro expansion —
+/// compiling to RISC-V ELF and wrapping with a host prover — will
+/// ship in a future SDK version once the risc0-zkvm toolchain is
+/// integrated as a build dependency.
 #[macro_export]
 macro_rules! axiom_contract {
     (

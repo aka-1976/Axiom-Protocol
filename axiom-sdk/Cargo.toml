@@ -11,6 +11,9 @@ keywords = ["blockchain", "cryptocurrency", "privacy", "zkstark", "axiom"]
 categories = ["cryptography", "network-programming"]
 readme = "README.md"
 
+# Standalone workspace: axiom-sdk is excluded from the root workspace
+# because it has its own dependency tree. This empty [workspace] tells
+# Cargo to treat it as an independent project.
 [workspace]
 
 [dependencies]

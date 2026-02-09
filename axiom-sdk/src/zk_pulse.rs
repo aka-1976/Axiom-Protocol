@@ -81,9 +81,10 @@ impl ZkPulse {
         let digest_hex = hex::encode(digest);
 
         // 3. Construct proof placeholder.
-        //    In production with the `risc0` feature, this would invoke the
-        //    RISC Zero prover against the riscv32im-unknown-none-elf guest.
-        //    For now, we bundle the digest as a self-contained proof stub.
+        //    When the full RISC Zero prover is integrated (tracked as a
+        //    future SDK release), this will invoke the RISC Zero prover
+        //    against the riscv32im-unknown-none-elf guest. For now, we
+        //    bundle the digest as a self-contained proof stub.
         let proof_bytes = Self::generate_proof_stub(&digest)?;
 
         Ok(ProveTransactionOutput {

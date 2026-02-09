@@ -75,12 +75,14 @@ contract AxiomVerifier {
      * @param journalDigest SHA-256 digest of the public journal.
      * @return valid        True if the receipt is accepted.
      *
-     * @dev In production the `seal` would be forwarded to the official
-     *      RISC Zero Groth16Verifier for cryptographic validation.
-     *      This contract performs the Axiom-specific checks:
+     * @dev **NOT PRODUCTION-READY.** In production the `seal` must be
+     *      forwarded to the official RISC Zero Groth16Verifier for full
+     *      cryptographic validation. This contract currently performs only
+     *      Axiom-specific structural checks:
      *        1. imageId must match trustedImageId.
      *        2. The journal must not have been submitted before (replay protection).
      *        3. The seal must be non-empty.
+     *      Deploy with the full verifier before mainnet use.
      */
     function verifyReceipt(
         bytes calldata seal,
