@@ -253,7 +253,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             rem
         },
         trust_pulse: String::new(),
-        model_integrity: true, // assumed until load_model says otherwise
+        model_integrity: false, // verified only after load_model() succeeds
     }));
 
     {
@@ -469,9 +469,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 let ai = ai_guardian.lock().unwrap();
                 let stats = ai.get_stats();
-                println!("🤖 AI Guardian: {} events | {} peers tracked | {} assessments cached | model: {}",
+                println!("🤖 AI Guardian: {} events | {} peers tracked | {} assessments cached | model: {}…",
                     stats.total_events, stats.unique_peers, stats.cached_assessments,
-                    &stats.model_hash[..12]);
+                    if stats.model_hash.len() >= 12 { &stats.model_hash[..12] } else { &stats.model_hash });
                 println!("------------------------\n");
 
                 // Update Public Pulse API state
@@ -488,8 +488,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     api.current_height = tc.blocks.len() as u64;
                     api.supply_remaining = remaining_supply;
                     api.trust_pulse = trust_pulse_hex;
-                    api.model_integrity = stats.model_hash == axiom_core::GENESIS_WEIGHTS_HASH
-                        || stats.model_hash.len() == 64; // default model is always valid
+                    api.model_integrity = stats.model_hash == axiom_core::GENESIS_WEIGHTS_HASH;
                 }
 
                 last_diff = tc.difficulty;
