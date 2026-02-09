@@ -210,7 +210,7 @@ class NodeHealthMonitor:
 
         # Read real memory usage from /proc/meminfo
         try:
-            with open("/proc/meminfo") as f:
+            with open("/proc/meminfo", encoding="ascii") as f:
                 mem_info = {}
                 for line in f:
                     parts = line.split()

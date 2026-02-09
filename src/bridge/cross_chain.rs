@@ -5,6 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 
+/// Cached Ethereum RPC URL from the AXIOM_RPC_ETHEREUM environment variable.
+/// Read once at first access to avoid per-call memory allocation.
+static ETH_RPC_URL: once_cell::sync::Lazy<String> = once_cell::sync::Lazy::new(|| {
+    std::env::var("AXIOM_RPC_ETHEREUM")
+        .unwrap_or_else(|_| "https://eth-mainnet.g.alchemy.com/v2/".to_string())
+});
+
 /// Supported blockchain networks for cross-chain operations
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ChainId {
@@ -35,15 +42,7 @@ impl ChainId {
     pub fn rpc_url(&self) -> &str {
         match self {
             ChainId::Axiom => "https://rpc.axiom.network",
-            ChainId::Ethereum => {
-                // Requires AXIOM_RPC_ETHEREUM env var with a valid RPC URL
-                // e.g. https://eth-mainnet.g.alchemy.com/v2/<your-key>
-                let default = "https://eth-mainnet.g.alchemy.com/v2/";
-                match std::env::var("AXIOM_RPC_ETHEREUM") {
-                    Ok(url) => Box::leak(url.into_boxed_str()),
-                    Err(_) => default,
-                }
-            }
+            ChainId::Ethereum => &ETH_RPC_URL,
             ChainId::BSC => "https://bsc-dataseed1.binance.org",
             ChainId::Polygon => "https://polygon-rpc.com",
             ChainId::Arbitrum => "https://arb1.arbitrum.io/rpc",

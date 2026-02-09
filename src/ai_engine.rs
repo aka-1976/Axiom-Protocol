@@ -75,7 +75,10 @@ impl AttackDetectionModel {
 /// normalised feature vectors with labels.  When no data is available
 /// (e.g. on non-Linux systems), returns an empty collection so callers
 /// can skip the training step without panicking.
-pub fn collect_network_metrics() -> Vec<(Vec<f32>, f32)> {
+///
+/// `peer_count_norm` is the normalised peer count (0.0–1.0, where 1.0 = 50 peers).
+/// Callers should pass the actual connected peer count divided by 50.
+pub fn collect_network_metrics_with_peers(peer_count_norm: f32) -> Vec<(Vec<f32>, f32)> {
     let mut samples = Vec::new();
 
     // Feature vector: [cpu_usage_norm, memory_usage_norm, peer_count_norm]
@@ -115,14 +118,16 @@ pub fn collect_network_metrics() -> Vec<(Vec<f32>, f32)> {
         })
         .unwrap_or(0.0);
 
-    // Normalised peer count (assume max 50 peers)
-    let peer_count: f32 = 0.0; // Updated by the caller when peers are known
-
     // Label: if CPU < 0.9 and memory < 0.9, this is normal operation
     let label = if cpu_usage < 0.9 && mem_usage < 0.9 { 1.0 } else { 0.0 };
-    samples.push((vec![cpu_usage, mem_usage, peer_count], label));
+    samples.push((vec![cpu_usage, mem_usage, peer_count_norm], label));
 
     samples
+}
+
+/// Convenience wrapper that defaults peer count to 0.
+pub fn collect_network_metrics() -> Vec<(Vec<f32>, f32)> {
+    collect_network_metrics_with_peers(0.0)
 }
 
 /// Dynamic reputation scoring based on AI outputs

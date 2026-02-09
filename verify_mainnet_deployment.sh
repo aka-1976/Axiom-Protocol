@@ -248,14 +248,13 @@ fi
 check_category "SECTION 5: PERFORMANCE VALIDATION"
 
 echo "Measuring CPU overhead..."
-CPU_IDLE=$(grep 'cpu ' /proc/stat | awk '{total=$2+$3+$4+$5+$6+$7+$8; idle=$5; printf "%.1f", idle/total*100}')
-CPU_USED=$(echo "100 - $CPU_IDLE" | bc 2>/dev/null || echo "0")
+CPU_USED=$(awk '/^cpu / {for(i=2;i<=NF;i++) total+=$i; idle=$5; printf "%.1f", (total-idle)/total*100}' /proc/stat 2>/dev/null || echo "0")
 echo "  Expected: < 4.5%"
 echo "  Actual:   ${CPU_USED}%"
-if [ "$(echo "$CPU_USED < 4.5" | bc 2>/dev/null || echo 1)" = "1" ]; then
+if command -v bc >/dev/null 2>&1 && [ "$(echo "$CPU_USED < 4.5" | bc)" = "1" ]; then
     check_pass "CPU overhead within budget (${CPU_USED}% < 4.5%)"
 else
-    check_fail "CPU overhead exceeds budget (${CPU_USED}% >= 4.5%)"
+    check_fail "CPU overhead exceeds budget or bc unavailable (${CPU_USED}%)"
 fi
 
 echo ""
