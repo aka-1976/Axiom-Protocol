@@ -152,8 +152,8 @@ pub const GENESIS_WEIGHTS_HASH: &str =
 /// python3 -c "import blake3; print(blake3.blake3(open('config/genesis_pulse.json','rb').read()).hexdigest(length=64))"
 /// ```
 pub const GENESIS_PULSE_HASH: &str =
-    "0000000000000000000000000000000000000000000000000000000000000000\
-     0000000000000000000000000000000000000000000000000000000000000000";
+    "3f178ac4d3e0155210addeb1433f588ef12ce5a6a811ed8c77fca5ffd3372694\
+     3a6b152420c7b2d611fb187cfd26390e18ad4df0947fea0060dab8b75007de74";
 
 // Re-export 124M economics constants
 pub use economics::{

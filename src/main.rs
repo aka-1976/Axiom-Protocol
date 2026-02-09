@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -391,15 +391,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .or(version_route)
             .or(health_check_route)
             .or(pulse_history_route)
+            // CORS: allow any origin with GET-only methods. This is safe because
+            // the API is read-only, unauthenticated, and carries no credentials.
+            // It enables external dashboard websites to query pulse history.
+            .with(warp::cors()
+                .allow_any_origin()
+                .allow_methods(vec!["GET"])
+                .allow_headers(vec!["Content-Type"]))
             .recover(handle_rejection);
 
+        // Configurable API bind address: read from AXIOM_API_BIND env var.
+        // Default: 127.0.0.1 (localhost only). Set to 0.0.0.0 for public nodes.
+        let api_bind: IpAddr = std::env::var("AXIOM_API_BIND")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_else(|| [127, 0, 0, 1].into());
+        let api_port: u16 = 8080;
+
         tokio::spawn(async move {
-            println!("🌐 Public Pulse API: http://127.0.0.1:8080/v1/status");
-            println!("🌐 Version endpoint: http://127.0.0.1:8080/v1/version");
-            println!("🌐 Health check:     http://127.0.0.1:8080/v1/health/check");
-            println!("🌐 Pulse history:    http://127.0.0.1:8080/v1/pulse/history");
+            println!("🌐 Public Pulse API: http://{}:{}/v1/status", api_bind, api_port);
+            println!("🌐 Version endpoint: http://{}:{}/v1/version", api_bind, api_port);
+            println!("🌐 Health check:     http://{}:{}/v1/health/check", api_bind, api_port);
+            println!("🌐 Pulse history:    http://{}:{}/v1/pulse/history", api_bind, api_port);
+            println!("🌐 CORS:             enabled (any origin, GET only)");
             warp::serve(routes)
-                .run(([127, 0, 0, 1], 8080))
+                .run(SocketAddr::new(api_bind, api_port))
                 .await;
         });
     }

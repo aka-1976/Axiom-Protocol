@@ -55,3 +55,25 @@ the model weights, they could:
 
 The `GENESIS_WEIGHTS_HASH` anchoring prevents all of these attacks by
 making model tampering detectable before the node even joins the network.
+
+## Genesis Pulse Fingerprint
+
+The `config/genesis_pulse.json` file anchors the entire tamper-evident
+pulse chain to the absolute start of the 124M network. Its 512-bit
+BLAKE3 (XOF) fingerprint is hardcoded as `GENESIS_PULSE_HASH` in
+`src/lib.rs`.
+
+```bash
+# Verify the genesis pulse (requires b3sum or python3 with blake3):
+b3sum --raw --length 64 config/genesis_pulse.json | xxd -p -c 128
+
+# Or with Python:
+python3 -c "import blake3; print(blake3.blake3(open('config/genesis_pulse.json','rb').read()).hexdigest(length=64))"
+
+# Expected (512-bit / 128 hex chars):
+# 3f178ac4d3e0155210addeb1433f588ef12ce5a6a811ed8c77fca5ffd33726943a6b152420c7b2d611fb187cfd26390e18ad4df0947fea0060dab8b75007de74
+```
+
+If the hash does not match, the node will print `GENESIS PULSE INTEGRITY
+FAILURE` and exit. See also `docs/GENESIS_RECORD.md` for the full raw
+JSON content of this file.

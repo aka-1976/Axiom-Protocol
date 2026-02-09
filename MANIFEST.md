@@ -91,7 +91,7 @@ chain. The node verifies it at startup against `GENESIS_PULSE_HASH` in
 
 ```bash
 # Compute 512-bit BLAKE3 hash (requires b3sum: cargo install b3sum)
-b3sum --num-bytes 64 config/genesis_pulse.json
+b3sum --length 64 config/genesis_pulse.json
 
 # Or using Python with the blake3 package (pip install blake3):
 python3 -c "
