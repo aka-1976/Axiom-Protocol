@@ -23,9 +23,9 @@ pub fn axiom_hash_512(data: &[u8]) -> [u8; 64] {
 /// peer discovery beyond these seeds.
 pub const BOOTSTRAP_NODES: &[&str] = &[
     "/ip4/34.10.172.20/tcp/6000",
-    "/ip4/34.160.111.145/tcp/6000",
-    "/ip4/51.15.23.200/tcp/6000",
-    "/ip4/3.8.120.113/tcp/6000",
+    "/ip4/34.160.111.145/tcp/7000",
+    "/ip4/51.15.23.200/tcp/7000",
+    "/ip4/3.8.120.113/tcp/7000",
 ];
 
 /// Serde helper for fixed-size 64-byte arrays (512-bit hashes).

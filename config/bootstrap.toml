@@ -16,8 +16,8 @@
 # Seed diversity: multiple bootstrap nodes across providers to prevent
 # single-point-of-failure (centralization).
 bootnodes = [
-    "/ip4/34.10.172.20/tcp/6000",                                                                   # Primary GCP Node
-    "/ip4/34.160.111.145/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",      # GCP Node 2
-    "/ip4/51.15.23.200/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",        # Scaleway/OVH Node
-    "/ip4/3.8.120.113/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",         # AWS EC2 Node
+    "/ip4/34.10.172.20/tcp/6000",   # Primary GCP Node
+    "/ip4/34.160.111.145/tcp/7000", # GCP Node 2
+    "/ip4/51.15.23.200/tcp/7000",   # Scaleway/OVH Node
+    "/ip4/3.8.120.113/tcp/7000",    # AWS EC2 Node
 ]
