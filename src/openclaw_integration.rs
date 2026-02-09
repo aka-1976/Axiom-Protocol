@@ -86,10 +86,20 @@ pub async fn start_openclaw_background() -> Result<JoinHandle<()>, Box<dyn std::
     let base_dir = env::current_dir()?;
 
     // Resolve absolute paths for weights.bin and config/genesis_pulse.json
-    let weights_path = base_dir.join("weights.bin").canonicalize()
-        .unwrap_or_else(|_| base_dir.join("weights.bin"));
-    let genesis_pulse_path = base_dir.join("config").join("genesis_pulse.json").canonicalize()
-        .unwrap_or_else(|_| base_dir.join("config").join("genesis_pulse.json"));
+    let weights_path = match base_dir.join("weights.bin").canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("ℹ️  weights.bin canonicalize fallback ({}), using relative join", e);
+            base_dir.join("weights.bin")
+        }
+    };
+    let genesis_pulse_path = match base_dir.join("config").join("genesis_pulse.json").canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("ℹ️  genesis_pulse.json canonicalize fallback ({}), using relative join", e);
+            base_dir.join("config").join("genesis_pulse.json")
+        }
+    };
     
     // Spawn background task that manages all OpenClaw agents
     let handle = tokio::spawn(async move {

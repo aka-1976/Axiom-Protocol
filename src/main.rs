@@ -810,10 +810,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                         pulse.stark_receipt = Some(receipt.seal.clone());
 
                                         // Verify the receipt against the expected anchor
-                                        let anchor = StarkProver::compute_512_anchor(&stark_tx)
-                                            .unwrap_or([0u8; 64]);
-                                        let verified = StarkProver::verify_receipt(&receipt, &anchor)
-                                            .unwrap_or(false);
+                                        let anchor = match StarkProver::compute_512_anchor(&stark_tx) {
+                                            Ok(a) => a,
+                                            Err(e) => {
+                                                println!("⚠️  STARK anchor computation failed @ H-{}: {}", height, e);
+                                                [0u8; 64]
+                                            }
+                                        };
+                                        let verified = match StarkProver::verify_receipt(&receipt, &anchor) {
+                                            Ok(v) => v,
+                                            Err(e) => {
+                                                println!("⚠️  STARK receipt verification failed @ H-{}: {}", height, e);
+                                                false
+                                            }
+                                        };
 
                                         let mut api = api_state.lock().unwrap();
                                         api.zk_verified = verified;
