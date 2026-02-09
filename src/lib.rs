@@ -157,11 +157,10 @@ pub const VERIFIED_GENESIS_ANCHOR_512: &str =
 /// hashes diverge, the node panics — preventing tampered AI weights from
 /// silently corrupting trust decisions on the 124M network.
 ///
-/// To update this constant, compute:
-/// ```text
-/// sha256sum weights.bin
-/// ```
-/// and paste the hex digest below.
+/// The current value is SHA-256 of an empty input, which is the sentinel
+/// value for nodes that have not yet loaded a trained model file.  When
+/// the first production model is trained and distributed, this constant
+/// must be updated to the real `sha256sum weights.bin` digest.
 pub const GENESIS_WEIGHTS_HASH: &str =
     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 

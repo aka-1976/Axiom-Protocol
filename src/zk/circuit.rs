@@ -549,7 +549,13 @@ mod tests {
     }
 }
 
+/// Derive a circuit-level address from a secret key.
+///
+/// Produces the Ed25519 verifying key (public key) from the secret key bytes,
+/// matching the address derivation used elsewhere in the protocol.
 #[allow(dead_code)]
-pub fn generate_circuit_address(_secret: &[u8; 32]) -> [u8; 32] {
-    [0u8; 32]
+pub fn generate_circuit_address(secret: &[u8; 32]) -> [u8; 32] {
+    use ed25519_dalek::{SigningKey, VerifyingKey};
+    let signing_key = SigningKey::from_bytes(secret);
+    VerifyingKey::from(&signing_key).to_bytes()
 }

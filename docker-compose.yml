@@ -9,7 +9,7 @@ services:
     volumes:
       - mainnet-node1-data:/app/data
     entrypoint: ["./axiom"]
-    command: ["--bootnodes", "/ip4/172.20.0.2/tcp/6000/p2p/QmNode2,/ip4/172.20.0.3/tcp/6000/p2p/QmNode3"]
+    command: ["--bootnodes", "/ip4/172.20.0.2/tcp/6000,/ip4/172.20.0.3/tcp/6000"]
     networks:
       mainnet-net:
         ipv4_address: 172.20.0.1
@@ -22,7 +22,7 @@ services:
     volumes:
       - mainnet-node2-data:/app/data
     entrypoint: ["./axiom"]
-    command: ["--bootnodes", "/ip4/172.20.0.1/tcp/6000/p2p/QmNode1,/ip4/172.20.0.3/tcp/6000/p2p/QmNode3"]
+    command: ["--bootnodes", "/ip4/172.20.0.1/tcp/6000,/ip4/172.20.0.3/tcp/6000"]
     networks:
       mainnet-net:
         ipv4_address: 172.20.0.2
@@ -35,7 +35,7 @@ services:
     volumes:
       - mainnet-node3-data:/app/data
     entrypoint: ["./axiom"]
-    command: ["--bootnodes", "/ip4/172.20.0.1/tcp/6000/p2p/QmNode1,/ip4/172.20.0.2/tcp/6000/p2p/QmNode2"]
+    command: ["--bootnodes", "/ip4/172.20.0.1/tcp/6000,/ip4/172.20.0.2/tcp/6000"]
     networks:
       mainnet-net:
         ipv4_address: 172.20.0.3

@@ -93,7 +93,7 @@ struct AppState {
 
 impl AppState {
     fn new() -> Self {
-        // Initialize with genesis block and sample data
+        // Initialize with only the genesis block — real blocks arrive via chain sync
         let genesis_block = Block {
             index: 0,
             hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
@@ -110,49 +110,9 @@ impl AppState {
             reward: 5000000000, // 50 AXM
         };
 
-        // Sample blocks
-        let mut blocks = vec![genesis_block];
-        
-        for i in 1..=10 {
-            let block = Block {
-                index: i,
-                hash: format!("{:064x}", i * 123456789),
-                previous_hash: blocks.last().unwrap().hash.clone(),
-                timestamp: 1600000000 + (i * 600),
-                transactions: vec![
-                    Transaction {
-                        hash: format!("{:064x}", i * 987654321),
-                        sender: format!("{:064x}", i * 111),
-                        recipient: format!("{:064x}", i * 222),
-                        amount: 100000000 * i, // Various amounts
-                        fee: 1000,
-                        timestamp: 1600000000 + (i * 600) - 30,
-                        signature: format!("{:0128x}", i * 333),
-                        block_hash: Some(format!("{:064x}", i * 123456789)),
-                        block_index: Some(i),
-                        confirmations: (10 - i) as u32 + 1,
-                        zk_proof: if i % 3 == 0 { Some("zkproof...".to_string()) } else { None },
-                    },
-                ],
-                miner: format!("{:064x}", i * 444),
-                difficulty: 1000 + (i as u32 * 100),
-                nonce: i * 54321,
-                merkle_root: format!("{:064x}", i * 555),
-                vdf_output: Some(format!("{:064x}", i * 666)),
-                vdf_proof: Some(format!("{:064x}", i * 777)),
-                size: 1024 + (i as usize * 256),
-                reward: 5000000000, // 50 AXM
-            };
-            blocks.push(block);
-        }
-
-        let transactions: Vec<Transaction> = blocks.iter()
-            .flat_map(|b| b.transactions.clone())
-            .collect();
-
         Self {
-            blocks: Mutex::new(blocks),
-            transactions: Mutex::new(transactions),
+            blocks: Mutex::new(vec![genesis_block]),
+            transactions: Mutex::new(vec![]),
         }
     }
 }
@@ -182,10 +142,14 @@ async fn get_stats(data: web::Data<AppState>) -> impl Responder {
         total_supply: 124000000_00000000, // 124M AXM in satoshis
         circulating_supply: height * 5000000000, // 50 AXM per block
         difficulty: blocks.last().map(|b| b.difficulty).unwrap_or(1000),
-        hash_rate: 123456789.0, // Simulated
-        peers: 42,
-        mempool_size: 15,
-        average_block_time: 600.0,
+        hash_rate: 0.0, // Computed when mining telemetry is available
+        peers: 0,       // Updated by P2P layer
+        mempool_size: 0, // Updated by transaction pool
+        average_block_time: if height > 0 {
+            let first_ts = blocks.first().map(|b| b.timestamp).unwrap_or(0);
+            let last_ts = blocks.last().map(|b| b.timestamp).unwrap_or(0);
+            if height > 1 { (last_ts - first_ts) as f64 / (height - 1) as f64 } else { 0.0 }
+        } else { 0.0 },
         latest_blocks,
     };
 

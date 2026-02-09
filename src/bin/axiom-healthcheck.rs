@@ -136,10 +136,36 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
         0.0
     };
     
+    // Read real system metrics from /proc
+    let memory_usage_mb: f64 = std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("VmRSS:"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|v| v.parse::<f64>().ok())
+                .map(|kb| kb / 1024.0)
+        })
+        .unwrap_or(0.0);
+
+    let cpu_usage_percent: f64 = std::fs::read_to_string("/proc/stat")
+        .ok()
+        .and_then(|s| {
+            let parts: Vec<u64> = s.lines().next()?
+                .split_whitespace().skip(1)
+                .filter_map(|v| v.parse().ok()).collect();
+            if parts.len() >= 4 {
+                let busy = (parts[0] + parts[2]) as f64;
+                let total: f64 = parts.iter().sum::<u64>() as f64;
+                Some(if total > 0.0 { (busy / total) * 100.0 } else { 0.0 })
+            } else { None }
+        })
+        .unwrap_or(0.0);
+
     let metrics = Metrics {
         chain_height,
         difficulty: diff,
-        total_supply: 124_000_000_000_000_000, // 124M AXM in smallest units
+        total_supply: axiom_core::economics::TOTAL_SUPPLY,
         circulating_supply: axiom_core::economics::cumulative_supply_at_block(blocks_mined),
         
         peers_connected: peers,
@@ -148,17 +174,17 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
         outbound_connections: peers,
         
         mempool_size: mempool,
-        mempool_bytes: (mempool as u64) * 500, // ~500 bytes avg per serialized tx
+        mempool_bytes: (mempool as u64) * 500, // Estimated at ~500 bytes per serialized tx
         transactions_processed: 0, // Requires chain scan — omitted for low-latency metrics
         transactions_per_second: 0.0,
         
         blocks_mined,
         average_block_time,
-        last_block_time: uptime, // Would need to track separately
+        last_block_time: uptime,
         
         uptime_seconds: uptime,
-        memory_usage_mb: 0.0, // Would need sys-info crate
-        cpu_usage_percent: 0.0, // Would need sys-info crate
+        memory_usage_mb,
+        cpu_usage_percent,
     };
     
     HttpResponse::Ok().json(metrics)

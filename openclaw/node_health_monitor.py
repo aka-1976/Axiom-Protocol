@@ -207,7 +207,20 @@ class NodeHealthMonitor:
     ) -> str:
         """Calculate overall health status"""
         connected_peers = len([p for p in peers if p.connected])
-        memory_usage = (512.5 / 1536.5) * 100  # Usage percentage
+
+        # Read real memory usage from /proc/meminfo
+        try:
+            with open("/proc/meminfo") as f:
+                mem_info = {}
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        mem_info[parts[0].rstrip(":")] = int(parts[1])
+                total = mem_info.get("MemTotal", 1)
+                available = mem_info.get("MemAvailable", total)
+                memory_usage = ((total - available) / total) * 100
+        except Exception:
+            memory_usage = 0.0
 
         # Criteria
         no_peers = connected_peers < 2

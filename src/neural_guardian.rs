@@ -129,16 +129,43 @@ impl NeuralNetwork {
         softmax(&output)
     }
     
-    /// Simple gradient descent training step
+    /// Single-layer gradient descent training step with full backpropagation.
+    ///
+    /// Computes output-layer deltas, then propagates gradients back to
+    /// the input→hidden weights using the chain rule.
     pub fn train_step(&mut self, input: &[f32], target: &[f32], learning_rate: f32) {
-        // Forward pass
+        // Forward pass — compute hidden activations for backprop
+        let mut hidden: Vec<f32> = self.bias_hidden.clone();
+        for (i, h) in hidden.iter_mut().enumerate() {
+            for (j, &inp) in input.iter().enumerate() {
+                *h += inp * self.weights_input_hidden[j][i];
+            }
+            *h = relu(*h);
+        }
         let prediction = self.forward(input);
-        
-        // Compute output-layer gradients via delta rule (single hidden layer)
+
+        // Output-layer deltas
+        let output_deltas: Vec<f32> = target.iter().zip(prediction.iter())
+            .map(|(&t, &p)| t - p)
+            .collect();
+
+        // Update hidden→output weights
         for i in 0..self.weights_hidden_output.len() {
             for j in 0..self.weights_hidden_output[i].len() {
-                let error = target[j] - prediction[j];
-                self.weights_hidden_output[i][j] += learning_rate * error;
+                self.weights_hidden_output[i][j] += learning_rate * output_deltas[j] * hidden[i];
+            }
+        }
+
+        // Backpropagate to input→hidden weights
+        for j in 0..self.weights_input_hidden.len() {
+            for i in 0..self.weights_input_hidden[j].len() {
+                // Gradient through ReLU: only flows if hidden[i] > 0
+                if hidden[i] > 0.0 {
+                    let grad: f32 = output_deltas.iter().enumerate()
+                        .map(|(k, &d)| d * self.weights_hidden_output[i][k])
+                        .sum();
+                    self.weights_input_hidden[j][i] += learning_rate * grad * input[j];
+                }
             }
         }
     }

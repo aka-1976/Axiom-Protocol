@@ -12,7 +12,7 @@ pub fn benchmark_wesolowski(t: u32, bits: u32) {
     let start = Instant::now();
     let _y = wesolowski_evaluate(&g, t, &n);
     let duration = start.elapsed();
-    println!("Wesolowski VDF: t={} bits={} elapsed={:?}", t, bits, duration);
+    log::info!("Wesolowski VDF: t={} bits={} elapsed={:?}", t, bits, duration);
 }
 use rug::Integer;
 

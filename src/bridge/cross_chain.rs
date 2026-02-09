@@ -35,7 +35,15 @@ impl ChainId {
     pub fn rpc_url(&self) -> &str {
         match self {
             ChainId::Axiom => "https://rpc.axiom.network",
-            ChainId::Ethereum => "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY",
+            ChainId::Ethereum => {
+                // Requires AXIOM_RPC_ETHEREUM env var with a valid RPC URL
+                // e.g. https://eth-mainnet.g.alchemy.com/v2/<your-key>
+                let default = "https://eth-mainnet.g.alchemy.com/v2/";
+                match std::env::var("AXIOM_RPC_ETHEREUM") {
+                    Ok(url) => Box::leak(url.into_boxed_str()),
+                    Err(_) => default,
+                }
+            }
             ChainId::BSC => "https://bsc-dataseed1.binance.org",
             ChainId::Polygon => "https://polygon-rpc.com",
             ChainId::Arbitrum => "https://arb1.arbitrum.io/rpc",

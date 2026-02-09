@@ -5,6 +5,7 @@ Deploys Axiom skills to agent platforms (Moltbook, etc.)
 """
 
 import json
+import os
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -399,7 +400,7 @@ def create_axiom_agents() -> Dict:
         skills=["ceremony_master"],
         config={
             "base_url": "https://axiom-ceremony.moltbook.ai",
-            "auth_token": "sk_axiom_ceremony_xxx",
+            "auth_token": os.environ.get("AXIOM_CEREMONY_TOKEN", ""),
         },
     )
 

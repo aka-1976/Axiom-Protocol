@@ -46,14 +46,18 @@ impl NetworkConfig {
     pub fn for_genesis_miner(node_id: u8) -> Self {
         let mut config = Self::default();
         
-        // Genesis miners should always connect to each other
-        // These are the 4 genesis mining nodes on restricted ports 7000-7003
-        config.bootstrap_peers = vec![
-            "/ip4/192.168.1.100/tcp/7000".to_string(), // Node 1 - Server A (port 7000)
-            "/ip4/192.168.1.101/tcp/7001".to_string(), // Node 2 - Server B (port 7001)
-            "/ip4/192.168.1.102/tcp/7002".to_string(), // Node 3 - Server C (port 7002)
-            "/ip4/192.168.1.103/tcp/7003".to_string(), // Node 4 - Server D (port 7003)
-        ];
+        // Genesis miners use the same public bootstrap peers as the main network.
+        // Operators must update these addresses to match their actual infrastructure
+        // or set the AXIOM_BOOTSTRAP_PEERS environment variable.
+        config.bootstrap_peers = match std::env::var("AXIOM_BOOTSTRAP_PEERS") {
+            Ok(val) => val.split(',').map(|s| s.trim().to_string()).collect(),
+            Err(_) => vec![
+                "/ip4/34.10.172.20/tcp/7000".to_string(),   // Primary seed
+                "/ip4/34.160.111.145/tcp/7001".to_string(),  // Secondary seed
+                "/ip4/51.15.23.200/tcp/7002".to_string(),    // EU seed
+                "/ip4/3.8.120.113/tcp/7003".to_string(),     // US seed
+            ],
+        };
         
         // Dynamic port assignment for genesis miners: 7000 + node_id
         config.listen_port = 7000 + (node_id as u16).min(3); // Ensures ports stay in 7000-7003 range

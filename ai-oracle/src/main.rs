@@ -257,9 +257,8 @@ async fn main() -> std::io::Result<()> {
     let state = Arc::new(Mutex::new(OracleState::new()));
     
     // Initialize with some demo providers
-    initialize_demo_providers(state.clone());
-    
     println!("🌐 Axiom AI Oracle Network starting...");
+    println!("   Providers register via POST /api/provider/register");
     println!("🔗 API listening on http://0.0.0.0:8081");
     
     HttpServer::new(move || {
@@ -283,55 +282,6 @@ async fn main() -> std::io::Result<()> {
     .bind("0.0.0.0:8081")?
     .run()
     .await
-}
-
-fn initialize_demo_providers(state: SharedState) {
-    let mut oracle_state = state.lock().unwrap();
-    
-    let providers = vec![
-        OracleProvider {
-            provider_id: "provider-openai-001".to_string(),
-            endpoint: "https://api.openai.com/v1".to_string(),
-            models: vec!["gpt-4".to_string(), "gpt-3.5-turbo".to_string()],
-            stake: 100_000_000_000, // 100 AXM
-            reputation_score: 0.95,
-            total_requests: 1523,
-            successful_requests: 1501,
-        },
-        OracleProvider {
-            provider_id: "provider-anthropic-001".to_string(),
-            endpoint: "https://api.anthropic.com/v1".to_string(),
-            models: vec!["claude-3-opus".to_string(), "claude-3-sonnet".to_string()],
-            stake: 85_000_000_000, // 85 AXM
-            reputation_score: 0.97,
-            total_requests: 1124,
-            successful_requests: 1103,
-        },
-        OracleProvider {
-            provider_id: "provider-llama-001".to_string(),
-            endpoint: "https://api.together.xyz/v1".to_string(),
-            models: vec!["llama-3-70b".to_string(), "llama-2-70b".to_string()],
-            stake: 65_000_000_000, // 65 AXM
-            reputation_score: 0.92,
-            total_requests: 892,
-            successful_requests: 865,
-        },
-        OracleProvider {
-            provider_id: "provider-mistral-001".to_string(),
-            endpoint: "https://api.mistral.ai/v1".to_string(),
-            models: vec!["mistral-large".to_string(), "mistral-medium".to_string()],
-            stake: 50_000_000_000, // 50 AXM
-            reputation_score: 0.90,
-            total_requests: 645,
-            successful_requests: 621,
-        },
-    ];
-    
-    for provider in providers {
-        oracle_state.providers.insert(provider.provider_id.clone(), provider);
-    }
-    
-    println!("✅ Initialized {} demo providers", oracle_state.providers.len());
 }
 
 #[cfg(test)]
