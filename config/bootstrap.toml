@@ -13,19 +13,11 @@
 # AXIOM BOOTSTRAP NODES (February 2026)
 # ========================================
 
-# GENESIS PHASE: 4 bootstrap nodes on ports 6000-6003
-# MAINNET: Add bootstrap nodes here after genesis phase
+# Seed diversity: multiple bootstrap nodes across providers to prevent
+# single-point-of-failure (centralization).
 bootnodes = [
-    "/ip4/192.168.1.100/tcp/6000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",  # Genesis Node 1 - port 6000
-    "/ip4/192.168.1.101/tcp/6001/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",  # Genesis Node 2 - port 6001
-    "/ip4/192.168.1.102/tcp/6002/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",  # Genesis Node 3 - port 6002
-    "/ip4/192.168.1.103/tcp/6003/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",  # Genesis Node 4 - port 6003
+    "/ip4/34.10.172.20/tcp/6000",                                                                   # Primary GCP Node
+    "/ip4/34.160.111.145/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",      # GCP Node 2
+    "/ip4/51.15.23.200/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",        # Scaleway/OVH Node
+    "/ip4/3.8.120.113/tcp/7000/p2p/12D3KooWAzD3QjhHMamey1XuysPovzwXyAZy9VzpZmQN7GkrURWU",         # AWS EC2 Node
 ]
-
-# ========================================
-# ADDITIONAL BOOTSTRAP NODES
-# Uncomment to add more bootstrap nodes for redundancy
-# ========================================
-# Additional bootstrap nodes can be added here for network resilience:
-#    "/ip4/X.X.X.X/tcp/6000/p2p/12D3KooW...",  # Backup bootnode 1
-#    "/ip4/Y.Y.Y.Y/tcp/6000/p2p/12D3KooW...",  # Backup bootnode 2

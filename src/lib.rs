@@ -15,6 +15,19 @@ pub fn axiom_hash_512(data: &[u8]) -> [u8; 64] {
     output
 }
 
+/// Hardcoded bootstrap multiaddresses for the AXIOM peer-to-peer mesh.
+///
+/// Seed diversity prevents a single-point-of-failure: if one bootstrap
+/// node goes down the remaining seeds keep the network discoverable.
+/// Nodes also use mDNS (local) and Kademlia DHT (global) for resilient
+/// peer discovery beyond these seeds.
+pub const BOOTSTRAP_NODES: &[&str] = &[
+    "/ip4/34.10.172.20/tcp/6000",
+    "/ip4/34.160.111.145/tcp/6000",
+    "/ip4/51.15.23.200/tcp/6000",
+    "/ip4/3.8.120.113/tcp/6000",
+];
+
 /// Serde helper for fixed-size 64-byte arrays (512-bit hashes).
 ///
 /// `serde` only derives for arrays up to 32 elements, so we serialise

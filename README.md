@@ -25,8 +25,9 @@ git clone https://github.com/Ghost-84M/Axiom-Protocol.git
 cd Axiom-Protocol
 cargo build --release
 
-# 2. Run the node (instantly connects to mainnet)
-./target/release/axiom-node
+# 2. Run the node (either method works)
+cargo run --release              # easiest
+./target/release/axiom-node      # direct binary
 
 # 3. Verify syncing (in another terminal)
 watch -n 5 './target/release/axiom-node status'

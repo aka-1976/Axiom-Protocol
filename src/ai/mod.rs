@@ -8,4 +8,5 @@ pub use oracle::{
     OracleNode,
     OracleConsensusManager,
     query_oracle,
+    validate_ai_inference,
 };

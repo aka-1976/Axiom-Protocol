@@ -308,6 +308,19 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 }
 
 // ---------------------------------------------------------------------------
+// AI Oracle Hardening — Slashing & Validation
+// ---------------------------------------------------------------------------
+
+/// Validate that an AI inference output hashes to the expected 512-bit
+/// commitment stored in the block.  If the hashes do not match the oracle
+/// node produced a hallucinated proof and must be slashed (ignored by the
+/// peer-to-peer mesh).
+pub fn validate_ai_inference(output: &str, expected_hash: [u8; 64]) -> bool {
+    let check = crate::axiom_hash_512(output.as_bytes());
+    check == expected_hash
+}
+
+// ---------------------------------------------------------------------------
 // Deterministic AI Oracle — 512-bit seal generation
 // ---------------------------------------------------------------------------
 
@@ -493,5 +506,27 @@ mod tests {
         assert_eq!(seal_a, seal_b, "Same query must produce identical seal");
         assert_ne!(seal_a, seal_c, "Different queries must produce different seals");
         assert_eq!(seal_a.len(), 64, "Seal must be 64 bytes (512-bit)");
+    }
+
+    #[test]
+    fn test_validate_ai_inference_matching() {
+        let output = "Axiom block 1 mined";
+        let expected = crate::axiom_hash_512(output.as_bytes());
+        assert!(validate_ai_inference(output, expected));
+    }
+
+    #[test]
+    fn test_validate_ai_inference_mismatch() {
+        let output = "Axiom block 1 mined";
+        let wrong_hash = [0u8; 64]; // All zeros — hallucinated proof
+        assert!(!validate_ai_inference(output, wrong_hash));
+    }
+
+    #[test]
+    fn test_validate_ai_inference_different_output() {
+        let original = "Axiom block 1 mined";
+        let expected = crate::axiom_hash_512(original.as_bytes());
+        // A different (hallucinated) output must not match
+        assert!(!validate_ai_inference("Hallucinated output", expected));
     }
 }
