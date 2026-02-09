@@ -93,6 +93,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 num_cpus = "1.16"
 chrono = "0.4"
 
+# API rate limiting (DoS protection)
+governor = "0.6"
+nonzero_ext = "0.3"
+
+# Build metadata (version, git hash, build time)
+shadow-rs = "0.35"
+
 # Privacy: View keys & selective disclosure
 aes-gcm = "0.10"
 
@@ -105,6 +112,9 @@ default = []
 metrics = ["prometheus", "lazy_static"]
 onnx = ["onnxruntime", "ndarray"]
 risc0 = ["risc0-zkvm"]
+
+[build-dependencies]
+shadow-rs = "0.35"
 
 [profile.release]
 opt-level = 3

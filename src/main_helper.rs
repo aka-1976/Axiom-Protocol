@@ -51,6 +51,28 @@ pub fn compute_vdf(seed: [u8; 32], iterations: u32) -> [u8; 32] {
     result
 }
 
+/// Convert atomic AXM units into a human-readable string with 6 decimal
+/// places and thousand-separators (e.g. `12,399,950.000000`).
+///
+/// The smallest unit is 10⁻⁶ AXM, so `1_000_000` units = `1.000000` AXM.
+pub fn format_axm_supply(units: u64) -> String {
+    let whole = units / 1_000_000;
+    let frac = units % 1_000_000;
+
+    // Build the integer part with thousand-separators
+    let whole_str = whole.to_string();
+    let mut separated = String::with_capacity(whole_str.len() + whole_str.len() / 3);
+    for (i, ch) in whole_str.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            separated.push(',');
+        }
+        separated.push(ch);
+    }
+    let separated: String = separated.chars().rev().collect();
+
+    format!("{}.{:06}", separated, frac)
+}
+
 // ---------------------------------------------------------------------------
 // Public Health Dashboard — Global Trust Pulse
 // ---------------------------------------------------------------------------
@@ -167,5 +189,31 @@ mod tests {
         let result = compute_vdf(seed, 10);
         assert_ne!(result, seed, "VDF output must differ from input");
         assert_eq!(result.len(), 32);
+    }
+
+    #[test]
+    fn test_format_axm_supply_large_value() {
+        // 12,399,950 AXM = 12_399_950_000_000 units
+        assert_eq!(format_axm_supply(12_399_950_000_000), "12,399,950.000000");
+    }
+
+    #[test]
+    fn test_format_axm_supply_fractional() {
+        assert_eq!(format_axm_supply(1_500_123), "1.500123");
+    }
+
+    #[test]
+    fn test_format_axm_supply_zero() {
+        assert_eq!(format_axm_supply(0), "0.000000");
+    }
+
+    #[test]
+    fn test_format_axm_supply_exact_one() {
+        assert_eq!(format_axm_supply(1_000_000), "1.000000");
+    }
+
+    #[test]
+    fn test_format_axm_supply_sub_unit() {
+        assert_eq!(format_axm_supply(1), "0.000001");
     }
 }
