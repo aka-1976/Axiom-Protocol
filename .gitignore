@@ -137,3 +137,4 @@ demo-validator-*/
 
 # Historical docs (if archived locally)
 docs/historical/
+*.bak

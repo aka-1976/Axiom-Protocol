@@ -68,6 +68,12 @@ impl Block {
         blake3::hash(&serialized).into()
     }
 
+    /// 512-bit BLAKE3 block hash using XOF mode for protocol-level anchoring.
+    pub fn hash_512(&self) -> [u8; 64] {
+        let serialized = bincode::serialize(self).expect("Serialization failed");
+        crate::axiom_hash_512(&serialized)
+    }
+
     /// Checks if the block meets the dynamic network difficulty (Hash Power check)
     pub fn meets_difficulty(&self, difficulty: u64) -> bool {
         let h = self.hash();
