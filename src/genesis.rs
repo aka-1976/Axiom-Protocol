@@ -35,7 +35,7 @@ pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8])
     // (they contain the hash of secret_key || parent_hash, which is
     // unpredictable without the secret key but verifiably non-trivial).
     let commitment = &proof[..32];
-    commitment != [0u8; 32].as_slice()
+    commitment != &[0u8; 32]
 }
 
 static GENESIS_PRINT: Once = Once::new();

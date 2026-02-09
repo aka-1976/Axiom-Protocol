@@ -180,7 +180,8 @@ mod tests {
 
     #[test]
     fn test_signature_verification_accepts_valid() {
-        // A properly signed transaction must pass validation
+        // Verify that Wallet::verify_transaction_signature accepts a
+        // properly signed transaction (independent of ZK proof verification).
         let wallet = Wallet::load_or_create();
         let to_address = [42u8; 32];
         let balance = 500_000_000u64;
@@ -189,13 +190,11 @@ mod tests {
         let nonce = 0u64;
 
         let tx = wallet.create_transaction(to_address, amount, fee, nonce, balance).unwrap();
-        // The wallet generates the signature — validate should accept it
-        let result = tx.validate(balance);
-        // If ZK proof verification passes, signature must also pass
-        if result.is_ok() {
-            // Full round-trip: create + validate succeeded
-            assert!(true);
-        }
+        // Signature must be 64 bytes (Ed25519)
+        assert_eq!(tx.signature.len(), 64, "Signature must be 64 bytes");
+        // Direct signature verification must succeed
+        let sig_valid = Wallet::verify_transaction_signature(&tx).unwrap();
+        assert!(sig_valid, "Ed25519 signature verification must pass for a wallet-signed transaction");
     }
 
     #[test]
