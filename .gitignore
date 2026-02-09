@@ -136,8 +136,7 @@ wallet.dat
 # Auto-generated configs
 demo-validator-*/
 
-# Historical docs (if archived locally)
-docs/historical/
+# Historical docs backup files
 *.bak
 
 # Archiver output (headless_archiver)
