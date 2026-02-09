@@ -86,6 +86,19 @@ pub struct AxiomPulse {
     pub stark_receipt: Option<Vec<u8>>,
 }
 
+impl AxiomPulse {
+    /// Verify the genesis block hash against the hardcoded
+    /// `VERIFIED_GENESIS_ANCHOR_512` constant.
+    ///
+    /// Performs a strict bitwise comparison of the hex-encoded 512-bit
+    /// hash to prevent supply drift or unauthorized chain forks. Returns
+    /// `true` if and only if every byte matches the verified anchor.
+    pub fn verify_genesis(genesis_hash_512: &[u8; 64]) -> bool {
+        let hash_hex = hex::encode(genesis_hash_512);
+        hash_hex == VERIFIED_GENESIS_ANCHOR_512
+    }
+}
+
 // Core modules
 pub mod zk;
 pub mod stark; // RISC Zero zkVM STARK proving (124M supply integrity)
@@ -127,6 +140,15 @@ pub use block::Block;
 
 // Re-export genesis anchor
 pub use genesis::GENESIS_ANCHOR_512;
+
+/// Verified 512-bit Genesis Anchor from the genesis block log output.
+///
+/// This is the canonical BLAKE3-512 hash of the immutable genesis block.
+/// `AxiomPulse::verify_genesis()` performs a strict bitwise match against
+/// this constant to prevent supply drift or unauthorized chain forks.
+pub const VERIFIED_GENESIS_ANCHOR_512: &str =
+    "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
+     0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4";
 
 /// SHA-256 fingerprint of the production NeuralGuardian `weights.bin`.
 ///

@@ -264,7 +264,7 @@ impl Default for RpcConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            listen_address: "127.0.0.1:8546".to_string(),
+            listen_address: "0.0.0.0:8546".to_string(),
             cors_allowed_origins: vec!["*".to_string()],
             max_connections: 100,
             request_timeout: 30,

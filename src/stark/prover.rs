@@ -11,6 +11,11 @@
 
 use serde::{Serialize, Deserialize};
 
+/// Number of blocks between mandatory RISC-V STARK receipt generation.
+/// Every `STARK_PROOF_INTERVAL` blocks the node generates a supply
+/// integrity proof that any peer (or the Ethereum bridge) can verify.
+pub const STARK_PROOF_INTERVAL: u64 = 100;
+
 /// Private transaction data passed into the RISC Zero Guest.
 ///
 /// The Guest enforces `initial_balance >= amount + fee` inside the
