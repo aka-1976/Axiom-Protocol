@@ -11,6 +11,7 @@
 BEFORE_AFTER_FIXES.md
 # Rust build artifacts
 /target
+/axiom-sdk/target
 /release-artifacts
 *.dat
 
