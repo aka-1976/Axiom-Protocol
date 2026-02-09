@@ -247,8 +247,12 @@ impl BridgeContract {
         let chain_id = u64::from_le_bytes(
             proof[40..48].try_into().map_err(|_| "bad chain_id bytes")?
         );
-        // Verify amount is non-zero and chain ID is valid
-        if amount == 0 || chain_id == 0 {
+        // Verify amount is non-zero
+        if amount == 0 {
+            return Ok(false);
+        }
+        // Verify the chain_id in the proof matches this contract's chain
+        if chain_id != self.chain.chain_id() {
             return Ok(false);
         }
         // Verify commitment is non-zero (not an empty proof)

@@ -125,9 +125,10 @@ class CeremonyMaster:
             return {"error": str(e), "miner": miner["id"]}
 
     async def _send_to_miner(self, miner: Dict, message: Dict) -> Dict:
-        """Send message to miner via HTTP POST"""
+        """Send message to miner via HTTP POST (uses system SSL certificate store)"""
         import urllib.request
         import urllib.error
+        import ssl
 
         contact = miner.get("contact", "")
         if not contact.startswith("http"):
@@ -147,7 +148,9 @@ class CeremonyMaster:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            # Use default SSL context which verifies certificates
+            ssl_ctx = ssl.create_default_context()
+            with urllib.request.urlopen(req, timeout=10, context=ssl_ctx) as resp:
                 return {
                     "status": "sent",
                     "miner_id": miner["id"],

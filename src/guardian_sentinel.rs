@@ -148,7 +148,12 @@ impl SovereignGuardian {
     
     /// Perform lightweight health checks
     fn perform_health_check(&self) {
-        // Check process memory usage via /proc/self/status
+        // Memory limit in KB — configurable via AXIOM_MEMORY_LIMIT_KB env var
+        let mem_limit_kb: u64 = std::env::var("AXIOM_MEMORY_LIMIT_KB")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(4_000_000); // Default 4 GB
+
         let mem_ok = std::fs::read_to_string("/proc/self/status")
             .map(|s| {
                 s.lines()
@@ -158,7 +163,7 @@ impl SovereignGuardian {
                             .nth(1)
                             .and_then(|v| v.parse().ok())
                             .unwrap_or(0);
-                        kb < 4_000_000 // < 4 GB
+                        kb < mem_limit_kb
                     })
                     .unwrap_or(true)
             })
@@ -167,7 +172,8 @@ impl SovereignGuardian {
         if mem_ok {
             log::debug!("💚 Health check: OK");
         } else {
-            log::warn!("⚠️  Health check: memory usage exceeds 4 GB threshold");
+            log::warn!("⚠️  Health check: memory usage exceeds {} MB threshold",
+                mem_limit_kb / 1024);
         }
     }
     

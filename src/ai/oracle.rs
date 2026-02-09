@@ -50,16 +50,28 @@ pub struct OracleNode {
 
 impl OracleNode {
     pub fn new(address: [u8; 32], api_key: String) -> Self {
-        // Derive a deterministic Ed25519 signing key from the oracle address.
-        // In a full deployment the operator provides their key pair; here we
-        // derive one so every oracle has a unique, reproducible key.
-        let seed_bytes: [u8; 32] = {
-            let mut h = Sha256::new();
-            h.update(b"axiom-oracle-signing-key-v1");
-            h.update(address);
-            h.finalize().into()
+        // Load the operator's signing key from the wallet file.
+        // The address is the corresponding Ed25519 verifying key.
+        let signing_key = match std::fs::read("wallet.dat") {
+            Ok(data) => {
+                match bincode::deserialize::<crate::wallet::Wallet>(&data) {
+                    Ok(w) if w.address == address => {
+                        ed25519_dalek::SigningKey::from_bytes(&w.secret_key)
+                    }
+                    _ => {
+                        // Wallet doesn't match this oracle address — generate
+                        // a fresh key pair.  The verifying key becomes the
+                        // effective oracle address for this session.
+                        let mut rng = rand::rngs::OsRng;
+                        ed25519_dalek::SigningKey::generate(&mut rng)
+                    }
+                }
+            }
+            Err(_) => {
+                let mut rng = rand::rngs::OsRng;
+                ed25519_dalek::SigningKey::generate(&mut rng)
+            }
         };
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed_bytes);
 
         Self {
             address,
