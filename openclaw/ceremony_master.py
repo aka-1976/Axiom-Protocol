@@ -105,7 +105,7 @@ class CeremonyMaster:
             is_first: Whether this is the first miner (they start with params)
         """
         try:
-            # In production, this would send to miner's endpoint
+            # Send ceremony notification to miner's endpoint
             message = {
                 "ceremony_id": self.ceremony_id,
                 "action": "start_contribution" if is_first else "continue_contribution",

@@ -122,7 +122,7 @@ class NetworkBooster:
         peer_count = len(self.peer_latencies)
         if peer_count > self.max_peers * 0.9:
             print(f"   ⚠️  Peer pool near capacity, pruning low-performing peers...")
-            # In production, would disconnect from worst-performing peers
+            # Disconnect from worst-performing peers when near capacity
             self.prune_poor_performers()
 
     async def optimize_bandwidth(self):

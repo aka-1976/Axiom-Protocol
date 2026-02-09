@@ -271,15 +271,16 @@ impl SustainabilityReport {
             0.0
         };
         
+        const MONTHLY_REPORT_PERIOD_SECS: u64 = 30 * 24 * 3600; // ~30 days
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
         SustainabilityReport {
-            period_start: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs().saturating_sub(30 * 24 * 3600)) // ~30 days ago
-                .unwrap_or(0),
-            period_end: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
+            period_start: now_secs.saturating_sub(MONTHLY_REPORT_PERIOD_SECS),
+            period_end: now_secs,
             total_blocks,
             total_transactions,
             total_energy_kwh: total_energy_wh / 1000.0,
