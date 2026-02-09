@@ -306,7 +306,7 @@
         <button class="btn-outline" onclick="loadSampleReceipt()">Load Sample</button>
         <button class="btn-outline" onclick="clearVerify()">Clear</button>
         <span style="font-size:0.75rem; color:var(--text-dim);">
-          Powered by BLAKE3-WASM · No server round-trip
+          Structural checks run locally · Full BLAKE3-WASM verifier loads on demand
         </span>
       </div>
       <div class="verify-result" id="verifyResult"></div>
@@ -334,6 +334,7 @@
 // =========================================================================
 
 const GENESIS_PULSE_HASH = "3f178ac4d3e0155210addeb1433f588ef12ce5a6a811ed8c77fca5ffd33726943a6b152420c7b2d611fb187cfd26390e18ad4df0947fea0060dab8b75007de74";
+const TOTAL_SUPPLY_UNITS = 12400000000000000; // 124M AXM in smallest units
 
 // ---- Logging ----
 function log(msg, level = 'info') {
@@ -348,14 +349,12 @@ function log(msg, level = 'info') {
 // Minimal BLAKE3-256 for chain verification.
 // A production deployment would load the blake3 WASM module for full 512-bit XOF.
 
-// We include a minimal browser-side hasher. For the 512-bit XOF required by
-// the protocol, the real deployment uses the @aspect-build/rules_js blake3-wasm
-// package. Here we provide structural verification of the receipt format and
-// a BLAKE3-256 commitment check using the SubtleCrypto-compatible API.
+// Structural commitment hash using SubtleCrypto SHA-256.
+// Full BLAKE3-512 XOF verification requires the blake3 WASM module
+// loaded at runtime (see @aspect-build/rules_js blake3-wasm).
+// This provides a structural stand-in for format and commitment checks.
 
-async function blake3_256_hex(data) {
-  // Use SubtleCrypto SHA-256 as a verification stand-in for structural checks.
-  // Full BLAKE3-512 XOF verification requires the WASM module loaded at runtime.
+async function structural_commitment_hash(data) {
   const encoder = new TextEncoder();
   const buf = (typeof data === 'string') ? encoder.encode(data) : data;
   const hashBuf = await crypto.subtle.digest('SHA-256', buf);
@@ -510,7 +509,7 @@ async function verifyStark() {
 
       // Cross-check: compute BLAKE3-256 commitment of journal hash
       if (isValid512) {
-        const commitment = await blake3_256_hex('axiom-proof-v1:' + receipt.journal_hash_512);
+        const commitment = await structural_commitment_hash('axiom-proof-v1:' + receipt.journal_hash_512);
         checks.push({ name: 'BLAKE3 commitment', pass: true, note: commitment.slice(0, 16) + '…' });
         log(`Journal commitment: ${commitment.slice(0, 32)}…`, 'ok');
       }
@@ -526,8 +525,7 @@ async function verifyStark() {
 
     // 4. Supply invariant check (if present)
     if (receipt.remaining_supply !== undefined) {
-      const TOTAL = 12400000000000000;
-      const valid = receipt.remaining_supply >= 0 && receipt.remaining_supply <= TOTAL;
+      const valid = receipt.remaining_supply >= 0 && receipt.remaining_supply <= TOTAL_SUPPLY_UNITS;
       checks.push({ name: 'Supply invariant (≤124M)', pass: valid });
     }
 

@@ -49,8 +49,8 @@ REPO_ROOT = _find_repo_root()
 def blake3_512_hex(data: bytes) -> str:
     """Compute the 512-bit (64-byte) BLAKE3-XOF hash and return it as hex."""
     try:
-        import blake3 as _blake3
-        h = _blake3.blake3(data)
+        import blake3
+        h = blake3.blake3(data)
         return h.hexdigest(length=64)
     except ImportError:
         pass
