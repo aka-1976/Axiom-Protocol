@@ -66,12 +66,14 @@ impl ToElements<BaseElement> for TxPublicInputs {
 
 /// Transaction verification AIR
 ///
-/// Trace layout (5 columns):
+/// Trace layout (6 columns):
 ///   col 0: sender_balance (private)
 ///   col 1: sender_hash (public)
 ///   col 2: amount (public)
 ///   col 3: fee (public)
 ///   col 4: remainder = balance - amount - fee
+///   col 5: step counter (0, 1, 2, ..., N-1) — ensures non-constant trace
+///          polynomials for DEEP composition soundness
 pub struct TransactionAir {
     context: AirContext<BaseElement>,
     sender_hash: BaseElement,
@@ -91,10 +93,11 @@ impl Air for TransactionAir {
         let degrees = vec![
             TransitionConstraintDegree::new(1), // solvency: balance = amount + fee + remainder
             TransitionConstraintDegree::new(1), // amount consistency
+            TransitionConstraintDegree::new(1), // step counter: next_step = current_step + 1
         ];
 
         Self {
-            context: AirContext::new(trace_info, degrees, 3, options),
+            context: AirContext::new(trace_info, degrees, 4, options),
             sender_hash: pub_inputs.sender_hash,
             recipient_hash: pub_inputs.recipient_hash,
             amount: pub_inputs.amount,
@@ -110,6 +113,7 @@ impl Air for TransactionAir {
         result: &mut [E],
     ) {
         let current = frame.current();
+        let next = frame.next();
 
         let balance = current[0];
         let _sender_hash = current[1];
@@ -122,6 +126,9 @@ impl Air for TransactionAir {
 
         // Constraint 2: amount matches public input
         result[1] = amount - E::from(self.amount);
+
+        // Constraint 3: step counter increments by 1 each row
+        result[2] = next[5] - current[5] - E::ONE;
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
@@ -129,6 +136,7 @@ impl Air for TransactionAir {
             Assertion::single(1, 0, self.sender_hash),  // sender at col 1, row 0
             Assertion::single(2, 0, self.amount),        // amount at col 2, row 0
             Assertion::single(3, 0, self.fee),           // fee at col 3, row 0
+            Assertion::single(5, 0, BaseElement::ZERO),  // step counter starts at 0
         ]
     }
 
@@ -242,8 +250,12 @@ pub fn prove_transaction(
     let remainder_fe = balance_fe - amount_fe - fee_fe;
 
     // Build execution trace (minimum 8 rows, power of 2)
+    // Column 5 is a step counter to ensure the trace is non-constant;
+    // winterfell 0.9 DEEP composition requires trace polynomials of degree
+    // trace_length - 2, which fails for all-constant traces.
     let trace_len = 8;
-    let mut trace = TraceTable::new(5, trace_len);
+    let mut trace = TraceTable::new(6, trace_len);
+    let step = std::cell::Cell::new(0u128);
     trace.fill(
         |state| {
             state[0] = balance_fe;
@@ -251,6 +263,8 @@ pub fn prove_transaction(
             state[2] = amount_fe;
             state[3] = fee_fe;
             state[4] = remainder_fe;
+            state[5] = BaseElement::new(step.get());
+            step.set(step.get() + 1);
         },
         |_, state| {
             state[0] = balance_fe;
@@ -258,6 +272,8 @@ pub fn prove_transaction(
             state[2] = amount_fe;
             state[3] = fee_fe;
             state[4] = remainder_fe;
+            state[5] = BaseElement::new(step.get());
+            step.set(step.get() + 1);
         },
     );
 
