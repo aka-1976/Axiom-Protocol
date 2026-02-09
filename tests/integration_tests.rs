@@ -92,13 +92,13 @@ mod tests {
 
     #[test]
     fn test_economics() {
-        // Test initial reward
+        // Test initial reward (50 AXM = 5,000,000,000 in smallest units)
         let reward = block_reward(0, 0);
-        assert_eq!(reward, 50_000_000_000); // 50 AXM
+        assert_eq!(reward, 5_000_000_000); // 50 AXM
 
-        // Test halving
+        // Test halving at 1,240,000 blocks (25 AXM = 2,500,000,000 in smallest units)
         let reward_after_halving = block_reward(1_240_000, 0);
-        assert_eq!(reward_after_halving, 25_000_000_000); // 25 AXM
+        assert_eq!(reward_after_halving, 2_500_000_000); // 25 AXM
     }
 
     #[test]

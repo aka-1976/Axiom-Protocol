@@ -101,9 +101,7 @@ pub fn verify_transaction_proof(
         DefaultRandomCoin<Blake3_256<BaseElement>>,
     >(proof, pub_inputs, &min_opts) {
         Ok(_) => Ok(true),
-        Err(e) => {
-            Err(format!("STARK verification failed: {:?}", e).into())
-        }
+        Err(_) => Ok(false),
     }
 }
 
