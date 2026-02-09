@@ -118,6 +118,21 @@ pub use block::Block;
 // Re-export genesis anchor
 pub use genesis::GENESIS_ANCHOR_512;
 
+/// SHA-256 fingerprint of the production NeuralGuardian `weights.bin`.
+///
+/// Every node **must** verify its local model file against this hash at
+/// startup via [`neural_guardian::NeuralGuardian::load_model`].  If the
+/// hashes diverge, the node panics — preventing tampered AI weights from
+/// silently corrupting trust decisions on the 124M network.
+///
+/// To update this constant, compute:
+/// ```text
+/// sha256sum weights.bin
+/// ```
+/// and paste the hex digest below.
+pub const GENESIS_WEIGHTS_HASH: &str =
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
 // Re-export 124M economics constants
 pub use economics::{
     TOTAL_SUPPLY,

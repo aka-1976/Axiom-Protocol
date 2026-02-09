@@ -68,7 +68,27 @@ impl Block {
         blake3::hash(&serialized).into()
     }
 
-    /// 512-bit BLAKE3 block hash using XOF mode for protocol-level anchoring.
+    /// 512-bit BLAKE3 block hash using XOF (Extendable Output Function) mode.
+    ///
+    /// **Axiom Protocol Standard — 64-byte (512-bit) hash width.**
+    ///
+    /// The 64-byte output is the canonical hash size for all protocol-level
+    /// block commitments.  This width was chosen for three reasons:
+    ///
+    /// 1. **FPGA-aligned STARK proving** — Future FPGA-based STARK provers
+    ///    operate most efficiently on fixed 512-bit inputs.  By standardizing
+    ///    all block hashes at 64 bytes, the 124M supply verification pipeline
+    ///    avoids padding or truncation, enabling high-speed parallel proof
+    ///    generation on dedicated hardware.
+    ///
+    /// 2. **Post-quantum collision margin** — While BLAKE3's internal state
+    ///    already provides 256-bit collision resistance, the 512-bit output
+    ///    doubles the work-factor for birthday attacks, future-proofing the
+    ///    chain against quantum-era hash analysis.
+    ///
+    /// 3. **Uniform input size** — Every consumer of a block hash
+    ///    (Gossipsub pulses, Kademlia keys, STARK commitment columns) receives
+    ///    an identically-sized digest, eliminating mismatched-length bugs.
     pub fn hash_512(&self) -> [u8; 64] {
         let serialized = bincode::serialize(self).expect("Serialization failed");
         crate::axiom_hash_512(&serialized)

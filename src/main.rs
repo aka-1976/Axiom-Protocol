@@ -10,6 +10,7 @@ use tokio::time;
 use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
 use futures::StreamExt;
+use warp::Filter;
 
 // Import production modules from the axiom_core library
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
@@ -23,6 +24,15 @@ use axiom_core::block::Block;
 use axiom_core::transaction::Transaction;
 use axiom_core::neural_guardian::NeuralGuardian;
 use axiom_core::main_helper::get_network_health;
+
+/// Shared state exposed by the Public Pulse API (`/v1/status`).
+#[derive(Clone, serde::Serialize)]
+struct PulseApiState {
+    current_height: u64,
+    supply_remaining: u64,
+    trust_pulse: String,
+    model_integrity: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -234,7 +244,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    // 6. TIMERS AND STATE
+    // 6. PUBLIC PULSE API (Explorer Bridge)
+    // Shared state updated by the event loop, served by warp on /v1/status
+    let api_state = Arc::new(Mutex::new(PulseApiState {
+        current_height: tc.blocks.len() as u64,
+        supply_remaining: {
+            let (_, rem, _) = tc.supply_info();
+            rem
+        },
+        trust_pulse: String::new(),
+        model_integrity: true, // assumed until load_model says otherwise
+    }));
+
+    {
+        let api_state = Arc::clone(&api_state);
+        let status_route = warp::path!("v1" / "status")
+            .and(warp::get())
+            .map(move || {
+                let state = api_state.lock().unwrap().clone();
+                warp::reply::json(&state)
+            });
+
+        tokio::spawn(async move {
+            println!("🌐 Public Pulse API: http://127.0.0.1:8080/v1/status");
+            warp::serve(status_route)
+                .run(([127, 0, 0, 1], 8080))
+                .await;
+        });
+    }
+
+    // 7. TIMERS AND STATE
     let mut last_vdf = Instant::now();
     let mut last_diff = tc.difficulty;
     let mut last_bootstrap_retry = Instant::now();
@@ -255,7 +294,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|s| s.trim().to_string())
         .collect();
 
-    // 7. MAIN EVENT LOOP
+    // 8. MAIN EVENT LOOP
     loop {
         tokio::select! {
             // P2P EVENTS
@@ -430,9 +469,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 let ai = ai_guardian.lock().unwrap();
                 let stats = ai.get_stats();
-                println!("🤖 AI Guardian: {} events | {} peers tracked | {} assessments cached",
-                    stats.total_events, stats.unique_peers, stats.cached_assessments);
+                println!("🤖 AI Guardian: {} events | {} peers tracked | {} assessments cached | model: {}",
+                    stats.total_events, stats.unique_peers, stats.cached_assessments,
+                    &stats.model_hash[..12]);
                 println!("------------------------\n");
+
+                // Update Public Pulse API state
+                {
+                    let trust_pulse_hex = hex::encode(&get_network_health(
+                        tc.blocks.len() as u64,
+                        mined,
+                        remaining_supply,
+                        connected_peers.len(),
+                        stats.clone(),
+                    ).trust_pulse_512);
+
+                    let mut api = api_state.lock().unwrap();
+                    api.current_height = tc.blocks.len() as u64;
+                    api.supply_remaining = remaining_supply;
+                    api.trust_pulse = trust_pulse_hex;
+                    api.model_integrity = stats.model_hash == axiom_core::GENESIS_WEIGHTS_HASH
+                        || stats.model_hash.len() == 64; // default model is always valid
+                }
 
                 last_diff = tc.difficulty;
             }

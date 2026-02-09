@@ -28,6 +28,9 @@ dirs = "5.0"
 actix-web = "4.4"
 actix-rt = "2.9"
 
+# Public Pulse API (Explorer Bridge)
+warp = "0.3"
+
 # Wesolowski VDF (Big Integer Support)
 rug = "1.20"
 

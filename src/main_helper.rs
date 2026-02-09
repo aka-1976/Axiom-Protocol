@@ -131,6 +131,7 @@ mod tests {
             unique_peers: 10,
             cached_assessments: 5,
             training_samples: 50,
+            model_hash: "abc123".to_string(),
         };
 
         let h1 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats.clone());
@@ -150,6 +151,7 @@ mod tests {
             unique_peers: 0,
             cached_assessments: 0,
             training_samples: 0,
+            model_hash: String::new(),
         };
 
         let h1 = get_network_health(100, 0, 12_400_000_000, 5, stats.clone());
