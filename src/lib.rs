@@ -220,3 +220,39 @@ pub use config::AxiomConfig;
 
 // Note: vdf and main_helper are already public via `pub mod` declarations above
 // No need to re-export them - this caused E0255 duplicate definition errors
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verified_genesis_anchor_512_is_128_hex_chars() {
+        assert_eq!(
+            VERIFIED_GENESIS_ANCHOR_512.len(), 128,
+            "VERIFIED_GENESIS_ANCHOR_512 must be 128 hex chars (512 bits)"
+        );
+    }
+
+    #[test]
+    fn test_verified_genesis_anchor_512_value() {
+        assert_eq!(
+            VERIFIED_GENESIS_ANCHOR_512,
+            "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
+             0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4"
+        );
+    }
+
+    #[test]
+    fn test_verify_genesis_matching_hash() {
+        let hash_bytes = hex::decode(VERIFIED_GENESIS_ANCHOR_512).unwrap();
+        let mut arr = [0u8; 64];
+        arr.copy_from_slice(&hash_bytes);
+        assert!(AxiomPulse::verify_genesis(&arr), "Matching hash must return true");
+    }
+
+    #[test]
+    fn test_verify_genesis_mismatched_hash() {
+        let wrong = [0u8; 64];
+        assert!(!AxiomPulse::verify_genesis(&wrong), "Wrong hash must return false");
+    }
+}

@@ -386,4 +386,18 @@ mod tests {
         let config = AxiomConfig::default();
         assert!(config.validate().is_ok());
     }
+
+    #[test]
+    fn test_rpc_default_listen_address_is_public() {
+        let config = RpcConfig::default();
+        assert_eq!(config.listen_address, "0.0.0.0:8546",
+            "RPC must default to 0.0.0.0 for public observability");
+    }
+
+    #[test]
+    fn test_network_default_listen_address_is_public() {
+        let config = NetworkConfig::default();
+        assert!(config.listen_address.contains("0.0.0.0"),
+            "P2P must default to 0.0.0.0 for public observability");
+    }
 }

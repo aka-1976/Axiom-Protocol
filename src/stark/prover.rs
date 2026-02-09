@@ -348,4 +348,9 @@ mod tests {
         let result = StarkProver::generate_proof(&tx);
         assert!(result.is_ok(), "Zero amount should be accepted");
     }
+
+    #[test]
+    fn test_stark_proof_interval_is_100() {
+        assert_eq!(STARK_PROOF_INTERVAL, 100, "STARK proof interval must be 100 blocks");
+    }
 }
