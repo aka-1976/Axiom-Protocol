@@ -400,11 +400,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .allow_headers(vec!["Content-Type"]))
             .recover(handle_rejection);
 
-        // Configurable API bind address: read from AXIOM_API_BIND env var.
-        // Default: 127.0.0.1 (localhost only). Set to 0.0.0.0 for public nodes.
-        let api_bind: IpAddr = std::env::var("AXIOM_API_BIND")
+        // Configurable API bind address: read from API_BIND_ADDRESS or
+        // AXIOM_API_BIND env var, then fall back to the config file
+        // (config/axiom.toml → [rpc] listen_address). Default: 127.0.0.1
+        // (localhost only). Set to 0.0.0.0 for public-facing nodes.
+        let api_bind: IpAddr = std::env::var("API_BIND_ADDRESS")
+            .or_else(|_| std::env::var("AXIOM_API_BIND"))
             .ok()
             .and_then(|s| s.parse().ok())
+            .or_else(|| {
+                axiom_core::config::AxiomConfig::load()
+                    .ok()
+                    .and_then(|cfg| {
+                        // listen_address may be "ip:port" or just "ip"
+                        let addr_str = &cfg.rpc.listen_address;
+                        addr_str.split(':').next()
+                            .and_then(|ip| ip.parse().ok())
+                    })
+            })
             .unwrap_or_else(|| [127, 0, 0, 1].into());
         let api_port: u16 = 8080;
 
