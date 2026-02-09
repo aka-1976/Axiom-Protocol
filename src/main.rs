@@ -270,9 +270,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     // Use the real NeuralGuardian threat detection
                     let peer_str = propagation_source.to_string();
                     let assessment = ai.analyze_peer(&peer_str);
+                    // Unknown peers get limited trust (rate-limited below);
+                    // peers with detected threats are blocked entirely.
                     let is_trustworthy = assessment
                         .map(|a| a.trust_score > 0.3 && a.detected_threats.is_empty())
-                        .unwrap_or(true); // Trust unknown peers initially
+                        .unwrap_or(entry.0 <= 5); // Unknown peers: trust only if low message count
 
                     if is_trustworthy && entry.0 <= 15 {
                         // Handle chain request
@@ -465,7 +467,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             _ = vdf_loop.tick() => {
                 let elapsed = last_vdf.elapsed().as_secs();
                 if elapsed >= 1800 {
-                    let parent_hash = tc.blocks.last().map(|b| b.hash()).unwrap_or([0u8; 32]);
+                    let parent_hash = tc.blocks.last().map(|b| b.hash())
+                        .unwrap_or_else(|| axiom_core::genesis::genesis().hash());
                     let current_slot = tc.blocks.len() as u64;
                     let vdf_seed = axiom_core::vdf::evaluate(parent_hash, current_slot);
                     let vdf_proof = axiom_core::main_helper::compute_vdf(vdf_seed, tc.difficulty as u32);
