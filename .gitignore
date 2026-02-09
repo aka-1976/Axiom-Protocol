@@ -138,3 +138,6 @@ demo-validator-*/
 # Historical docs (if archived locally)
 docs/historical/
 *.bak
+
+# Archiver output (headless_archiver)
+pulse_history.jsonl

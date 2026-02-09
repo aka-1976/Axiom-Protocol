@@ -136,6 +136,25 @@ pub use genesis::GENESIS_ANCHOR_512;
 pub const GENESIS_WEIGHTS_HASH: &str =
     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
+/// 512-bit BLAKE3 hash of the Genesis Pulse — the absolute origin of the
+/// tamper-evident pulse chain.
+///
+/// At startup the node looks for `config/genesis_pulse.json`. If found,
+/// its raw bytes are hashed with [`axiom_hash_512`] and compared to this
+/// constant. A match means the pulse chain can be anchored all the way
+/// back to block 0. If the file is absent, the node falls back to an
+/// all-zeros `prev_pulse_hash` (unanchored start).
+///
+/// **Note:** This constant is initialised to all-zeros until the official
+/// `genesis_pulse.json` is published as part of the mainnet release.
+/// Once the file is generated, update this constant with the output of:
+/// ```text
+/// python3 -c "import blake3; print(blake3.blake3(open('config/genesis_pulse.json','rb').read()).hexdigest(length=64))"
+/// ```
+pub const GENESIS_PULSE_HASH: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000\
+     0000000000000000000000000000000000000000000000000000000000000000";
+
 // Re-export 124M economics constants
 pub use economics::{
     TOTAL_SUPPLY,

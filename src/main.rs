@@ -22,7 +22,7 @@ use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_net
 use axiom_core::network::Discv5Service;
 use axiom_core::network::discv5_service::default_bootstrap_enrs;
 use axiom_core::network::config::{NetworkConfig, DiscoveryStrategy};
-use axiom_core::AxiomPulse;
+use axiom_core::{AxiomPulse, GENESIS_PULSE_HASH};
 use axiom_core::wallet::Wallet;
 use axiom_core::chain::Timechain;
 use axiom_core::block::Block;
@@ -35,12 +35,25 @@ shadow_rs::shadow!(build);
 
 /// Rate limit: maximum requests per minute per IP on the Public Pulse API.
 const API_RATE_LIMIT_PER_MINUTE: u32 = 60;
+
+/// Maximum number of chained pulses kept in memory for the `/v1/pulse/history` endpoint.
+const PULSE_HISTORY_CAPACITY: usize = 10;
+
 #[derive(Clone, serde::Serialize)]
 struct PulseApiState {
     current_height: u64,
     supply_remaining_units: u64,
     supply_remaining_axm: String,
     trust_pulse: String,
+}
+
+/// A single entry in the in-memory pulse history ring buffer.
+#[derive(Clone, serde::Serialize)]
+struct PulseHistoryEntry {
+    height: u64,
+    trust_pulse_hex: String,
+    prev_pulse_hex: String,
+    timestamp: u64,
 }
 
 #[tokio::main]
@@ -77,6 +90,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
             println!("ℹ️  No weights.bin found — using default NeuralGuardian model");
         }
     }
+
+    // 0b. GENESIS PULSE ANCHOR
+    // If config/genesis_pulse.json exists, verify its 512-bit hash against
+    // GENESIS_PULSE_HASH and use it as the starting prev_pulse_hash. This
+    // anchors the tamper-evident pulse chain to the absolute origin.
+    let genesis_pulse_anchor: [u8; 64] = {
+        let genesis_pulse_path = std::path::PathBuf::from("config/genesis_pulse.json");
+        if genesis_pulse_path.exists() {
+            let pulse_bytes = std::fs::read(&genesis_pulse_path)
+                .expect("Failed to read config/genesis_pulse.json");
+            let pulse_hash = axiom_core::axiom_hash_512(&pulse_bytes);
+            let pulse_hash_hex = hex::encode(pulse_hash);
+            if pulse_hash_hex != GENESIS_PULSE_HASH {
+                eprintln!("🚨 GENESIS PULSE INTEGRITY FAILURE");
+                eprintln!("🚨 Expected: {}", GENESIS_PULSE_HASH);
+                eprintln!("🚨 Got:      {}", pulse_hash_hex);
+                eprintln!("🚨 The genesis pulse file has been tampered with.");
+                std::process::exit(1);
+            }
+            println!("✅ Genesis Pulse Anchor: config/genesis_pulse.json verified");
+            pulse_hash
+        } else {
+            println!("ℹ️  No config/genesis_pulse.json found — using unanchored start");
+            [0u8; 64]
+        }
+    };
 
     // 1. IDENTITY & STATE INITIALIZATION
     let wallet = Wallet::load_or_create();
@@ -289,6 +328,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         trust_pulse: String::new(),
     }));
 
+    // Pulse history: ring buffer of the last N chained pulses (for /v1/pulse/history)
+    let pulse_history: Arc<Mutex<VecDeque<PulseHistoryEntry>>> =
+        Arc::new(Mutex::new(VecDeque::with_capacity(PULSE_HISTORY_CAPACITY)));
+
     // Rate limiter: 60 requests per minute per IP (DoS protection)
     let rate_limiter: Arc<RateLimiter<SocketAddr, DashMapStateStore<SocketAddr>, DefaultClock>> =
         Arc::new(RateLimiter::dashmap(
@@ -333,15 +376,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .and(warp::get())
             .map(|| warp::reply::with_status("ALIVE", warp::http::StatusCode::OK));
 
+        // Pulse history: returns the last 10 chained pulses so anyone with
+        // a browser can verify the prev_pulse_hash links.
+        let pulse_history_api = Arc::clone(&pulse_history);
+        let pulse_history_route = warp::path!("v1" / "pulse" / "history")
+            .and(warp::get())
+            .map(move || {
+                let history = pulse_history_api.lock().unwrap();
+                let entries: Vec<PulseHistoryEntry> = history.iter().cloned().collect();
+                warp::reply::json(&entries)
+            });
+
         let routes = status_route
             .or(version_route)
             .or(health_check_route)
+            .or(pulse_history_route)
             .recover(handle_rejection);
 
         tokio::spawn(async move {
             println!("🌐 Public Pulse API: http://127.0.0.1:8080/v1/status");
             println!("🌐 Version endpoint: http://127.0.0.1:8080/v1/version");
             println!("🌐 Health check:     http://127.0.0.1:8080/v1/health/check");
+            println!("🌐 Pulse history:    http://127.0.0.1:8080/v1/pulse/history");
             warp::serve(routes)
                 .run(([127, 0, 0, 1], 8080))
                 .await;
@@ -352,7 +408,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut last_vdf = Instant::now();
     let mut last_diff = tc.difficulty;
     let mut last_bootstrap_retry = Instant::now();
-    let mut last_pulse_hash: [u8; 64] = [0u8; 64]; // Genesis pulse (all zeros)
+    let mut last_pulse_hash: [u8; 64] = genesis_pulse_anchor;
 
     let mut vdf_loop = time::interval(Duration::from_millis(100));
     let mut dashboard_timer = time::interval(Duration::from_secs(30));
@@ -561,11 +617,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &last_pulse_hash,
                     );
                     let trust_pulse_hex = hex::encode(&health.trust_pulse_512);
+                    let prev_pulse_hex = hex::encode(&last_pulse_hash);
 
                     // Chain the pulse: store this hash for next iteration
                     match health.trust_pulse_512.as_slice().try_into() {
                         Ok(arr) => last_pulse_hash = arr,
                         Err(_) => eprintln!("⚠️  PULSE CHAIN INTEGRITY: trust_pulse_512 is not 64 bytes — chain link skipped"),
+                    }
+
+                    // Record to pulse history ring buffer
+                    {
+                        let mut history = pulse_history.lock().unwrap();
+                        if history.len() >= PULSE_HISTORY_CAPACITY {
+                            history.pop_front();
+                        }
+                        history.push_back(PulseHistoryEntry {
+                            height: tc.blocks.len() as u64,
+                            trust_pulse_hex: trust_pulse_hex.clone(),
+                            prev_pulse_hex,
+                            timestamp: health.timestamp,
+                        });
                     }
 
                     let mut api = api_state.lock().unwrap();
