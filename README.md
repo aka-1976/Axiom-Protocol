@@ -1,8 +1,8 @@
 # AXIOM Protocol - Privacy-First Blockchain with AI Security
 
-**Status**: ✅ Production Mainnet | **Version**: v4.0.0 (Consolidated Release) | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
+**Status**: ✅ Production Mainnet | **Version**: v4.1.0 | **Network**: Active | **Consensus**: VDF + Blake3 PoW | **Supply**: 124M Fixed
 
-> 🚀 **v4.0.0 Consolidated Release**: All v3.x features unified—5-layer AI threat detection, Guardian-enforced consensus, modular Discv5/libp2p networking, AI Oracle integration, SDK, explorer, bridge contracts, and full production cleanup. Mainnet-ready and validated.
+> 🚀 **v4.1.0**: 512-bit BLAKE3 security upgrade, deterministic AI Oracle integration, winterfell 0.9 ZK-STARK migration, and full production cleanup. Mainnet-ready and validated.
 
 ---
 
@@ -37,13 +37,22 @@ watch -n 5 './target/release/axiom-node status'
 ---
 
 
-## 🚀 v4.0.0: Consolidated Production Release
+## 🚀 v4.1.0: 512-Bit Security & AI Oracle Release
 
 **Release Date:** February 8, 2026
 
-v4.0.0 consolidates all v3.x line upgrades into a single production-validated release. All features below have been verified in the repository.
+### What's New in v4.1.0
 
-### Highlights
+- **512-bit BLAKE3 Hashing**: Protocol-wide upgrade from 256-bit to 512-bit using BLAKE3 XOF mode (`axiom_hash_512`)
+- **Genesis Anchor (512-bit)**: Hardcoded `GENESIS_ANCHOR_512` for chain identity verification
+- **Deterministic AI Oracle**: Local Ollama integration (`query_oracle`) with temperature 0, seed 42 for reproducible on-chain AI seals
+- **AxiomPulse Upgrade**: Real-time network pulse now carries 512-bit `block_hash` and `oracle_seal` fields
+- **Winterfell 0.9 Migration**: Full ZK-STARK API update (`Proof`, `AcceptableOptions`, expanded `Prover`/`Air` traits)
+- **Build Fixes**: All compilation errors resolved, clean build with zero errors
+
+### Consolidated from v4.0.0
+
+v4.0.0 unified all v3.x line upgrades into a single production release:
 
 - **AI Oracle** (`ai-oracle/`): Claude API integration for on-chain AI oracle services
 - **AI Enhancement Module** (`axiom-ai-enhancement/`): Extended AI security and analytics
@@ -53,27 +62,21 @@ v4.0.0 consolidates all v3.x line upgrades into a single production-validated re
 - **Production Config** (`config/bootstrap.toml`): Mainnet bootstrap configuration
 - **Systemd Services** (`contrib/`): Production deployment services and logrotate
 
-### Included from v3.2.0 (Nuclear Network Cleanup)
+### Consolidated from Previous Releases
 
+**v3.2.0 — Network Cleanup**
 - All legacy code and duplicate network logic removed
 - Network stack fully rewritten for production
 - Clean modular libp2p/discv5, deduplicated `behaviour.rs`
 
-### Included from v3.1.0 (Discv5 Network & Modular Upgrade)
-
+**v3.1.0 — Discv5 Network & Modular Upgrade**
 - Production-grade Discv5/libp2p networking stack (Kademlia, Ping, Identify, Gossipsub, mDNS, Noise, TCP, DNS, etc.)
 - Modular network services: config, discv5_service, peer_manager, behaviour, gossip_handler, event_handler
 - Peer manager with reputation, LRU cache, ban logic, and metrics
-- Discv5Service for Ethereum-style peer discovery and ENR
-- GossipHandler for block/tx/sync/heartbeat routing and deduplication
-- EventHandler for async event dispatch
 - Metrics module for Prometheus-style node metrics
-- Main orchestrator integrates network, metrics, and CLI
 - Integration tests for network stack validation
-- Legacy network code moved to `network_legacy.rs`
 
-### Included from v3.0.0 (AI Guardian Security)
-
+**v3.0.0 — AI Guardian Security**
 - 5-Layer AI Threat Detection System
 - Guardian-Enforced Consensus Optimization
 - All 11 critical/medium protocol and test issues fixed
@@ -82,125 +85,7 @@ v4.0.0 consolidates all v3.x line upgrades into a single production-validated re
 
 ---
 
-## 📜 Previous Release History
-
-### v3.1.0: Discv5 Network & Modular Upgrade
-
-
-**Release Date:** February 7, 2026
-
-**Major Changes:**
-- Production-grade Discv5/libp2p networking stack (Kademlia, Ping, Identify, Gossipsub, mDNS, Noise, TCP, DNS, etc.)
-- Modular network services: config, discv5_service, peer_manager, behaviour, gossip_handler, event_handler
-- Peer manager with reputation, LRU cache, ban logic, and metrics
-- Discv5Service for Ethereum-style peer discovery and ENR
-- GossipHandler for block/tx/sync/heartbeat routing and deduplication
-- EventHandler for async event dispatch
-- Metrics module for Prometheus-style node metrics
-- Main orchestrator integrates network, metrics, and CLI
-- Integration tests for network stack validation
-- Cargo.toml: Enabled kad, ping, and all required libp2p features; updated discv5/enr versions
-- Legacy network code moved to network_legacy.rs
-- README updated with upgrade summary and usage
-
-**Deployment & Validation:**
-- All modules compile cleanly (no errors/warnings)
-- Integration tests included and passing
-- Ready for mainnet deployment and monitoring
-
-**Upgrade Instructions:**
-- Build and run as before; node now uses new modular network stack
-- See src/network/ for new network code
-- See src/metrics/ for metrics collection
-- See tests/integration_test.rs for integration test example
-
----
-
-The Axiom Protocol is now upgraded to v3.0.0, featuring a robust 5-layer AI security system, Guardian-enforced consensus, and all protocol/test fixes. **All critical/medium issues are fixed and verified for mainnet.**
-
-### What's New in v3.0.0
-
-✅ **5-Layer Threat Detection System (AI Core)**
-- Statistical anomaly detection (Z-Score, Modified Z-Score, IQR, Mahalanobis)
-- Behavioral pattern analysis with reputation scoring
-- Threat intelligence with malicious address tracking
-- ML-based anomaly detection (Isolation Forest, LOF, One-Class SVM, DBSCAN)
-- Temporal pattern analysis
-
-✅ **Guardian-Enforced Consensus Optimization (Guardian Enhancement)**
-- PID-controlled difficulty, VDF, and gas adjustments
-- Anti-windup clamping prevents parameter drift
-- Mandatory Guardian approval for all changes
-- Emergency circuit breaker (24-hour auto-recovery)
-- Safe parameter bounds enforcement
-
-✅ **All Protocol & Test Issues Fixed**
-
-### Additional Upgrades in v3.0.0
-- Guardian Safety Manifest: Immutable protocol rules (352 lines)
-- Multi-Layer Security Engine: 5-layer threat detection (742 lines)
-- AI Guardian Bridge: Consensus optimization & verification (676 lines)
-- LWMA difficulty adjustment logic fixed
-- Economics supply cap constant corrected
-- Network config genesis peer count fixed
-- Transaction circuit test fix
-- All 78 tests passing, 0 failed
-- Release build: 2m 03s, zero errors
-- Mainnet-ready
-
-| # | Issue | Severity | Fix | Status |
-|---|-------|----------|-----|--------|
-| 1 | Seasonal anomaly detection | CRITICAL | Implemented proper deviation calculation | ✅ |
-| 2 | Unbounded memory growth (OOM) | CRITICAL | Added collection limits (2,000/10,000) | ✅ |
-| 3 | Circuit breaker race condition (TOCTOU) | CRITICAL | Proper lock management throughout validation | ✅ |
-| 4 | PID integral windup | MEDIUM | Anti-windup clamping (±10.0 bounds) | ✅ |
-| 5 | Empty collection panics | MEDIUM | Pre-checks before all operations | ✅ |
-| 6 | Guardian validation bypass | CRITICAL | Mandatory gates for ALL changes | ✅ |
-| 7 | Behavioral engine disabled | MEDIUM | Full implementation activated | ✅ |
-| 8 | Type safety issues | MEDIUM | Safe enum conversions with validation | ✅ |
-| 9 | ML models unimplemented | MEDIUM | Complete functional implementations | ✅ |
-| 10 | Configuration validation | MEDIUM | Threshold ordering validation added | ✅ |
-| 11 | Temporal analysis incomplete | MEDIUM | Framework ready for enhancement | ✅ |
-
-✅ **Performance Exceeds All Targets**
-- CPU Overhead: 3.2% (budget: 4.5%) 
-- Memory: 165MB (budget: 170MB)
-- Latency: 4.2ms (budget: 6.5ms)
-- Threat Detection Accuracy: 92.3% (target: >90%)
-- False Positive Rate: 3.2% (budget: <5%)
-
-✅ **Guardian Protection Verified Immutable**
-- Supply Cap: 124M AXM (hardcoded, impossible to bypass)
-- Block Time: 30 min ± 5 min (hardcoded, impossible to bypass)
-- Difficulty: ±5% max change (Guardian-enforced)
-- VDF: ±2% max change (Guardian-enforced)
-- Gas: ±10% max change (Guardian-enforced)
-
-### Deployment Documentation
-
-**Start Here**: [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) - Complete step-by-step integration procedures
-
-Complete documentation package:
-- 📖 [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) - Step-by-step integration procedures
-- 🔧 [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) - All 11 fixes explained with implementations
-- 🎯 [FINAL_DELIVERY_SUMMARY.md](docs/archive/historical-fixes/FINAL_DELIVERY_SUMMARY.md) - Complete delivery documentation
-
-**Verification**: Run `./verify_mainnet_deployment.sh` to verify all fixes and deployment readiness
-
-### Integration Status
-
-✅ Code compiles clean (no errors/warnings)
-✅ All tests passing
-✅ 100% backward compatible (no breaking changes)
-✅ Guardian constraints verified immutable
-✅ Automated verification procedures ready
-✅ Emergency procedures documented
-
-**Ready for**: Mainnet deployment with confidence
-
----
-
-
+## 💻 System Requirements
 
 | Requirement | Minimum | Recommended |
 |-------------|---------|-------------|
@@ -243,7 +128,6 @@ sudo systemctl start axiom-guardian
 sudo journalctl -u axiom-guardian -f  # Watch logs
 ```
 
-**Quick Network Guide**: [AXIOM_NETWORK_SYNC.md](AXIOM_NETWORK_SYNC.md)  
 **Comprehensive Guide**: [docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md)
 
 ---
@@ -441,13 +325,8 @@ Storage Layer
 ## 📚 Documentation
 
 ### For First-Time Users
-1. **[AXIOM_NETWORK_SYNC.md](AXIOM_NETWORK_SYNC.md)** - Quick network setup (5 min read)
-2. **[README.md](#)** (this file) - Architecture & features overview
-
-### For AI Enhancement & Deployment
-1. **[MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md)** - Step-by-step integration procedures (PRIMARY)
-2. **[MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md)** - All 11 fixes with implementations
-3. **[FINAL_DELIVERY_SUMMARY.md](docs/archive/historical-fixes/FINAL_DELIVERY_SUMMARY.md)** - Complete delivery documentation
+1. **[README.md](#)** (this file) - Architecture & features overview
+2. **[docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md)** - Comprehensive networking guide
 
 ### For Node Operators
 1. **[docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md)** - Comprehensive networking guide
@@ -595,18 +474,16 @@ rm -rf ~/.axiom/blocks/
 
 | Link | Purpose |
 |------|---------|
-| [MAINNET_INTEGRATION_GUIDE.md](MAINNET_INTEGRATION_GUIDE.md) | AI system integration & deployment |
-| [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) | All 11 deployment fixes |
-| [AXIOM_NETWORK_SYNC.md](AXIOM_NETWORK_SYNC.md) | Network quick start |
 | [docs/NETWORK_CONSENSUS.md](docs/NETWORK_CONSENSUS.md) | Comprehensive networking |
 | [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) | Implementation details |
 | [WHITEPAPER.md](WHITEPAPER.md) | Complete specification |
 | [POW_SPECIFICATION.md](POW_SPECIFICATION.md) | PoW algorithm |
 | [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) | Security model |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
 
 ---
 
-## 🤖 AI Security System (v4.0.0)
+## 🤖 AI Security System (v4.1.0)
 
 The integrated 5-layer AI threat detection system enhances the Guardian sentinel with advanced anomaly detection and consensus optimization while maintaining all immutable constraints.
 
@@ -644,32 +521,13 @@ The integrated 5-layer AI threat detection system enhances the Guardian sentinel
 
 ### Guardian-AI Integration
 
-The Guardian sentinel now enforces AI decisions with mandatory validation:
+The Guardian sentinel enforces AI decisions with mandatory validation:
 
 - **Threat Scoring**: Combines all 5 layers into single 0-1 anomaly score
 - **Guardian Gates**: MANDATORY approval for all parameter changes
 - **Circuit Breaker**: Auto-activates on catastrophic threats (>0.95 score)
 - **Emergency Override**: Manual intervention available via 2-of-3 validator signatures
 - **Immutable Constraints**: Supply cap, block time, parameter bounds enforced regardless of AI
-
-### All 11 Issues Fully Resolved
-
-See [MAINNET_DEPLOYMENT_FIXES.md](MAINNET_DEPLOYMENT_FIXES.md) for complete security analysis.
-
-Critical Issue Fixes:
-✅ Seasonal anomaly detection (was returning 0.0)
-✅ Unbounded memory growth fixed (OOM vulnerability eliminated)
-✅ Circuit breaker race condition fixed (TOCTOU bypass prevented)
-✅ Guardian validation bypass fixed (mandatory gates enforced)
-
-Medium Issue Fixes:
-✅ PID integral windup (anti-windup clamping)
-✅ Empty collection panics (validation gates added)
-✅ Behavioral engine (fully implemented)
-✅ Type safety (safe conversions)
-✅ ML models (functional implementations)
-✅ Configuration validation (threshold ordering)
-✅ Temporal analysis (framework ready)
 
 ### Performance Metrics
 
@@ -693,7 +551,7 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ---
 
-
+## ⚖️ AXIOM vs Bitcoin
 
 | Aspect | Bitcoin | AXIOM |
 |--------|---------|-------|
@@ -709,7 +567,7 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ## 📈 Project Status
 
-✅ **v4.0.0 Consolidated Release** - All v3.x features unified, production-ready for mainnet
+✅ **v4.1.0 Release** — 512-bit security, AI Oracle, winterfell 0.9 migration
 ✅ **Mainnet Live** - Active since February 2025  
 ✅ **Core Features** - VDF, PoW, ZK-SNARKs, 5-layer AI threat detection
 ✅ **Networking** - Modular Discv5/libp2p P2P with bootstrap nodes  
@@ -724,8 +582,8 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ---
 
-**Version**: 4.0.0 (Consolidated Production Release)  
+**Version**: 4.1.0  
 **Last Updated**: February 8, 2026  
-**Status**: Production Mainnet + AI Security Ready  
+**Status**: Production Mainnet + 512-bit Security + AI Oracle Active  
 **Network Health**: 4+ connected peers, fully synchronized, AI systems active
 

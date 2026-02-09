@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use tokio::time;
 use libp2p::{gossipsub, Multiaddr, PeerId, Swarm};
 use libp2p::swarm::SwarmEvent;
+use futures::StreamExt;
 
 // Import all necessary modules
 use axiom_core::network_legacy::{TimechainBehaviourEvent, init_network, init_network_with_bootstrap};
@@ -40,6 +41,7 @@ mod ai_guardian {
 
 mod timechain {
     use super::Block;
+    use super::Transaction;
     pub struct Timechain {
         pub blocks: Vec<Block>,
         pub difficulty: u64,
@@ -130,6 +132,20 @@ impl Block {
         hasher.finalize().into()
     }
 
+    /// 512-bit BLAKE3 block hash using deterministic field-by-field feed.
+    pub fn hash_512(&self) -> [u8; 64] {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&self.parent);
+        hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.miner);
+        hasher.update(&self.vdf_proof);
+        hasher.update(&self.zk_proof);
+        hasher.update(&self.nonce.to_be_bytes());
+        let mut output = [0u8; 64];
+        hasher.finalize_xof().fill(&mut output);
+        output
+    }
+
     pub fn meets_difficulty(&self, difficulty: u64) -> bool {
         let hash = self.hash();
         let hash_num = u64::from_le_bytes(hash[0..8].try_into().unwrap());
@@ -189,9 +205,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect();
 
     let mut swarm: Swarm<axiom_core::network_legacy::TimechainBehaviour> = if !bootstrap_peers.is_empty() {
-        init_network_with_bootstrap(bootstrap_peers).await?
+        init_network_with_bootstrap(bootstrap_peers).await
+            .map_err(|e| -> Box<dyn Error> { e })?
     } else {
-        init_network().await?
+        init_network().await
+            .map_err(|e| -> Box<dyn Error> { e })?
     };
 
     // Port Binding Logic
@@ -548,7 +566,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
-                }
             }
 
             // MINING
@@ -584,11 +601,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             // Broadcast real-time pulse to all peers
                             let height = tc.blocks.len() as u64;
                             let (total_mined, remaining, _percent) = tc.supply_info();
+                            // Generate deterministic AI oracle seal for this block
+                            let oracle_query = format!(
+                                "Axiom block {} mined with hash {}",
+                                tc.blocks.len(),
+                                hex::encode(candidate.hash())
+                            );
+                            let oracle_seal = axiom_core::ai::query_oracle(&oracle_query).await;
+
                             let pulse = AxiomPulse {
                                 height,
                                 total_mined,
                                 remaining,
-                                block_hash: candidate.hash(),
+                                block_hash: candidate.hash_512(),
+                                oracle_seal,
                                 timestamp: std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()

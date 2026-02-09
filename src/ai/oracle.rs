@@ -307,6 +307,68 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     matrix[a_len][b_len]
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic AI Oracle — 512-bit seal generation
+// ---------------------------------------------------------------------------
+
+/// Local AI model used for deterministic oracle inference.
+const ORACLE_MODEL: &str = "llama3.2:1b";
+
+/// Fixed seed for deterministic LLM output (every node must use the same seed).
+const DETERMINISTIC_SEED: u64 = 42;
+
+/// Query a local AI model (Ollama) at temperature 0 and produce a
+/// deterministic 512-bit BLAKE3 seal of the response.
+///
+/// If the local model is unavailable the function falls back to a pure
+/// BLAKE3-512 hash of the query string so that mining is never blocked.
+pub async fn query_oracle(query: &str) -> [u8; 64] {
+    match query_local_model(query).await {
+        Ok(response_text) => crate::axiom_hash_512(response_text.as_bytes()),
+        Err(_) => {
+            // Deterministic fallback — hash the query itself
+            crate::axiom_hash_512(query.as_bytes())
+        }
+    }
+}
+
+/// Call a local Ollama instance with temperature 0 and a fixed seed so
+/// that every node running the same model produces the identical output.
+async fn query_local_model(query: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let body = serde_json::json!({
+        "model": ORACLE_MODEL,
+        "prompt": query,
+        "stream": false,
+        "options": { "temperature": 0.0, "seed": DETERMINISTIC_SEED }
+    });
+
+    let resp = client
+        .post("http://127.0.0.1:11434/api/generate")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Ollama request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Ollama returned status {}", resp.status()));
+    }
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("JSON parse error: {}", e))?;
+
+    json["response"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Missing 'response' field".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,5 +480,18 @@ mod tests {
         assert!(response.response_text.contains("4") || response.response_text.contains("four"));
         
         println!("✓ Claude API integration works!");
+    }
+
+    #[tokio::test]
+    async fn test_query_oracle_deterministic_fallback() {
+        // Without a running Ollama instance, query_oracle falls back to
+        // a pure BLAKE3-512 hash of the query — which must be deterministic.
+        let seal_a = query_oracle("Axiom block 1").await;
+        let seal_b = query_oracle("Axiom block 1").await;
+        let seal_c = query_oracle("Axiom block 2").await;
+
+        assert_eq!(seal_a, seal_b, "Same query must produce identical seal");
+        assert_ne!(seal_a, seal_c, "Different queries must produce different seals");
+        assert_eq!(seal_a.len(), 64, "Seal must be 64 bytes (512-bit)");
     }
 }

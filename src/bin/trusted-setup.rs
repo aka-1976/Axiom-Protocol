@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "post_quantum": true,
         "metadata": {
             "generated_at": chrono::Utc::now().to_rfc3339(),
-            "version": "4.0.0",
+            "version": "4.1.0",
             "description": "AXIOM Protocol ZK-STARK parameters - transparent, no toxic waste"
         }
     });
