@@ -125,9 +125,26 @@ fn main() {
                 }
             };
 
-            // Get current balance and nonce (simplified)
-            let current_balance = 1_000_000_000_000; // Placeholder - should load from chain
-            let nonce = 0; // Placeholder - should track per address
+            // Load balance and nonce from chain state
+            let (current_balance, nonce) = {
+                if let Some(saved_blocks) = axiom_core::storage::load_chain() {
+                    match axiom_core::chain::Timechain::from_saved_blocks(saved_blocks) {
+                        Ok(chain) => {
+                            let bal = chain.balance(&wallet.address);
+                            let n = chain.state.nonce(&wallet.address);
+                            (bal, n)
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️  Could not rebuild chain state: {} — using zero balance", e);
+                            (0u64, 0u64)
+                        }
+                    }
+                } else {
+                    eprintln!("⚠️  No chain data found (axiom_chain.dat). Run the node first.");
+                    eprintln!("    Balance will be 0 until the node mines or receives transactions.");
+                    (0u64, 0u64)
+                }
+            };
 
             // Create transaction
             match wallet.create_transaction(to_address, amount, fee, nonce, current_balance) {

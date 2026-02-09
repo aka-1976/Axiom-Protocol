@@ -79,6 +79,12 @@ pub fn calculate_total_supply(height: u64) -> u64 {
     total.min(TOTAL_SUPPLY) // Never exceed 124M cap
 }
 
+/// Calculate cumulative supply at a given block height.
+/// Alias for `calculate_total_supply` used by the healthcheck/metrics API.
+pub fn cumulative_supply_at_block(blocks_mined: u64) -> u64 {
+    calculate_total_supply(blocks_mined)
+}
+
 /// Calculate remaining supply to be mined
 pub fn remaining_supply(height: u64) -> u64 {
     TOTAL_SUPPLY.saturating_sub(calculate_total_supply(height))

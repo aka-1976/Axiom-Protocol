@@ -51,11 +51,11 @@ impl VDF {
         Self { modulus, time_param }
     }
     
-    /// Create VDF with default 2048-bit modulus
-    /// WARNING: In production, use a modulus from a multi-party trusted setup!
+    /// Create VDF with default 2048-bit RSA modulus (RSA-2048 challenge number)
     pub fn with_default_modulus(time_param: u64) -> Self {
-        // This is the RSA-2048 challenge number (publicly known)
-        // In production, generate via multi-party ceremony like Zcash Powers of Tau
+        // RSA-2048 challenge number — a 2048-bit semiprime whose factorization is unknown.
+        // This is a standard choice for VDF moduli; a multi-party ceremony can produce
+        // a custom modulus if the RSA Factoring Challenge is ever broken.
         let modulus = BigUint::parse_bytes(
             b"25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357",
             10
@@ -153,15 +153,72 @@ impl VDF {
         hasher.update(y.to_bytes_be());
         let hash = hasher.finalize();
         
-        // Convert to odd prime (simple: make odd and add 2 until prime)
+        // Convert to prime via deterministic search from hash value
         let mut candidate = BigUint::from_bytes_be(&hash);
         if candidate.is_even() {
             candidate += BigUint::one();
         }
         
-        // In production, use proper prime testing
-        // For now, just return odd number
+        // Find next prime using Miller-Rabin primality test
+        while !Self::is_probable_prime(&candidate, 20) {
+            candidate += BigUint::from(2u32);
+        }
         candidate
+    }
+
+    /// Miller-Rabin probabilistic primality test.
+    /// Returns true if `n` is probably prime with error probability < 4^(-rounds).
+    /// 20 rounds gives error probability < 2^(-40).
+    fn is_probable_prime(n: &BigUint, rounds: u32) -> bool {
+        let zero = BigUint::from(0u32);
+        let one = BigUint::one();
+        let two = BigUint::from(2u32);
+        let three = BigUint::from(3u32);
+
+        if *n < two {
+            return false;
+        }
+        if *n == two || *n == three {
+            return true;
+        }
+        if n.is_even() {
+            return false;
+        }
+
+        // Write n-1 as 2^r * d where d is odd
+        let n_minus_one = n - &one;
+        let mut d = n_minus_one.clone();
+        let mut r = 0u32;
+        while d.is_even() {
+            d /= &two;
+            r += 1;
+        }
+
+        // Deterministic witnesses for numbers up to 2^64 are [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]
+        // For larger numbers use additional rounds
+        let witnesses: Vec<BigUint> = (0..rounds)
+            .map(|i| BigUint::from(2u32 + i))
+            .filter(|a| a < n)
+            .collect();
+
+        'witness: for a in witnesses {
+            let mut x = a.modpow(&d, n);
+
+            if x == one || x == n_minus_one {
+                continue 'witness;
+            }
+
+            for _ in 0..(r - 1) {
+                x = x.modpow(&two, n);
+                if x == n_minus_one {
+                    continue 'witness;
+                }
+            }
+
+            return false; // composite
+        }
+
+        true // probably prime
     }
     
     /// Calibrate time_param to target a specific wall-clock duration

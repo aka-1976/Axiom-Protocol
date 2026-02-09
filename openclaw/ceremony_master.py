@@ -117,7 +117,7 @@ class CeremonyMaster:
             print(f"📢 Notifying {miner['name']} - {miner['contact']}")
             print(f"   Message: {json.dumps(message, indent=2)}")
 
-            # Mock HTTP request to miner endpoint
+            # Send notification to miner endpoint
             response = await self._send_to_miner(miner, message)
             return response
 
@@ -125,14 +125,43 @@ class CeremonyMaster:
             return {"error": str(e), "miner": miner["id"]}
 
     async def _send_to_miner(self, miner: Dict, message: Dict) -> Dict:
-        """Send message to miner (mock implementation)"""
-        # In production: use aiohttp to POST to miner endpoint
-        await asyncio.sleep(0.1)  # Simulate network delay
-        return {
-            "status": "sent",
-            "miner_id": miner["id"],
-            "timestamp": datetime.now().isoformat(),
-        }
+        """Send message to miner via HTTP POST"""
+        import urllib.request
+        import urllib.error
+
+        contact = miner.get("contact", "")
+        if not contact.startswith("http"):
+            # No HTTP endpoint configured — log and return acknowledgement
+            print(f"   ℹ️  No HTTP endpoint for {miner['name']}, message logged only")
+            return {
+                "status": "logged",
+                "miner_id": miner["id"],
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        try:
+            data = json.dumps(message).encode("utf-8")
+            req = urllib.request.Request(
+                contact,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return {
+                    "status": "sent",
+                    "miner_id": miner["id"],
+                    "http_status": resp.status,
+                    "timestamp": datetime.now().isoformat(),
+                }
+        except (urllib.error.URLError, OSError) as e:
+            print(f"   ⚠️  HTTP send to {miner['name']} failed: {e}")
+            return {
+                "status": "send_failed",
+                "miner_id": miner["id"],
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
 
     async def receive_zkey(
         self, zkey_path: str, miner_id: str, zkey_hash: str
@@ -193,10 +222,20 @@ class CeremonyMaster:
             return {"error": str(e), "miner_id": miner_id}
 
     async def _compute_file_hash(self, filepath: str) -> str:
-        """Compute SHA256 hash of file (mock)"""
-        # In production: actually compute hash
-        await asyncio.sleep(0.1)
-        return hashlib.sha256(filepath.encode()).hexdigest()
+        """Compute SHA256 hash of file contents"""
+        import os
+
+        if not os.path.isfile(filepath):
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        sha = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            while True:
+                chunk = f.read(65536)  # 64 KB chunks
+                if not chunk:
+                    break
+                sha.update(chunk)
+        return sha.hexdigest()
 
     async def _finalize_ceremony(self) -> Dict:
         """Finalize ceremony when all miners complete"""

@@ -148,7 +148,7 @@ impl MobileBlock {
             .unwrap()
             .as_secs();
 
-        // In production, calculate actual hash
+        // Calculate block hash from header fields
         let hash = Self::calculate_hash(height, prev_hash, miner_id, timestamp);
 
         Self {

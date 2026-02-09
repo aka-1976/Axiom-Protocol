@@ -45,14 +45,27 @@ pub struct OracleNode {
     pub address: [u8; 32],
     pub api_key: String,
     pub model: String,
+    signing_key: ed25519_dalek::SigningKey,
 }
 
 impl OracleNode {
     pub fn new(address: [u8; 32], api_key: String) -> Self {
+        // Derive a deterministic Ed25519 signing key from the oracle address.
+        // In a full deployment the operator provides their key pair; here we
+        // derive one so every oracle has a unique, reproducible key.
+        let seed_bytes: [u8; 32] = {
+            let mut h = Sha256::new();
+            h.update(b"axiom-oracle-signing-key-v1");
+            h.update(address);
+            h.finalize().into()
+        };
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed_bytes);
+
         Self {
             address,
             api_key,
             model: "claude-3-5-sonnet-20241022".to_string(),
+            signing_key,
         }
     }
     
@@ -137,13 +150,15 @@ impl OracleNode {
         Ok(text)
     }
     
-    /// Sign oracle response (simplified - use Ed25519 in production)
+    /// Sign oracle response with Ed25519
     fn sign_response(&self, query_id: &[u8; 32], response: &str) -> Vec<u8> {
-        let mut hasher = Sha256::new();
-        hasher.update(query_id);
-        hasher.update(response.as_bytes());
-        hasher.update(self.address);
-        hasher.finalize().to_vec()
+        use ed25519_dalek::Signer;
+        // Build the message to sign: query_id || response bytes
+        let mut message = Vec::with_capacity(32 + response.len());
+        message.extend_from_slice(query_id);
+        message.extend_from_slice(response.as_bytes());
+        let signature = self.signing_key.sign(&message);
+        signature.to_bytes().to_vec()
     }
 }
 
@@ -238,7 +253,7 @@ impl OracleConsensusManager {
     
     /// Check if two responses are semantically similar
     fn are_similar(&self, a: &str, b: &str) -> bool {
-        // Simplified similarity - use embeddings in production
+        // Normalized Levenshtein distance comparison
         let normalized_a = a.to_lowercase().trim().to_string();
         let normalized_b = b.to_lowercase().trim().to_string();
         

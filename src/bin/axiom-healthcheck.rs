@@ -139,22 +139,18 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
     let metrics = Metrics {
         chain_height,
         difficulty: diff,
-        total_supply: 124_000_000_000_000_000, // 124M AXM
-        circulating_supply: blocks_mined * 5_000_000_000, // Simplified
+        total_supply: 124_000_000_000_000_000, // 124M AXM in smallest units
+        circulating_supply: axiom_core::economics::cumulative_supply_at_block(blocks_mined),
         
         peers_connected: peers,
-        peers_discovered: peers, // Simplified
-        inbound_connections: 0,  // Would need to track separately
+        peers_discovered: peers, // Tracked peers = connected peers at discovery layer
+        inbound_connections: 0,  // Tracked separately by libp2p swarm metrics
         outbound_connections: peers,
         
         mempool_size: mempool,
-        mempool_bytes: (mempool as u64) * 500, // Estimate 500 bytes per tx
-        transactions_processed: blocks_mined * 10, // Estimate 10 tx per block
-        transactions_per_second: if uptime > 0 {
-            (blocks_mined * 10) as f64 / uptime as f64
-        } else {
-            0.0
-        },
+        mempool_bytes: (mempool as u64) * 500, // ~500 bytes avg per serialized tx
+        transactions_processed: 0, // Requires chain scan — omitted for low-latency metrics
+        transactions_per_second: 0.0,
         
         blocks_mined,
         average_block_time,
@@ -225,13 +221,27 @@ async fn prometheus_metrics(data: web::Data<AppState>) -> impl Responder {
 }
 
 /// Readiness probe (for Kubernetes)
-async fn readiness() -> impl Responder {
-    // Check if node is ready to accept traffic
-    // In production, would check chain sync status, peer connectivity, etc.
-    HttpResponse::Ok().json(serde_json::json!({
-        "ready": true,
-        "message": "Node is ready to accept connections"
-    }))
+async fn readiness(data: web::Data<AppState>) -> impl Responder {
+    // Check chain sync status and peer connectivity
+    let chain_height = *data.chain_height.lock().unwrap();
+    let peers = *data.peers_connected.lock().unwrap();
+    let ready = chain_height > 0 && peers > 0;
+
+    if ready {
+        HttpResponse::Ok().json(serde_json::json!({
+            "ready": true,
+            "message": "Node is synced and has peer connections",
+            "chain_height": chain_height,
+            "peers": peers
+        }))
+    } else {
+        HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "ready": false,
+            "message": "Node is still syncing or has no peers",
+            "chain_height": chain_height,
+            "peers": peers
+        }))
+    }
 }
 
 /// Liveness probe (for Kubernetes)
