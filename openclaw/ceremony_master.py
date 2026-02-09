@@ -262,3 +262,25 @@ CEREMONY_MASTER_SKILL = {
         },
     },
 }
+
+
+async def run_ceremony_daemon():
+    """Run the Ceremony Coordinator as a persistent daemon"""
+    print("📜 Ceremony Coordinator Agent Starting...")
+
+    iteration = 0
+    while True:
+        try:
+            iteration += 1
+            print(f"[{datetime.now().isoformat()}] [CEREMONY] Ceremony round #{iteration}: coordinating")
+            await asyncio.sleep(30)
+        except KeyboardInterrupt:
+            print("[CEREMONY] Shutting down gracefully...")
+            break
+        except Exception as e:
+            print(f"[CEREMONY] Error in iteration #{iteration}: {e}")
+            await asyncio.sleep(5)
+
+
+if __name__ == "__main__":
+    asyncio.run(run_ceremony_daemon())

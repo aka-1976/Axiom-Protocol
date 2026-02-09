@@ -323,3 +323,10 @@ NODE_HEALTH_MONITOR_SKILL = {
         },
     },
 }
+
+
+if __name__ == "__main__":
+    import os
+    node_id = os.environ.get("HOSTNAME", "axiom-node-1")
+    monitor = NodeHealthMonitor(node_id, check_interval_seconds=30)
+    asyncio.run(monitor.start_monitoring())
