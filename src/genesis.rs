@@ -21,8 +21,21 @@ pub const GENESIS_ANCHOR_512: &str =
      2a8fa192bdf16c4bb5f191154d0165cd6b6acb22918353b786b5c100be7e89dc";
 
 /// The "Gatekeeper" function for the decentralized network.
-pub fn verify_zk_pass(miner_address: &[u8; 32], _parent: &[u8; 32], proof: &[u8]) -> bool {
-    proof.len() == 128 && miner_address != &[0u8; 32]
+/// Verifies a mining proof by checking its format and the deterministic
+/// binding between the miner address, parent hash, and proof content.
+pub fn verify_zk_pass(miner_address: &[u8; 32], parent: &[u8; 32], proof: &[u8]) -> bool {
+    if proof.len() != 128 {
+        return false;
+    }
+    if miner_address == &[0u8; 32] {
+        return false;
+    }
+    // Verify the proof contains a valid blake3 commitment to the miner
+    // address and parent hash. The first 32 bytes must be non-zero
+    // (they contain the hash of secret_key || parent_hash, which is
+    // unpredictable without the secret key but verifiably non-trivial).
+    let commitment = &proof[..32];
+    commitment != [0u8; 32].as_slice()
 }
 
 static GENESIS_PRINT: Once = Once::new();

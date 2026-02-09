@@ -543,9 +543,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         else if message.topic == chain_topic.hash() {
                             if let Ok(peer_blocks) = bincode::deserialize::<Vec<Block>>(&message.data) {
                                 if peer_blocks.len() > tc.blocks.len() {
-                                    println!("🔁 Synced chain from peer. New height: {}", peer_blocks.len());
-                                    axiom_core::storage::save_chain(&peer_blocks);
-                                    last_vdf = Instant::now();
+                                    // Validate the peer chain before accepting it:
+                                    // rebuild a fresh Timechain from genesis and replay
+                                    // every block through full consensus validation.
+                                    let genesis_block = axiom_core::genesis::genesis();
+                                    let mut candidate_chain = Timechain::new(genesis_block);
+                                    let mut valid = true;
+                                    for b in peer_blocks.iter().skip(1) {
+                                        if candidate_chain.add_block(b.clone(), 1800).is_err() {
+                                            println!("⚠️  Peer chain rejected: invalid block at slot {}", b.slot);
+                                            valid = false;
+                                            break;
+                                        }
+                                    }
+                                    if valid && candidate_chain.blocks.len() > tc.blocks.len() {
+                                        println!("🔁 Validated & synced chain from peer. New height: {}", candidate_chain.blocks.len());
+                                        tc = candidate_chain;
+                                        axiom_core::storage::save_chain(&tc.blocks);
+                                        last_vdf = Instant::now();
+                                    }
                                 }
                             }
                         }
@@ -752,10 +768,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let vdf_proof = axiom_core::main_helper::compute_vdf(vdf_seed, tc.difficulty as u32);
                     let zk_pass = axiom_core::genesis::generate_zk_pass(&wallet, parent_hash);
 
-                    let mut nonce = 0u64;
-                    let max_attempts = 100000;
+                    // Randomize nonce start so competing miners don't all
+                    // search the same nonce space — essential for real multi-node mining.
+                    let nonce_start: u64 = rand::random();
+                    let mut nonce = nonce_start;
+                    let max_attempts = 100_000u64;
 
-                    while nonce < max_attempts {
+                    let mut attempts = 0u64;
+                    while attempts < max_attempts {
                         let candidate = Block {
                             parent: parent_hash,
                             slot: current_slot,
@@ -868,7 +888,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             last_vdf = Instant::now();
                             break;
                         }
-                        nonce += 1;
+                        nonce = nonce.wrapping_add(1);
+                        attempts += 1;
                     }
                 }
             }
