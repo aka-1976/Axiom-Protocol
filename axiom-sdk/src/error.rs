@@ -16,7 +16,10 @@ pub enum AxiomError {
     TransactionFailed(String),
     
     #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    Serialization(String),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
     
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
@@ -26,6 +29,9 @@ pub enum AxiomError {
     
     #[error("Wallet error: {0}")]
     Wallet(String),
+
+    #[error("Proof error: {0}")]
+    Proof(String),
 }
 
 /// Result type for Axiom SDK operations
