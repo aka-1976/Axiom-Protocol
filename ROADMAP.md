@@ -7,7 +7,7 @@
 - Document implemented vs placeholder features ✅
 - Draft basic technical specification ✅
 - Core consensus (VDF + PoW) fully implemented ✅
-- Privacy layer (ZK-SNARKs) production-ready ✅
+- Privacy layer (ZK-STARKs) production-ready ✅
 - Network protocol (libp2p P2P) fully functional ✅
 - Neural Guardian AI defense system deployed ✅
 - Comprehensive testing suite ✅
@@ -52,7 +52,7 @@
 
 ### Core Protocol Status
 - **Consensus**: VDF + PoW hybrid ✅ Production-ready
-- **Privacy**: ZK-SNARKs mandatory ✅ Production-ready
+- **Privacy**: ZK-STARKs mandatory ✅ Production-ready
 - **Networking**: libp2p with mDNS/DHT ✅ Production-ready
 - **AI Defense**: Neural Guardian + OpenClaw ✅ Production-ready
 - **Storage**: sled embedded DB ✅ Production-ready

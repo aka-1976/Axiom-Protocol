@@ -124,6 +124,6 @@ fi
 echo ""
 echo "📁 Keys stored in: $(pwd)"
 echo ""
-echo "🚀 Your node is now ready to generate and verify ZK-SNARK proofs!"
+echo "🚀 Your node is now ready to generate and verify ZK-STARK proofs!"
 echo ""
 echo "💡 Note: Keep these keys secure and backed up."

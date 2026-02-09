@@ -151,7 +151,7 @@ function BlockDetail() {
                   <td>{formatAXM(tx.fee)} AXM</td>
                   <td>
                     {tx.zk_proof ? (
-                      <span className="badge badge-success">ZK-SNARK</span>
+                      <span className="badge badge-success">ZK-STARK</span>
                     ) : (
                       <span className="badge badge-warning">Public</span>
                     )}

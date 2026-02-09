@@ -383,7 +383,7 @@ Test coverage:
 ### Phase 2: Advanced Features (In Progress)
 - [ ] GPU acceleration
 - [ ] More work types (climate modeling, genomics)
-- [ ] Advanced verification (ZK-SNARKs)
+- [ ] Advanced verification (ZK-STARKs)
 
 ### Phase 3: Ecosystem (Planned)
 - [ ] Mining pool protocol

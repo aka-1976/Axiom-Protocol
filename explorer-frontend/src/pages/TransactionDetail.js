@@ -107,7 +107,7 @@ function TransactionDetail() {
         <div className="detail-value">
           {tx.zk_proof ? (
             <>
-              <span className="badge badge-success">ZK-SNARK Enabled</span>
+              <span className="badge badge-success">ZK-STARK Enabled</span>
               <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
                 This transaction uses zero-knowledge proofs for enhanced privacy
               </p>

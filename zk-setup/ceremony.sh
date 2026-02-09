@@ -1,18 +1,17 @@
 #!/bin/bash
-# AXIOM Protocol ZK-SNARK Trusted Setup Ceremony
-# This script performs the trusted setup for generating proving and verification keys
-# WARNING: This generates cryptographic parameters that secure the entire network
+# AXIOM Protocol ZK-STARK Setup
+# This script performs the setup for generating proving and verification keys
+# NOTE: ZK-STARKs are transparent — no toxic waste or trusted setup ceremony required
 
 set -e
 
-echo "🔐 AXIOM PROTOCOL ZK-SNARK TRUSTED SETUP CEREMONY"
-echo "=================================================="
+echo "🔐 AXIOM PROTOCOL ZK-STARK SETUP"
+echo "================================"
 echo ""
-echo "WARNING: This ceremony generates the cryptographic parameters that secure"
-echo "the entire AXIOM Protocol network. The 'toxic waste' (trapdoor) generated"
-echo "during this process MUST be securely destroyed after completion."
+echo "NOTE: ZK-STARKs are transparent — no trusted setup or toxic waste is generated."
+echo "This script generates the proving and verification parameters for the network."
 echo ""
-echo "Participants should verify the ceremony transcript hash after completion."
+echo "Participants should verify the setup transcript hash after completion."
 echo ""
 
 # Check if required tools are available
@@ -33,7 +32,7 @@ echo "🕒 Start Time: $CEREMONY_TIME"
 
 # Log ceremony start
 echo "CEREMONY START: $CEREMONY_ID at $CEREMONY_TIME" > "ceremony-logs/ceremony-$CEREMONY_ID.log"
-echo "Protocol: Axiom Transaction Circuit (Groth16/BLS12-381)" >> "ceremony-logs/ceremony-$CEREMONY_ID.log"
+echo "Protocol: Axiom Transaction Circuit (Winterfell ZK-STARK)" >> "ceremony-logs/ceremony-$CEREMONY_ID.log"
 echo "Circuit: AxiomTransactionCircuit" >> "ceremony-logs/ceremony-$CEREMONY_ID.log"
 echo "" >> "ceremony-logs/ceremony-$CEREMONY_ID.log"
 
@@ -80,16 +79,16 @@ echo "Verification Key Hash: $VERIFICATION_KEY_HASH" >> "ceremony-logs/ceremony-
 
 # Create ceremony transcript
 cat > "ceremony-logs/transcript-$CEREMONY_ID.txt" << EOF
-AXIOM PROTOCOL ZK-SNARK TRUSTED SETUP CEREMONY TRANSCRIPT
-==========================================================
+AXIOM PROTOCOL ZK-STARK SETUP TRANSCRIPT
+=========================================
 
 Ceremony ID: $CEREMONY_ID
 Start Time: $CEREMONY_TIME
 End Time: $CEREMONY_END_TIME
 
 CIRCUIT INFORMATION:
-- Protocol: Groth16
-- Curve: BLS12-381
+- Protocol: Winterfell (ZK-STARK)
+- Field: f128 (128-bit field elements)
 - Circuit: AxiomTransactionCircuit
 - Constraints: Balance verification, address derivation, amount validation
 

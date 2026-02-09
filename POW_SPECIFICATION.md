@@ -57,7 +57,7 @@ pub struct Block {
     pub miner: [u8; 32],            // Miner's address (Ed25519)
     pub transactions: Vec<Transaction>,  // Tx list
     pub vdf_proof: [u8; 32],        // VDF proof (from time-lock)
-    pub zk_proof: Vec<u8>,          // ZK-SNARK proof (privacy)
+    pub zk_proof: Vec<u8>,          // ZK-STARK proof (privacy)
     pub nonce: u64,                 // PoW counter (variable)
 }
 ```
@@ -443,7 +443,7 @@ T+1801s  Block broadcast to network
          1. VDF proof valid? ✅
          2. PoW meets difficulty? ✅
          3. Transactions valid? ✅
-         4. ZK-SNARK proof valid? ✅
+         4. ZK-STARK proof valid? ✅
 ```
 
 ### 7.2 Critical: VDF-PoW Synchronization

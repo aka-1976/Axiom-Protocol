@@ -51,7 +51,7 @@ All notable changes to this project will be documented in this file.
 - Updated binary signature: AXIOM in ASCII
 
 #### Core Features
-- ✅ ZK-SNARK privacy (mandatory for all transactions)
+- ✅ ZK-STARK privacy (mandatory for all transactions)
 - ✅ VDF + PoW hybrid consensus
 - ✅ Neural Guardian AI security
 - ✅ 84M AXM fixed supply

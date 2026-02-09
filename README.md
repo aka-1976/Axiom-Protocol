@@ -11,7 +11,7 @@
 AXIOM is a production-grade, privacy-preserving blockchain with:
 - **Fixed Supply**: 124,000,000 AXM (immutable, no pre-mine)
 - **Fair Consensus**: VDF (30-minute blocks) + PoW (Blake3) hybrid
-- **Mandatory Privacy**: ZK-SNARKs (Groth16) on all transactions
+- **Mandatory Privacy**: ZK-STARKs (Winterfell) on all transactions — no trusted setup
 - **Eternal Guardian**: Sovereign network sentinel ensuring 24/7 consensus
 - **Zero Governance**: Purely mathematical, no tokens, no directors
 
@@ -54,7 +54,7 @@ watch -n 5 './target/release/axiom-node status'
 
 v4.0.0 unified all v3.x line upgrades into a single production release:
 
-- **AI Oracle** (`ai-oracle/`): Claude API integration for on-chain AI oracle services
+- **AI Oracle** (`ai-oracle/`): Deterministic AI oracle with local Ollama integration for reproducible on-chain seals
 - **AI Enhancement Module** (`axiom-ai-enhancement/`): Extended AI security and analytics
 - **Axiom SDK** (`axiom-sdk/`): Developer SDK for building on Axiom Protocol
 - **Bridge Contracts** (`bridge-contracts/`): Cross-chain bridge infrastructure (Hardhat)
@@ -187,7 +187,7 @@ chmod 600 wallet.dat
 ### Wallet Features
 - 🔑 **Ed25519 Cryptography**: 32-byte keys (same as Solana, Cardano)
 - 🔒 **Self-Custodial**: You control the private key
-- 🛡️ **ZK-SNARK Privacy**: Balance never revealed on blockchain  
+- 🛡️ **ZK-STARK Privacy**: Balance never revealed on blockchain  
 - 💾 **Single File**: wallet.dat (self-contained)
 - ⚡ **Auto-Generated**: Created on first node run
 - 🚫 **No Recovery**: Lost wallet = lost AXM (no centralized recovery)
@@ -235,7 +235,7 @@ Era 3 (141-212y): 12.5 AXM/block → 108,500,000 total
 Every transaction includes:
 - **Pedersen Commitments**: Hide transaction amounts
 - **ElGamal Encryption**: Hide recipient identities
-- **ZK-SNARK Proof**: Prove balance preservation without revealing values
+- **ZK-STARK Proof**: Prove balance preservation without revealing values
 - **Ed25519 Signature**: Authenticate transaction author
 
 ### Why This Matters
@@ -250,7 +250,7 @@ Every transaction includes:
 | **Signatures** | Ed25519 | - | Transaction authentication |
 | **Commitments** | Pedersen | - | Hide amounts |
 | **Encryption** | ElGamal | BLS12-381 | Hide recipients |
-| **ZK-SNARK** | Groth16 | BLS12-381 | Prove correctness |
+| **ZK-STARK** | Winterfell | f128 field | Prove correctness (no trusted setup) |
 | **Hash (PoW)** | Blake3 | - | Mining target |
 | **Hash (State)** | Blake3 | - | Block integrity |
 
@@ -298,7 +298,7 @@ Consensus Layer
 ├─ VDF:            Wesolowski proof (1800s sequencing)
 ├─ PoW:            Blake3 hash with difficulty adjustment
 ├─ Chain:          Timechain blocks + state management
-└─ Validation:     ZK-SNARK proof verification
+└─ Validation:     ZK-STARK proof verification
 
 Storage Layer
 ├─ State:          Account balances (sled database)
@@ -317,7 +317,7 @@ Storage Layer
 | `network_config.rs` | Bootstrap configuration, peer discovery |
 | `ai_core/` | 5-layer threat detection, anomaly analysis |
 | `guardian_enhancement/` | AI-enforced consensus optimization, circuit breaker |
-| `zk/` | ZK-SNARK circuit definitions (Groth16) |
+| `zk/` | ZK-STARK proof system (Winterfell 0.9, transparent setup) |
 | `vdf.rs` | VDF proof generation and verification |
 
 ---
@@ -557,7 +557,7 @@ All integration points preserve immutable constraints and Guardian approval requ
 |--------|---------|-------|
 | **Supply** | 21M | 124M |
 | **Governance** | SegWit debates | None (math only) |
-| **Privacy** | Optional (Mixers) | Mandatory (ZK-SNARKs) |
+| **Privacy** | Optional (Mixers) | Mandatory (ZK-STARKs) |
 | **Block Time** | 10 min (variable) | 30 min (VDF-enforced) |
 | **Consensus** | PoW only | VDF + PoW hybrid |
 | **Scalability** | L2 solutions | Native privacy |
@@ -569,10 +569,10 @@ All integration points preserve immutable constraints and Guardian approval requ
 
 ✅ **v4.1.0 Release** — 512-bit security, AI Oracle, winterfell 0.9 migration
 ✅ **Mainnet Live** - Active since February 2025  
-✅ **Core Features** - VDF, PoW, ZK-SNARKs, 5-layer AI threat detection
+✅ **Core Features** - VDF, PoW, ZK-STARKs, 5-layer AI threat detection
 ✅ **Networking** - Modular Discv5/libp2p P2P with bootstrap nodes  
 ✅ **Guardian Sentinel** - 24/7 consensus enforcement + AI approval
-✅ **AI Oracle** - Claude API integration for on-chain AI services
+✅ **AI Oracle** - Deterministic Ollama integration for reproducible on-chain AI seals
 ✅ **SDK & Explorer** - Developer SDK and full-stack block explorer
 ✅ **Bridge Contracts** - Cross-chain bridge infrastructure
 ✅ **Documentation** - Complete technical specification + deployment procedures

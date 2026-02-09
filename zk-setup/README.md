@@ -1,10 +1,10 @@
-# AXIOM Protocol ZK-SNARK Setup
+# AXIOM Protocol ZK-STARK Setup
 
-This directory contains the trusted setup ceremony and key management infrastructure for the AXIOM Protocol's ZK-SNARK privacy features.
+This directory contains the setup and key management infrastructure for the AXIOM Protocol's ZK-STARK privacy features.
 
 ## 🔐 Overview
 
-The AXIOM Protocol uses ZK-SNARKs (Zero-Knowledge Succinct Non-Interactive Arguments of Knowledge) to provide cryptographic privacy for transactions while maintaining network consensus. This requires a trusted setup ceremony to generate the cryptographic parameters that secure the entire network.
+The AXIOM Protocol uses ZK-STARKs (Zero-Knowledge Scalable Transparent Arguments of Knowledge) to provide cryptographic privacy for transactions while maintaining network consensus. ZK-STARKs require no trusted setup ceremony — the proof system is fully transparent.
 
 ## 📋 Ceremony Process
 
@@ -93,8 +93,8 @@ cat ~/.axiom/keys/verification_key.json
 
 ### Cryptographic Parameters
 
-- **Scheme**: Groth16
-- **Curve**: BLS12-381
+- **Scheme**: Winterfell (ZK-STARK)
+- **Field**: f128 (128-bit field elements)
 - **Circuit**: AxiomTransactionCircuit
 - **Constraints**: Balance verification, address derivation, amount validation
 
