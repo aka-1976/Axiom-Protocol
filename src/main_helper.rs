@@ -80,8 +80,9 @@ pub fn format_axm_supply(units: u64) -> String {
 /// Aggregated network health snapshot broadcast every 100 blocks.
 ///
 /// The `trust_pulse_512` is a 512-bit BLAKE3 digest that commits the
-/// entire health state. Independent verifiers can monitor the 124M supply
-/// integrity without needing access to private logs.
+/// entire health state. `prev_pulse_hash` chains this pulse to the
+/// previous one, creating a tamper-evident history that proves the
+/// 124M supply has never been violated over time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkHealth {
     /// Current chain height
@@ -96,6 +97,8 @@ pub struct NetworkHealth {
     pub guardian_stats: GuardianStats,
     /// 512-bit BLAKE3 commitment over the entire health state
     pub trust_pulse_512: Vec<u8>,
+    /// 512-bit BLAKE3 hash of the previous pulse (tamper-evident chain)
+    pub prev_pulse_hash: Vec<u8>,
     /// Unix timestamp (seconds)
     pub timestamp: u64,
 }
@@ -103,13 +106,15 @@ pub struct NetworkHealth {
 /// Build a `NetworkHealth` snapshot and compute its 512-bit trust pulse.
 ///
 /// Called by the node every 100 blocks to broadcast a verifiable health
-/// summary to the network.
+/// summary to the network. The `prev_pulse_hash` parameter chains this
+/// pulse to the previous one, forming a tamper-evident sequence.
 pub fn get_network_health(
     block_height: u64,
     total_mined: u64,
     remaining_supply: u64,
     connected_peers: usize,
     guardian_stats: GuardianStats,
+    prev_pulse_hash: &[u8; 64],
 ) -> NetworkHealth {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -117,7 +122,9 @@ pub fn get_network_health(
         .unwrap_or(0);
 
     // Compute 512-bit trust pulse: BLAKE3-XOF over the full health state
+    // including the previous pulse hash for tamper-evident chaining
     let mut hasher = blake3::Hasher::new();
+    hasher.update(prev_pulse_hash);
     hasher.update(&block_height.to_le_bytes());
     hasher.update(&total_mined.to_le_bytes());
     hasher.update(&remaining_supply.to_le_bytes());
@@ -138,6 +145,7 @@ pub fn get_network_health(
         connected_peers,
         guardian_stats,
         trust_pulse_512: trust_pulse_512.to_vec(),
+        prev_pulse_hash: prev_pulse_hash.to_vec(),
         timestamp,
     }
 }
@@ -155,15 +163,17 @@ mod tests {
             training_samples: 50,
             model_hash: "a".repeat(64),
         };
+        let prev = [0u8; 64];
 
-        let h1 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats.clone());
-        let h2 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats);
+        let h1 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats.clone(), &prev);
+        let h2 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats, &prev);
 
         // Trust pulse depends on timestamp so we only check structure
         assert_eq!(h1.block_height, 1000);
         assert_eq!(h1.total_mined, 500_000_000);
         assert_eq!(h1.connected_peers, 20);
         assert_eq!(h1.trust_pulse_512.len(), 64);
+        assert_eq!(h1.prev_pulse_hash, prev.to_vec());
     }
 
     #[test]
@@ -175,12 +185,34 @@ mod tests {
             training_samples: 0,
             model_hash: "0".repeat(64),
         };
+        let prev = [0u8; 64];
 
-        let h1 = get_network_health(100, 0, 12_400_000_000, 5, stats.clone());
-        let h2 = get_network_health(200, 0, 12_400_000_000, 5, stats);
+        let h1 = get_network_health(100, 0, 12_400_000_000, 5, stats.clone(), &prev);
+        let h2 = get_network_health(200, 0, 12_400_000_000, 5, stats, &prev);
 
         assert_ne!(h1.trust_pulse_512, h2.trust_pulse_512,
             "Different block heights must produce different trust pulses");
+    }
+
+    #[test]
+    fn test_pulse_chaining_different_prev_hash() {
+        let stats = GuardianStats {
+            total_events: 10,
+            unique_peers: 2,
+            cached_assessments: 1,
+            training_samples: 5,
+            model_hash: "b".repeat(64),
+        };
+        let prev_a = [0u8; 64];
+        let prev_b = [0xFFu8; 64];
+
+        let h1 = get_network_health(100, 0, 12_400_000_000, 5, stats.clone(), &prev_a);
+        let h2 = get_network_health(100, 0, 12_400_000_000, 5, stats, &prev_b);
+
+        assert_ne!(h1.trust_pulse_512, h2.trust_pulse_512,
+            "Different prev_pulse_hash must produce different trust pulses");
+        assert_eq!(h1.prev_pulse_hash, prev_a.to_vec());
+        assert_eq!(h2.prev_pulse_hash, prev_b.to_vec());
     }
 
     #[test]

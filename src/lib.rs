@@ -72,6 +72,9 @@ pub struct AxiomPulse {
     /// 512-bit Deterministic AI Oracle seal
     #[serde(with = "serde_bytes_64")]
     pub oracle_seal: [u8; 64],
+    /// 512-bit BLAKE3 hash of the previous pulse (tamper-evident chain)
+    #[serde(with = "serde_bytes_64")]
+    pub prev_pulse_hash: [u8; 64],
     /// Unix timestamp (seconds) for freshness check
     pub timestamp: i64,
 }

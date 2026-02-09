@@ -329,13 +329,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 warp::reply::json(&info)
             });
 
+        let health_check_route = warp::path!("v1" / "health" / "check")
+            .and(warp::get())
+            .map(|| warp::reply::with_status("ALIVE", warp::http::StatusCode::OK));
+
         let routes = status_route
             .or(version_route)
+            .or(health_check_route)
             .recover(handle_rejection);
 
         tokio::spawn(async move {
             println!("🌐 Public Pulse API: http://127.0.0.1:8080/v1/status");
             println!("🌐 Version endpoint: http://127.0.0.1:8080/v1/version");
+            println!("🌐 Health check:     http://127.0.0.1:8080/v1/health/check");
             warp::serve(routes)
                 .run(([127, 0, 0, 1], 8080))
                 .await;
@@ -346,6 +352,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut last_vdf = Instant::now();
     let mut last_diff = tc.difficulty;
     let mut last_bootstrap_retry = Instant::now();
+    let mut last_pulse_hash: [u8; 64] = [0u8; 64]; // Genesis pulse (all zeros)
 
     let mut vdf_loop = time::interval(Duration::from_millis(100));
     let mut dashboard_timer = time::interval(Duration::from_secs(30));
@@ -545,13 +552,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 // Update Public Pulse API state
                 {
-                    let trust_pulse_hex = hex::encode(&get_network_health(
+                    let health = get_network_health(
                         tc.blocks.len() as u64,
                         mined,
                         remaining_supply,
                         connected_peers.len(),
                         stats.clone(),
-                    ).trust_pulse_512);
+                        &last_pulse_hash,
+                    );
+                    let trust_pulse_hex = hex::encode(&health.trust_pulse_512);
+
+                    // Chain the pulse: store this hash for next iteration
+                    if let Ok(arr) = health.trust_pulse_512.as_slice().try_into() {
+                        last_pulse_hash = arr;
+                    }
 
                     let mut api = api_state.lock().unwrap();
                     api.current_height = tc.blocks.len() as u64;
@@ -649,11 +663,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 remaining,
                                 block_hash: candidate.hash_512(),
                                 oracle_seal,
+                                prev_pulse_hash: last_pulse_hash,
                                 timestamp: std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
                                     .as_secs() as i64,
                             };
+
+                            // Chain the pulse hash for tamper-evident history
+                            last_pulse_hash = axiom_core::axiom_hash_512(
+                                &bincode::serialize(&pulse).unwrap_or_default(),
+                            );
+
                             if let Ok(pulse_data) = bincode::serialize(&pulse) {
                                 let _ = swarm.behaviour_mut().gossipsub.publish(pulse_topic.clone(), pulse_data);
                             }
@@ -667,6 +688,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     remaining,
                                     connected_peers.len(),
                                     stats,
+                                    &last_pulse_hash,
                                 );
                                 println!("💎 Global Trust Pulse @ H-{}: 512-bit commitment broadcast", height);
                                 if let Ok(health_data) = bincode::serialize(&health) {
@@ -695,14 +717,15 @@ impl warp::reject::Reject for TooManyRequests {}
 
 async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, std::convert::Infallible> {
     if err.find::<TooManyRequests>().is_some() {
-        Ok(warp::reply::with_status(
-            warp::reply::json(&serde_json::json!({"error": "Too Many Requests", "retry_after_secs": API_RATE_LIMIT_PER_MINUTE})),
-            warp::http::StatusCode::TOO_MANY_REQUESTS,
-        ))
+        let body = warp::reply::json(&serde_json::json!({
+            "error": "Too Many Requests",
+            "retry_after_secs": API_RATE_LIMIT_PER_MINUTE
+        }));
+        let with_status = warp::reply::with_status(body, warp::http::StatusCode::TOO_MANY_REQUESTS);
+        Ok(warp::reply::with_header(with_status, "Retry-After", API_RATE_LIMIT_PER_MINUTE.to_string()))
     } else {
-        Ok(warp::reply::with_status(
-            warp::reply::json(&serde_json::json!({"error": "Not Found"})),
-            warp::http::StatusCode::NOT_FOUND,
-        ))
+        let body = warp::reply::json(&serde_json::json!({"error": "Not Found"}));
+        let with_status = warp::reply::with_status(body, warp::http::StatusCode::NOT_FOUND);
+        Ok(warp::reply::with_header(with_status, "Retry-After", "0"))
     }
 }
