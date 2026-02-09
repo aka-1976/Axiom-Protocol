@@ -31,8 +31,7 @@ impl Block {
             return Err("Block does not meet PoW difficulty");
         }
 
-        // 3. ZK-STARK proof (for miner)
-        // For demonstration, skip if empty
+        // 3. ZK-STARK proof (for miner) — reject blocks with no proof
         if self.zk_proof.is_empty() {
             return Err("Missing miner ZK-STARK proof");
         }

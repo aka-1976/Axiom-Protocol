@@ -162,7 +162,7 @@ impl Timechain {
         format!("{}.{:08}", whole, fractional)
     }
 
-    /// Validate and add transaction to mempool (placeholder for now)
+    /// Validate a transaction against the current chain state.
     pub fn validate_transaction(&self, tx: &Transaction) -> Result<(), &'static str> {
         let sender_balance = self.state.balance(&tx.from);
         tx.validate(sender_balance)
