@@ -409,14 +409,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .ok()
             .and_then(|s| s.parse().ok())
             .or_else(|| {
-                axiom_core::config::AxiomConfig::load()
-                    .ok()
-                    .and_then(|cfg| {
+                match axiom_core::config::AxiomConfig::load() {
+                    Ok(cfg) => {
                         // listen_address may be "ip:port" or just "ip"
                         let addr_str = &cfg.rpc.listen_address;
                         addr_str.split(':').next()
+                            .map(|ip| ip.trim())
                             .and_then(|ip| ip.parse().ok())
-                    })
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  Config file load warning: {} — using default bind address", e);
+                        None
+                    }
+                }
             })
             .unwrap_or_else(|| [127, 0, 0, 1].into());
         let api_port: u16 = 8080;
