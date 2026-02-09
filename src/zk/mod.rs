@@ -2,6 +2,10 @@
 /// STARK proofs are larger and variable-sized (used for full transaction privacy).
 const MINING_PROOF_SIZE: usize = 128;
 
+/// Size of the public-inputs header prepended to serialized STARK proofs.
+/// Layout: [commitment: 16 bytes (u128 LE)] [new_balance_commitment: 16 bytes (u128 LE)]
+const STARK_PUBLIC_INPUTS_HEADER: usize = 32;
+
 // Production ZK-STARK implementation
 pub mod transaction_circuit;
 
@@ -41,11 +45,13 @@ pub fn generate_transaction_proof(
     // Layout: [commitment: 16 bytes] [new_balance_commitment: 16 bytes] [proof bytes...]
     // The verifier needs the commitment and new_balance_commitment to
     // reconstruct the public inputs that match the proof.
+    // public_inputs layout from ZkProofSystem::prove():
+    //   [0] = commitment, [1] = transfer_amount, [2] = fee, [3] = new_balance_commitment
     let proof_bytes = proof.to_bytes();
-    let commitment_bytes = public_inputs[0].as_int().to_le_bytes();
-    let new_balance_bytes = public_inputs[3].as_int().to_le_bytes();
+    let commitment_bytes = public_inputs[0].as_int().to_le_bytes();       // commitment
+    let new_balance_bytes = public_inputs[3].as_int().to_le_bytes();      // new_balance_commitment
 
-    let mut encoded = Vec::with_capacity(32 + proof_bytes.len());
+    let mut encoded = Vec::with_capacity(STARK_PUBLIC_INPUTS_HEADER + proof_bytes.len());
     encoded.extend_from_slice(&commitment_bytes);
     encoded.extend_from_slice(&new_balance_bytes);
     encoded.extend_from_slice(&proof_bytes);
@@ -77,9 +83,9 @@ pub fn verify_transaction_proof(
     }
 
     // STARK proof: extract commitment and new_balance_commitment from
-    // the prepended 32-byte header, then deserialize the actual proof.
+    // the prepended header, then deserialize the actual proof.
     // Layout: [commitment: 16 bytes] [new_balance_commitment: 16 bytes] [proof...]
-    if proof_bytes.len() < 32 {
+    if proof_bytes.len() < STARK_PUBLIC_INPUTS_HEADER {
         return Err("STARK proof too short".into());
     }
 
@@ -89,7 +95,7 @@ pub fn verify_transaction_proof(
     let new_balance_int = u128::from_le_bytes(
         proof_bytes[16..32].try_into().map_err(|_| "bad new_balance bytes")?
     );
-    let stark_proof_data = &proof_bytes[32..];
+    let stark_proof_data = &proof_bytes[STARK_PUBLIC_INPUTS_HEADER..];
 
     let proof = Proof::from_bytes(stark_proof_data)
         .map_err(|e| -> Box<dyn std::error::Error> {
