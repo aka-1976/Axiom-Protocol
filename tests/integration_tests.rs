@@ -235,4 +235,126 @@ mod tests {
         assert!(!genesis::verify_zk_pass(&wrong_miner, &parent_hash, &proof),
             "Proof verified against wrong miner address must be rejected");
     }
+
+    /// End-to-end integration: wallet → ZK proof → mining → chain validation →
+    /// transaction → STARK proof → persistence → reload → state rebuild.
+    #[test]
+    fn test_end_to_end_pipeline() {
+        // 1. WALLET CREATION
+        let wallet = Wallet::load_or_create();
+        assert_eq!(wallet.address.len(), 32);
+        assert_ne!(wallet.address, [0u8; 32], "Address must not be zero");
+
+        // 2. GENESIS & CHAIN INIT
+        let genesis_block = genesis::genesis();
+        let genesis_hash = genesis_block.calculate_hash();
+        assert_eq!(hex::encode(genesis_hash), axiom_core::chain::GENESIS_ANCHOR,
+            "Genesis anchor must match hardcoded value");
+
+        let mut chain = Timechain::new(genesis_block.clone());
+        assert_eq!(chain.blocks.len(), 1);
+
+        // 3. VDF COMPUTATION & PROOF
+        let parent_hash = chain.blocks.last().unwrap().hash();
+        let current_slot = chain.blocks.len() as u64;
+        let vdf_seed = vdf::evaluate(parent_hash, current_slot);
+        assert_ne!(vdf_seed, parent_hash, "VDF seed must differ from parent hash");
+
+        // Use low difficulty for testing
+        chain.difficulty = 10;
+        let vdf_proof = main_helper::compute_vdf(vdf_seed, chain.difficulty as u32);
+        // VDF must be deterministic
+        let vdf_proof2 = main_helper::compute_vdf(vdf_seed, chain.difficulty as u32);
+        assert_eq!(vdf_proof, vdf_proof2, "VDF must be deterministic");
+
+        // 4. ZK MINING PROOF GENERATION & VERIFICATION
+        let zk_pass = genesis::generate_zk_pass(&wallet, parent_hash);
+        assert_eq!(zk_pass.len(), 128, "Mining proof must be 128 bytes");
+        assert!(genesis::verify_zk_pass(&wallet.address, &parent_hash, &zk_pass),
+            "Mining proof must pass verification against correct address");
+        assert!(!genesis::verify_zk_pass(&[0xABu8; 32], &parent_hash, &zk_pass),
+            "Mining proof must fail against wrong address");
+
+        // 5. MINING (PoW nonce search)
+        let mut found_nonce = None;
+        for nonce in 0..50_000u64 {
+            let candidate = Block {
+                parent: parent_hash,
+                slot: current_slot,
+                miner: wallet.address,
+                transactions: vec![],
+                vdf_proof,
+                zk_proof: zk_pass.clone(),
+                nonce,
+            };
+            if candidate.meets_difficulty(chain.difficulty) {
+                found_nonce = Some(nonce);
+                break;
+            }
+        }
+        let nonce = found_nonce.expect("Must find valid nonce within 50000 attempts");
+
+        // 6. BLOCK VALIDATION & CHAIN ADDITION
+        let block = Block {
+            parent: parent_hash,
+            slot: current_slot,
+            miner: wallet.address,
+            transactions: vec![],
+            vdf_proof,
+            zk_proof: zk_pass.clone(),
+            nonce,
+        };
+        let result = chain.add_block(block.clone(), 1800);
+        assert!(result.is_ok(), "Block must be accepted by chain: {:?}", result.err());
+        assert_eq!(chain.blocks.len(), 2);
+
+        // 7. MINING REWARD CREDITED
+        let miner_balance = chain.balance(&wallet.address);
+        let expected_reward = block_reward(1, 0);
+        assert_eq!(miner_balance, expected_reward,
+            "Miner must receive block reward after mining");
+
+        // 8. PERSISTENCE — save and reload chain
+        axiom_core::storage::save_chain(&chain.blocks);
+        let loaded = axiom_core::storage::load_chain();
+        assert!(loaded.is_some(), "Chain must be loadable from disk");
+        let loaded_blocks = loaded.unwrap();
+        assert_eq!(loaded_blocks.len(), 2, "Loaded chain must have 2 blocks");
+
+        // 9. STATE REBUILD — rebuild chain from loaded blocks
+        let rebuilt_chain = Timechain::from_saved_blocks(loaded_blocks)
+            .expect("Chain must rebuild from saved blocks");
+        assert_eq!(rebuilt_chain.blocks.len(), 2);
+        let rebuilt_balance = rebuilt_chain.balance(&wallet.address);
+        assert_eq!(rebuilt_balance, expected_reward,
+            "Balance must be preserved after state rebuild");
+
+        // 10. TRANSACTION WITH ZK-STARK PROOF
+        let recipient = [42u8; 32];
+        let amount = 100_000_000u64; // 1 AXM
+        let fee = 1_000_000u64;      // 0.01 AXM
+        let tx = wallet.create_transaction(recipient, amount, fee, 0, miner_balance)
+            .expect("Transaction creation must succeed");
+
+        // Verify all transaction components
+        assert_eq!(tx.from, wallet.address);
+        assert_eq!(tx.to, recipient);
+        assert!(!tx.zk_proof.is_empty(), "ZK proof must be present");
+        assert_eq!(tx.signature.len(), 64, "Ed25519 signature must be 64 bytes");
+
+        // Ed25519 signature verification
+        let sig_ok = Wallet::verify_transaction_signature(&tx).unwrap();
+        assert!(sig_ok, "Signature must verify");
+
+        // Full transaction validation (ZK proof + signature + balance)
+        let tx_result = tx.validate(miner_balance);
+        assert!(tx_result.is_ok(), "Transaction validation must pass: {:?}", tx_result.err());
+
+        // Insufficient balance must be rejected
+        assert!(tx.validate(amount).is_err(),
+            "Transaction with insufficient balance must be rejected");
+
+        // Clean up test file
+        let _ = std::fs::remove_file("axiom_chain.dat");
+    }
 }

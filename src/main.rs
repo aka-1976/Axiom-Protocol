@@ -142,11 +142,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let genesis_block = axiom_core::genesis::genesis();
     let mut tc = if let Some(saved_blocks) = axiom_core::storage::load_chain() {
         println!("✅ STORAGE: Loaded {} blocks. Integrity verified.", saved_blocks.len());
-        let mut chain = Timechain::new(genesis_block);
-        for b in saved_blocks {
-            let _ = chain.add_block(b, 1800);
+        match Timechain::from_saved_blocks(saved_blocks) {
+            Ok(chain) => chain,
+            Err(e) => {
+                println!("⚠️  STORAGE: Failed to restore chain: {} — starting fresh", e);
+                Timechain::new(genesis_block)
+            }
         }
-        chain
     } else {
         Timechain::new(genesis_block)
     };

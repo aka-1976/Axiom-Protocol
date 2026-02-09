@@ -44,6 +44,39 @@ impl Timechain {
         tc
     }
 
+    /// Restore a Timechain from previously-validated blocks loaded from
+    /// persistent storage.
+    ///
+    /// Verifies the genesis anchor but skips per-block consensus
+    /// validation (VDF, PoW, ZK) since these blocks were already accepted
+    /// when first appended. State (balances, nonces, supply) is rebuilt
+    /// deterministically from the block sequence.
+    pub fn from_saved_blocks(saved_blocks: Vec<Block>) -> Result<Self, &'static str> {
+        if saved_blocks.is_empty() {
+            return Err("No blocks to restore");
+        }
+
+        // Verify genesis anchor
+        let genesis_hash = hex::encode(saved_blocks[0].calculate_hash());
+        if genesis_hash != GENESIS_ANCHOR {
+            return Err("Genesis anchor mismatch on reload — chain file corrupted");
+        }
+
+        let mut tc = Timechain {
+            blocks: saved_blocks,
+            state: State::new(),
+            difficulty: 1000,
+            seen_hashes: HashSet::new(),
+            total_issued: 0,
+        };
+        // Populate seen_hashes for injection protection
+        for block in &tc.blocks {
+            tc.seen_hashes.insert(block.calculate_hash());
+        }
+        tc.rebuild_state();
+        Ok(tc)
+    }
+
     /// Rebuild state from all blocks
     pub fn rebuild_state(&mut self) {
         self.state = State::new();
