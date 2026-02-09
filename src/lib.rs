@@ -77,6 +77,13 @@ pub struct AxiomPulse {
     pub prev_pulse_hash: [u8; 64],
     /// Unix timestamp (seconds) for freshness check
     pub timestamp: i64,
+    /// Optional RISC-V STARK receipt proving 124M supply integrity.
+    ///
+    /// Populated every 100 blocks with a serialised RISC Zero receipt so
+    /// that any node (or the Ethereum bridge) can verify the supply law
+    /// without re-running the Guardian logic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stark_receipt: Option<Vec<u8>>,
 }
 
 // Core modules

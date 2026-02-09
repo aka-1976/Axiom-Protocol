@@ -1,3 +1,10 @@
+[workspace]
+members = ["."]
+# methods/ and methods/guest target the RISC Zero toolchain and riscv32im;
+# they are compiled separately by `risc0_build::embed_methods()`.
+# axiom-sdk has its own build lifecycle.
+exclude = ["methods", "methods/guest", "axiom-sdk"]
+
 [package]
 name = "axiom-core"
 version = "4.1.0"

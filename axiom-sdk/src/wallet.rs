@@ -1,15 +1,22 @@
-use ed25519_dalek::{SecretKey, PublicKey, Signature, Signer};
+use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer};
 use sha2::{Sha256, Digest};
 use crate::types::Address;
 use crate::transaction::Transaction;
 use crate::error::{AxiomError, Result};
 
 /// Axiom wallet with keypair
-#[derive(Debug)]
 pub struct Wallet {
-    secret_key: SecretKey,
-    public_key: PublicKey,
+    signing_key: SigningKey,
+    verifying_key: VerifyingKey,
     address: Address,
+}
+
+impl std::fmt::Debug for Wallet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Wallet")
+            .field("address", &self.address)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Wallet {
@@ -17,12 +24,12 @@ impl Wallet {
     pub fn new() -> Self {
         use rand::rngs::OsRng;
         
-        let secret_key = SecretKey::generate(&mut OsRng);
-        let public_key: PublicKey = (&secret_key).into();
+        let signing_key = SigningKey::generate(&mut OsRng);
+        let verifying_key = signing_key.verifying_key();
         
         // Address = SHA256(public_key)
         let mut hasher = Sha256::new();
-        hasher.update(public_key.as_bytes());
+        hasher.update(verifying_key.as_bytes());
         let hash = hasher.finalize();
         
         let mut addr_bytes = [0u8; 32];
@@ -30,20 +37,19 @@ impl Wallet {
         let address = Address(addr_bytes);
         
         Self {
-            secret_key,
-            public_key,
+            signing_key,
+            verifying_key,
             address,
         }
     }
     
     /// Import wallet from secret key bytes
     pub fn from_secret_key(secret_bytes: [u8; 32]) -> Result<Self> {
-        let secret_key = SecretKey::from_bytes(&secret_bytes)
-            .map_err(|e| AxiomError::Wallet(e.to_string()))?;
-        let public_key: PublicKey = (&secret_key).into();
+        let signing_key = SigningKey::from_bytes(&secret_bytes);
+        let verifying_key = signing_key.verifying_key();
         
         let mut hasher = Sha256::new();
-        hasher.update(public_key.as_bytes());
+        hasher.update(verifying_key.as_bytes());
         let hash = hasher.finalize();
         
         let mut addr_bytes = [0u8; 32];
@@ -51,15 +57,15 @@ impl Wallet {
         let address = Address(addr_bytes);
         
         Ok(Self {
-            secret_key,
-            public_key,
+            signing_key,
+            verifying_key,
             address,
         })
     }
     
     /// Export secret key (keep this PRIVATE!)
     pub fn export_secret_key(&self) -> [u8; 32] {
-        self.secret_key.to_bytes()
+        self.signing_key.to_bytes()
     }
     
     /// Get wallet address
@@ -72,9 +78,9 @@ impl Wallet {
         self.address.to_hex()
     }
     
-    /// Get public key
-    pub fn public_key(&self) -> &PublicKey {
-        &self.public_key
+    /// Get verifying (public) key
+    pub fn verifying_key(&self) -> &VerifyingKey {
+        &self.verifying_key
     }
     
     /// Create a new transaction
@@ -87,6 +93,11 @@ impl Wallet {
         let to_addr = Address::from_hex(to)
             .map_err(|e| AxiomError::InvalidAddress(e))?;
         
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
         // Create transaction structure
         let mut tx = Transaction {
             from: self.address,
@@ -94,7 +105,7 @@ impl Wallet {
             amount,
             fee,
             nonce: 0, // Should be fetched from network
-            timestamp: chrono::Utc::now().timestamp() as u64,
+            timestamp,
             signature: vec![],
         };
         
@@ -108,13 +119,13 @@ impl Wallet {
     /// Sign a transaction
     fn sign_transaction(&self, tx: &Transaction) -> Result<Signature> {
         let message = tx.signing_message();
-        let signature = self.secret_key.sign(&message);
+        let signature = self.signing_key.sign(&message);
         Ok(signature)
     }
     
     /// Sign arbitrary data
     pub fn sign(&self, data: &[u8]) -> Signature {
-        self.secret_key.sign(data)
+        self.signing_key.sign(data)
     }
 }
 

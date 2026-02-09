@@ -1,0 +1,104 @@
+# ============================================================================
+# axiom.sample.toml — Axiom Protocol Node Configuration Template
+# ============================================================================
+#
+# Copy this file to `axiom.toml` (or `config/axiom.toml`) and edit to taste.
+# The node searches for configuration in this order:
+#   1. ./axiom.toml
+#   2. ./config/axiom.toml
+#   3. /etc/axiom/axiom.toml
+# If none is found, built-in defaults are used.
+
+[node]
+name = "axiom-node"
+node_type = "full"           # full | light | miner | archive
+metrics_enabled = true
+
+[network]
+listen_address = "/ip4/0.0.0.0/tcp/8545"
+bootstrap_peers = []
+max_peers = 50
+max_inbound_peers = 30
+max_outbound_peers = 20
+enable_mdns = true
+enable_discv5 = true
+connection_timeout = 30
+gossip_heartbeat = 1
+network_id = 1               # 1 = mainnet
+
+[consensus]
+vdf_steps = 3600000
+pow_difficulty = 1000
+block_time_seconds = 1800     # 30 minutes
+difficulty_adjustment_interval = 2016
+max_block_size = 1000000
+max_transactions_per_block = 10000
+min_transaction_fee = 100000000
+confirmation_depth = 6
+
+[mining]
+enabled = false
+threads = 0                   # 0 = auto-detect CPU count
+# miner_address = "your_64_char_hex_address_here"
+intensity = 80
+min_peers_to_mine = 3
+
+[storage]
+data_dir = "./axiom-data"
+cache_size_mb = 1024
+compression = true
+pruning = "full"              # full | archive | light
+max_db_size_gb = 0            # 0 = unlimited
+
+[ai]
+neural_guardian_enabled = true
+threat_threshold = 0.7
+model_update_interval = 86400
+oracle_enabled = false
+min_oracle_stake = 50000000000
+oracle_consensus_threshold = 3
+
+# --------------------------------------------------------------------------
+# [rpc] — Public Pulse API configuration
+# --------------------------------------------------------------------------
+# The RPC/API server exposes read-only endpoints such as /v1/status,
+# /v1/pulse/history, /v1/health/check, and /v1/version.
+#
+# SECURITY TRADE-OFFS:
+#
+#   listen_address = "127.0.0.1:8080"
+#     → API is reachable ONLY from the local machine.
+#       Use this on validator nodes where you do NOT want external access.
+#       External dashboards and browsers CANNOT reach the API.
+#       This is the SAFEST default.
+#
+#   listen_address = "0.0.0.0:8080"
+#     → API is reachable from ANY network interface (public internet).
+#       Use this on public-facing observer nodes or when hosting a
+#       community dashboard. Rate-limiting (60 req/min per IP) and
+#       CORS (GET-only) are active to mitigate abuse.
+#       You may also want to place the node behind a reverse proxy
+#       (e.g., nginx) with TLS for production deployments.
+#
+# You can also override the bind address at runtime without editing
+# this file by setting the API_BIND_ADDRESS environment variable:
+#   export API_BIND_ADDRESS=0.0.0.0
+# --------------------------------------------------------------------------
+[rpc]
+enabled = true
+listen_address = "127.0.0.1:8080"    # Safe default — local only
+# listen_address = "0.0.0.0:8080"    # Uncomment for public observability
+cors_allowed_origins = ["*"]
+max_connections = 100
+request_timeout = 30
+websocket_enabled = true
+rate_limit = 60
+
+[logging]
+level = "info"
+file_enabled = true
+log_file = "axiom-node.log"
+max_file_size_mb = 100
+max_backups = 10
+json_format = false
+colored = true

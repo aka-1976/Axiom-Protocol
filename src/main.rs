@@ -39,8 +39,14 @@ const API_RATE_LIMIT_PER_MINUTE: u32 = 60;
 /// Maximum number of chained pulses kept in memory for the `/v1/pulse/history` endpoint.
 const PULSE_HISTORY_CAPACITY: usize = 10;
 
+/// Protocol phase identifier. Included in the `/v1/status` response so
+/// automated crawlers and dashboards know they are looking at the 124M
+/// launch phase of the Axiom Protocol.
+const PROTOCOL_PHASE: &str = "Axiom-124M-Genesis";
+
 #[derive(Clone, serde::Serialize)]
 struct PulseApiState {
+    protocol_phase: String,
     current_height: u64,
     supply_remaining_units: u64,
     supply_remaining_axm: String,
@@ -322,6 +328,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         rem
     };
     let api_state = Arc::new(Mutex::new(PulseApiState {
+        protocol_phase: PROTOCOL_PHASE.to_string(),
         current_height: tc.blocks.len() as u64,
         supply_remaining_units: initial_remaining,
         supply_remaining_axm: format_axm_supply(initial_remaining),
@@ -400,13 +407,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .allow_headers(vec!["Content-Type"]))
             .recover(handle_rejection);
 
-        // Configurable API bind address: read from AXIOM_API_BIND env var.
-        // Default: 127.0.0.1 (localhost only). Set to 0.0.0.0 for public nodes.
-        let api_bind: IpAddr = std::env::var("AXIOM_API_BIND")
+        // Configurable API bind address: read from API_BIND_ADDRESS or
+        // AXIOM_API_BIND env var, then fall back to the config file
+        // (config/axiom.toml → [rpc] listen_address). Default: 127.0.0.1
+        // (localhost only). Set to 0.0.0.0 for public-facing nodes.
+        let api_bind: IpAddr = std::env::var("API_BIND_ADDRESS")
+            .or_else(|_| std::env::var("AXIOM_API_BIND"))
             .ok()
             .and_then(|s| s.parse().ok())
+            .or_else(|| {
+                match axiom_core::config::AxiomConfig::load() {
+                    Ok(cfg) => {
+                        // listen_address may be "ip:port" or just "ip"
+                        let addr_str = &cfg.rpc.listen_address;
+                        addr_str.split(':').next()
+                            .map(|ip| ip.trim())
+                            .and_then(|ip| ip.parse().ok())
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  Config file load warning: {} — using default bind address", e);
+                        None
+                    }
+                }
+            })
             .unwrap_or_else(|| [127, 0, 0, 1].into());
         let api_port: u16 = 8080;
+
+        // Contextual API logging: inform the operator about the bind mode.
+        if api_bind.is_loopback() {
+            println!("💡 TIP: API is local-only (127.0.0.1). To enable public observability, set API_BIND_ADDRESS=0.0.0.0:{}.", api_port);
+        } else {
+            println!("⚠️  WARNING: API is publicly accessible at {}:{}. Rate-limiting is active ({} req/min).", api_bind, api_port, API_RATE_LIMIT_PER_MINUTE);
+        }
 
         tokio::spawn(async move {
             println!("🌐 Public Pulse API: http://{}:{}/v1/status", api_bind, api_port);
@@ -756,6 +788,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
                                     .as_secs() as i64,
+                                stark_receipt: None,
                             };
 
                             // Chain the pulse hash for tamper-evident history
