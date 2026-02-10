@@ -81,6 +81,10 @@ pub struct BridgeTransaction {
     pub confirmations: u32,
     pub required_confirmations: u32,
     pub zk_proof: Vec<u8>,         // Privacy-preserving bridge proof
+    /// Block number on the source chain when the lock was created.
+    /// Used by [`BridgeOracle::update_confirmations`] to compute how many
+    /// blocks have elapsed since the lock.
+    pub lock_block: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -90,6 +94,14 @@ pub enum BridgeStatus {
     ReadyToMint,
     Minted,
     Failed { reason: String },
+}
+
+/// A lock event discovered on an external EVM chain via `eth_getLogs`.
+#[derive(Debug, Clone)]
+struct LockEvent {
+    sender: String,
+    recipient: String,
+    amount: u64,
 }
 
 /// Bridge contract on EVM chains (deployed via CREATE2 for same address)
@@ -110,10 +122,13 @@ impl BridgeContract {
         destination_chain: ChainId,
         recipient: String,
     ) -> Result<BridgeTransaction, String> {
-        println!("🔒 Locking {} AXM on {:?} for {:?}", amount, self.chain, destination_chain);
+        log::info!("🔒 Locking {} AXM on {:?} for {:?}", amount, self.chain, destination_chain);
         
         // Generate ZK proof of lock
         let zk_proof = self.generate_lock_proof(sender.clone(), amount)?;
+        
+        // Record the current block on the source chain so we can track confirmations
+        let lock_block = BridgeOracle::get_block_number_static(&self.chain).await.unwrap_or(0);
         
         Ok(BridgeTransaction {
             id: Self::generate_bridge_id(&sender, amount, &destination_chain),
@@ -131,6 +146,7 @@ impl BridgeContract {
             confirmations: 0,
             required_confirmations: self.required_confirmations(),
             zk_proof,
+            lock_block,
         })
     }
     
@@ -152,7 +168,7 @@ impl BridgeContract {
             return Err("Invalid bridge proof".to_string());
         }
         
-        println!("🌉 Minting {} wAXM on {:?} to {}", 
+        log::info!("🌉 Minting {} wAXM on {:?} to {}", 
                  bridge_tx.amount, self.chain, bridge_tx.recipient);
         
         Ok(format!("0x{}", hex::encode(bridge_tx.id)))
@@ -165,8 +181,10 @@ impl BridgeContract {
         source_chain: ChainId,
         recipient: String,
     ) -> Result<BridgeTransaction, String> {
-        println!("🔥 Burning {} wAXM on {:?}, unlocking on {:?}", 
+        log::info!("🔥 Burning {} wAXM on {:?}, unlocking on {:?}", 
                  amount, self.chain, source_chain);
+        
+        let lock_block = BridgeOracle::get_block_number_static(&self.chain).await.unwrap_or(0);
         
         Ok(BridgeTransaction {
             id: Self::generate_bridge_id(&recipient, amount, &source_chain),
@@ -184,6 +202,7 @@ impl BridgeContract {
             confirmations: 0,
             required_confirmations: self.required_confirmations(),
             zk_proof: vec![],
+            lock_block,
         })
     }
     
@@ -309,16 +328,75 @@ impl BridgeOracle {
         }
     }
     
-    /// Monitor source chain for lock events
+    /// Monitor source chains for lock events by polling `eth_getLogs`.
+    ///
+    /// For the native Axiom chain we scan local storage directly.  For
+    /// external EVM chains we issue an `eth_getLogs` JSON-RPC call filtered
+    /// on the bridge contract address.  Any newly discovered lock events
+    /// are appended to `pending_bridges`.
     pub async fn monitor_locks(&mut self) -> Result<(), String> {
-        for chain_id in self.contracts.keys() {
-            println!("👀 Monitoring {:?} for lock events...", chain_id);
+        for (chain_id, contract) in &self.contracts {
+            match chain_id {
+                ChainId::Axiom => {
+                    // Local chain — locks are added directly via lock_tokens()
+                    log::debug!("Axiom chain: locks tracked locally");
+                }
+                _ => {
+                    // External EVM chain — poll for Lock events via eth_getLogs
+                    let rpc_url = Self::resolve_rpc_url(chain_id)?;
+                    match Self::poll_lock_events(&rpc_url, &contract.address).await {
+                        Ok(events) => {
+                            for event in events {
+                                log::info!(
+                                    "🔒 Lock event on {:?}: sender={} amount={}",
+                                    chain_id, event.sender, event.amount
+                                );
+                                let lock_block = Self::eth_block_number(&rpc_url).await.unwrap_or(0);
+                                let bridge_tx = BridgeTransaction {
+                                    id: BridgeContract::generate_bridge_id(
+                                        &event.sender,
+                                        event.amount,
+                                        &ChainId::Axiom,
+                                    ),
+                                    from_chain: chain_id.clone(),
+                                    to_chain: ChainId::Axiom,
+                                    sender: event.sender.clone(),
+                                    recipient: event.recipient.clone(),
+                                    amount: event.amount,
+                                    token: "AXM".to_string(),
+                                    status: BridgeStatus::Pending,
+                                    timestamp: std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_secs(),
+                                    confirmations: 0,
+                                    required_confirmations: contract.required_confirmations(),
+                                    zk_proof: vec![],
+                                    lock_block,
+                                };
+                                // Avoid duplicates
+                                if !self.pending_bridges.iter().any(|b| b.id == bridge_tx.id) {
+                                    self.pending_bridges.push(bridge_tx);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to poll lock events on {:?}: {}", chain_id, e);
+                        }
+                    }
+                }
+            }
         }
         
         Ok(())
     }
     
-    /// Update confirmations for pending bridges
+    /// Update confirmations for pending bridges based on actual block progress.
+    ///
+    /// For each pending bridge, fetch the current block number on the source
+    /// chain and compute `confirmations = current_block - lock_block`.  When
+    /// the required confirmations are reached the status is promoted to
+    /// [`BridgeStatus::ReadyToMint`].
     pub async fn update_confirmations(&mut self) -> Result<(), String> {
         // Collect block numbers first to avoid borrow issues
         let mut block_numbers = std::collections::HashMap::new();
@@ -331,17 +409,27 @@ impl BridgeOracle {
         
         // Now update the bridges
         for bridge in &mut self.pending_bridges {
-            // Use the pre-fetched block number
-            let _current_block = block_numbers.get(&bridge.from_chain).unwrap();
+            let current_block = *block_numbers.get(&bridge.from_chain).unwrap();
+            
+            // Compute confirmations from block progress since the lock
+            let new_confirmations = current_block.saturating_sub(bridge.lock_block) as u32;
+            bridge.confirmations = new_confirmations;
             
             if bridge.confirmations >= bridge.required_confirmations {
                 bridge.status = BridgeStatus::ReadyToMint;
-                println!("✅ Bridge {} ready to mint!", hex::encode(bridge.id));
+                log::info!("✅ Bridge {} ready to mint ({}/{} confirmations)",
+                    hex::encode(bridge.id),
+                    bridge.confirmations,
+                    bridge.required_confirmations);
             } else {
                 bridge.status = BridgeStatus::Confirming {
                     current: bridge.confirmations,
                     required: bridge.required_confirmations,
                 };
+                log::debug!("⏳ Bridge {}: {}/{} confirmations",
+                    hex::encode(bridge.id),
+                    bridge.confirmations,
+                    bridge.required_confirmations);
             }
         }
         
@@ -361,10 +449,17 @@ impl BridgeOracle {
             
             match dest_contract.mint_wrapped(&bridge).await {
                 Ok(tx_hash) => {
-                    println!("🎉 Minted on {:?}: {}", bridge.to_chain, tx_hash);
+                    log::info!("🎉 Minted on {:?}: {}", bridge.to_chain, tx_hash);
+                    // Update status to Minted
+                    if let Some(b) = self.pending_bridges.iter_mut().find(|b| b.id == bridge.id) {
+                        b.status = BridgeStatus::Minted;
+                    }
                 }
                 Err(e) => {
-                    eprintln!("❌ Minting failed: {}", e);
+                    log::error!("❌ Minting failed for bridge {}: {}", hex::encode(bridge.id), e);
+                    if let Some(b) = self.pending_bridges.iter_mut().find(|b| b.id == bridge.id) {
+                        b.status = BridgeStatus::Failed { reason: e.clone() };
+                    }
                 }
             }
         }
@@ -459,6 +554,88 @@ impl BridgeOracle {
         let hex_trimmed = hex_str.trim_start_matches("0x");
         u64::from_str_radix(hex_trimmed, 16)
             .map_err(|e| format!("Invalid block number '{}': {}", hex_str, e))
+    }
+
+    /// Poll an external EVM chain for `Lock` events on the bridge contract.
+    ///
+    /// Issues an `eth_getLogs` JSON-RPC call filtered on the bridge contract
+    /// address and the Lock event topic.  Returns parsed lock events.
+    async fn poll_lock_events(rpc_url: &str, contract_address: &str) -> Result<Vec<LockEvent>, String> {
+        // keccak256("Lock(address,address,uint256)")
+        let lock_topic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| format!("HTTP client error: {}", e))?;
+
+        let body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "eth_getLogs",
+            "params": [{
+                "address": contract_address,
+                "topics": [lock_topic],
+                "fromBlock": "latest"
+            }],
+            "id": 1
+        });
+
+        let resp = client
+            .post(rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("eth_getLogs request to {} failed: {}", rpc_url, e))?;
+
+        if !resp.status().is_success() {
+            return Err(format!("RPC endpoint {} returned HTTP {}", rpc_url, resp.status()));
+        }
+
+        let json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse RPC response: {}", e))?;
+
+        if let Some(err) = json.get("error") {
+            return Err(format!("RPC error: {}", err));
+        }
+
+        let logs = json
+            .get("result")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        let mut events = Vec::new();
+        for log_entry in &logs {
+            let topics = log_entry.get("topics").and_then(|t| t.as_array());
+            let data = log_entry.get("data").and_then(|d| d.as_str()).unwrap_or("");
+
+            if let Some(topics) = topics {
+                // Topics[1] = sender (padded address), Topics[2] = recipient
+                let sender = topics.get(1)
+                    .and_then(|t| t.as_str())
+                    .map(|s| format!("0x{}", &s[s.len().saturating_sub(40)..]))
+                    .unwrap_or_default();
+                let recipient = topics.get(2)
+                    .and_then(|t| t.as_str())
+                    .map(|s| format!("0x{}", &s[s.len().saturating_sub(40)..]))
+                    .unwrap_or_default();
+
+                // Data = amount (uint256, hex encoded)
+                let amount_hex = data.trim_start_matches("0x");
+                let amount = u64::from_str_radix(
+                    &amount_hex[amount_hex.len().saturating_sub(16)..],
+                    16,
+                ).unwrap_or(0);
+
+                if amount > 0 && !sender.is_empty() {
+                    events.push(LockEvent { sender, recipient, amount });
+                }
+            }
+        }
+
+        Ok(events)
     }
 }
 

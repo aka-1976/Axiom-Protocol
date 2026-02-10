@@ -31,14 +31,14 @@ impl Discv5Service {
         
         for boot_enr in boot_nodes {
             if let Err(e) = discv5.add_enr(boot_enr.clone()) {
-                eprintln!("⚠️ Failed to add bootstrap node: {}", e);
+                log::warn!("Failed to add bootstrap node: {}", e);
             } else {
-                println!("✅ Added bootstrap node: {}", boot_enr.node_id());
+                log::info!("Added bootstrap node: {}", boot_enr.node_id());
             }
         }
         
         discv5.start().await.map_err(|e| e.to_string())?;
-        println!("🔍 Discv5 discovery started on {}", listen_addr);
+        log::info!("Discv5 discovery started on {}", listen_addr);
         
         Ok(Self {
             discv5: Arc::new(RwLock::new(discv5)),
@@ -51,7 +51,7 @@ impl Discv5Service {
         match discv5.find_node(target).await {
             Ok(nodes) => nodes,
             Err(e) => {
-                eprintln!("⚠️ Find nodes error: {}", e);
+                log::warn!("Find nodes error: {}", e);
                 vec![]
             }
         }

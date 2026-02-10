@@ -83,7 +83,7 @@ impl OracleNode {
     
     /// Process oracle query using Claude API
     pub async fn process_query(&self, query: &OracleQuery) -> Result<OracleResponse, String> {
-        println!("Oracle {}: Processing query {}", 
+        log::info!("Oracle {}: Processing query {}", 
             hex::encode(&self.address[..4]),
             hex::encode(&query.query_id[..4]));
         
@@ -105,7 +105,7 @@ impl OracleNode {
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or_else(|e| {
-                    eprintln!("⚠️  Failed to get oracle timestamp: {}", e);
+                    log::warn!("Failed to get oracle timestamp: {}", e);
                     0
                 }),
         })
@@ -362,11 +362,19 @@ const DETERMINISTIC_SEED: u64 = 42;
 ///
 /// If the local model is unavailable the function falls back to a pure
 /// BLAKE3-512 hash of the query string so that mining is never blocked.
+/// A warning is logged so operators can detect missing Ollama instances.
 pub async fn query_oracle(query: &str) -> [u8; 64] {
     match query_local_model(query).await {
         Ok(response_text) => crate::axiom_hash_512(response_text.as_bytes()),
-        Err(_) => {
-            // Deterministic fallback — hash the query itself
+        Err(e) => {
+            // Deterministic fallback — hash the query itself so consensus
+            // can proceed even without a local AI model.  All nodes that
+            // lack the model will produce the identical seal for the same
+            // query, preserving determinism.
+            log::warn!(
+                "AI Oracle unavailable ({}), using deterministic BLAKE3 fallback for query",
+                e
+            );
             crate::axiom_hash_512(query.as_bytes())
         }
     }

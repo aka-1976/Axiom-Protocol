@@ -189,27 +189,26 @@ impl NeuralGuardian {
             self.stats.spam_detected += 1;
         }
         if !(0.3..=0.9).contains(&confidence) {
-            println!("⚠️  AI: High confidence decision - Trust: {} ({}%)", is_trustworthy, (confidence * 100.0) as u32);
+            log::warn!("AI: High confidence decision - Trust: {} ({}%)", is_trustworthy, (confidence * 100.0) as u32);
         }
         is_trustworthy
     }
     pub fn log_stats(&self) {
-        println!("\n--- 🤖 NEURAL GUARDIAN STATS ---");
-        println!("Total Predictions: {}", self.stats.total_predictions);
-        println!("Spam Detected: {} ({:.1}%)", 
+        log::info!("--- NEURAL GUARDIAN STATS ---");
+        log::info!("Total Predictions: {}", self.stats.total_predictions);
+        log::info!("Spam Detected: {} ({:.1}%)", 
                  self.stats.spam_detected,
                  (self.stats.spam_detected as f32 / self.stats.total_predictions.max(1) as f32) * 100.0);
-        println!("ONNX Model Used: {} ({:.1}%)", 
+        log::info!("ONNX Model Used: {} ({:.1}%)", 
                  self.stats.model_used,
                  (self.stats.model_used as f32 / self.stats.total_predictions.max(1) as f32) * 100.0);
-        println!("Fallback Used: {}", self.stats.fallback_used);
-        println!("Avg Confidence: {:.2}", self.stats.avg_confidence);
-        println!("--------------------------------\n");
+        log::info!("Fallback Used: {}", self.stats.fallback_used);
+        log::info!("Avg Confidence: {:.2}", self.stats.avg_confidence);
     }
 
     pub fn report_false_positive(&mut self) {
         self.stats.false_positives += 1;
-        println!("⚠️  AI: False positive reported. Total: {}", self.stats.false_positives);
+        log::warn!("AI: False positive reported. Total: {}", self.stats.false_positives);
         self.save_false_positive_case();
     }
 
@@ -235,7 +234,7 @@ impl NeuralGuardian {
 
     pub fn set_threshold(&mut self, threshold: f32) {
         self.confidence_threshold = threshold;
-        println!("🔧 AI threshold updated to {}", threshold);
+        log::info!("AI threshold updated to {}", threshold);
     }
 
     pub fn train(&mut self, inputs: [f32; 3], target: f32) {

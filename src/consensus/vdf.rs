@@ -71,7 +71,7 @@ impl VDF {
         // Hash input to get starting point
         let x = self.hash_to_prime(input);
         
-        println!("VDF: Starting sequential squaring for {} steps...", self.time_param);
+        log::info!("VDF: Starting sequential squaring for {} steps...", self.time_param);
         let start = Instant::now();
         
         // Compute y = x^(2^T) mod N via repeated squaring
@@ -82,13 +82,13 @@ impl VDF {
             if i % 1_000_000 == 0 && i > 0 {
                 let elapsed = start.elapsed().as_secs();
                 let progress = (i as f64 / self.time_param as f64) * 100.0;
-                println!("  VDF: {:.1}% complete ({}/{}), {}s elapsed", 
+                log::info!("  VDF: {:.1}% complete ({}/{}), {}s elapsed", 
                     progress, i, self.time_param, elapsed);
             }
         }
         
         let elapsed = start.elapsed();
-        println!("VDF: Completed in {:.2}s", elapsed.as_secs_f64());
+        log::info!("VDF: Completed in {:.2}s", elapsed.as_secs_f64());
         
         // Generate proof (Wesolowski)
         let proof = self.generate_proof(&x, &y)?;
@@ -224,7 +224,7 @@ impl VDF {
     /// Calibrate time_param to target a specific wall-clock duration
     /// Run this on representative hardware to determine optimal T
     pub fn calibrate(target_duration: Duration) -> u64 {
-        println!("Calibrating VDF for target duration: {:?}", target_duration);
+        log::info!("Calibrating VDF for target duration: {:?}", target_duration);
         
         let test_input = b"calibration_test";
         let mut time_param = 1_000_000u64; // Start with 1M steps
@@ -236,10 +236,10 @@ impl VDF {
             let _ = vdf.compute(test_input).expect("Calibration failed");
             
             let elapsed = start.elapsed();
-            println!("  T={}: took {:?}", time_param, elapsed);
+            log::info!("  T={}: took {:?}", time_param, elapsed);
             
             if elapsed >= target_duration {
-                println!("Calibration complete: T={} for {:?}", time_param, target_duration);
+                log::info!("Calibration complete: T={} for {:?}", time_param, target_duration);
                 return time_param;
             }
             
