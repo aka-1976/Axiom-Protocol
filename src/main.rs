@@ -143,15 +143,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let ai_bridge = Arc::new(AIGuardianBridge::new(security_engine));
 
     // Sovereign Guardian: background sentinel for supply-cap and chain-integrity monitoring
-    {
+    let _sentinel_handle = {
         let mut sentinel = SovereignGuardian::new();
         tokio::spawn(async move {
             if let Err(e) = sentinel.run_sentinel().await {
                 log::error!("SovereignGuardian exited: {}", e);
             }
-        });
-        println!("🛡️  SovereignGuardian: background sentinel started");
-    }
+        })
+    };
+    println!("🛡️  SovereignGuardian: background sentinel started");
 
     // Transaction mempool
     let mut mempool: VecDeque<Transaction> = VecDeque::new();
@@ -496,6 +496,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut last_diff = tc.difficulty;
     let mut last_bootstrap_retry = Instant::now();
     let mut last_pulse_hash: [u8; 64] = genesis_pulse_anchor;
+    let mut last_block_received = Instant::now(); // For NN block_interval feature
+    let mut ai_fallback_count: u32 = 0; // Track AI-bypassed transactions
 
     let mut vdf_loop = time::interval(Duration::from_millis(100));
     let mut dashboard_timer = time::interval(Duration::from_secs(30));
@@ -540,12 +542,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     // Record network event for EVERY peer message so the NN
                     // builds peer behavior profiles for threat detection.
                     let peer_str = propagation_source.to_string();
+                    let block_interval_secs = last_block_received.elapsed().as_secs_f32();
                     ai.record_event(peer_str.clone(), axiom_core::neural_guardian::NetworkEvent {
                         peer_id: peer_str.clone(),
-                        block_interval: 0.0,
+                        block_interval: block_interval_secs,
                         block_size: message.data.len() as f32 / 1024.0,
                         tx_count: entry.0 as f32,
-                        propagation_time: 0.0,
+                        propagation_time: now.elapsed().as_millis() as f32,
                         peer_count: connected_peers.len() as f32,
                         fork_count: 0.0,
                         orphan_rate: 0.0,
@@ -585,6 +588,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     // Reset VDF timer: the chain just advanced, so
                                     // start our next mining round from now.
                                     last_vdf = Instant::now();
+                                    last_block_received = Instant::now();
                                 }
                             }
                         }
@@ -624,9 +628,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                                 decision.veto_reason.unwrap_or_else(|| "threat detected".into()));
                                         }
                                         Err(e) => {
-                                            // Circuit breaker or engine error — fall back to rule-based acceptance
-                                            log::warn!("AI Guardian unavailable ({}), accepting by rule-based validation", e);
-                                            mempool.push_back(tx);
+                                            // Circuit breaker or engine error — rate-limited fallback
+                                            ai_fallback_count += 1;
+                                            if ai_fallback_count <= 10 {
+                                                log::warn!("AI Guardian unavailable ({}), accepting by rule-based validation ({}/10)", e, ai_fallback_count);
+                                                mempool.push_back(tx);
+                                            } else {
+                                                log::error!("AI Guardian offline, fallback limit reached — rejecting transaction");
+                                            }
                                         }
                                     }
                                 }
@@ -709,6 +718,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // THROTTLE RESET
             _ = throttle_reset.tick() => {
                 peer_message_counts.clear();
+                ai_fallback_count = 0; // Reset AI fallback rate limit each minute
             }
 
             // TX BROADCAST
