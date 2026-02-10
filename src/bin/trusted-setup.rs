@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("keys")?;
 
     println!("⚙️  Generating STARK proof parameters...");
-    let system = ZkProofSystem::setup()
+    let _system = ZkProofSystem::setup()
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
     // Save parameters

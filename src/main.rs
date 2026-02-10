@@ -192,7 +192,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     swarm.local_peer_id(), current_port);
                 break;
             }
-            Err(e) => {
+            Err(_e) => {
                 if current_port < port_end {
                     println!("⚠️  Port {} busy. Trying {}...", current_port, current_port + 1);
                     current_port += 1;
@@ -472,10 +472,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut tx_broadcast_timer = time::interval(Duration::from_secs(30));
     let mut chain_sync_timer = time::interval(Duration::from_secs(300));
     let mut bootstrap_retry_timer = time::interval(Duration::from_secs(120));
-    let mut cross_network_discovery = time::interval(Duration::from_secs(30));
+    let _cross_network_discovery = time::interval(Duration::from_secs(30));
 
     let mut connected_peers: HashSet<PeerId> = HashSet::new();
-    let known_peers: Vec<String> = std::env::var("AXIOM_KNOWN_PEERS")
+    let _known_peers: Vec<String> = std::env::var("AXIOM_KNOWN_PEERS")
         .unwrap_or_default()
         .split(',')
         .filter(|s| !s.trim().is_empty())
@@ -604,7 +604,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!("🌐 Node active on: {}", address);
                 }
 
-                SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                SwarmEvent::ConnectionEstablished { peer_id, endpoint: _, .. } => {
                     connected_peers.insert(peer_id);
                     println!("🔗 Peer connected: {} | Total: {}", peer_id, connected_peers.len());
                 }
