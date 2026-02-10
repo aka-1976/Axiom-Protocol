@@ -6,7 +6,7 @@ pub fn current_slot() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() / 15)
         .unwrap_or_else(|e| {
-            eprintln!("⚠️  Failed to get current slot time: {}", e);
+            log::warn!("Failed to get current slot time: {}", e);
             0
         })
 }

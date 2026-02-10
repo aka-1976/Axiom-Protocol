@@ -372,8 +372,9 @@ pub async fn query_oracle(query: &str) -> [u8; 64] {
             // lack the model will produce the identical seal for the same
             // query, preserving determinism.
             log::warn!(
-                "AI Oracle unavailable ({}), using deterministic BLAKE3 fallback for query",
-                e
+                "AI Oracle unavailable ({}), using deterministic BLAKE3 fallback for query hash={}",
+                e,
+                hex::encode(&crate::axiom_hash_512(query.as_bytes())[..8])
             );
             crate::axiom_hash_512(query.as_bytes())
         }

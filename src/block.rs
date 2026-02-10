@@ -101,7 +101,7 @@ impl Block {
         let val = match <[u8; 8]>::try_from(&h[0..8]) {
             Ok(bytes) => u64::from_be_bytes(bytes),
             Err(_) => {
-                eprintln!("⚠️  Block hash conversion failed");
+                log::error!("Block hash conversion failed");
                 return false;
             }
         };

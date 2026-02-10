@@ -121,11 +121,10 @@ pub fn genesis() -> Block {
     };
 
     GENESIS_PRINT.call_once(|| {
-        println!("\n--- AXIOM GENESIS ANCHOR (512-bit) ---");
-        println!("HASH-256: {}", hex::encode(gen_block.calculate_hash()));
-        println!("HASH-512: {}", hex::encode(gen_block.calculate_hash_512()));
-        println!("ANCHOR:   {}", GENESIS_ANCHOR_512);
-        println!("--------------------------------------\n");
+        log::info!("--- AXIOM GENESIS ANCHOR (512-bit) ---");
+        log::info!("HASH-256: {}", hex::encode(gen_block.calculate_hash()));
+        log::info!("HASH-512: {}", hex::encode(gen_block.calculate_hash_512()));
+        log::info!("ANCHOR:   {}", GENESIS_ANCHOR_512);
     });
 
     gen_block

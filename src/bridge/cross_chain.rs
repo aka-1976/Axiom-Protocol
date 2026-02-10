@@ -562,12 +562,19 @@ impl BridgeOracle {
     /// address and the Lock event topic.  Returns parsed lock events.
     async fn poll_lock_events(rpc_url: &str, contract_address: &str) -> Result<Vec<LockEvent>, String> {
         // keccak256("Lock(address,address,uint256)")
-        let lock_topic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+        // Computed via: web3.utils.keccak256("Lock(address,address,uint256)")
+        let lock_topic = "0x625fed9875dada8643f2418b838ae0bc78d9a148a18eee4ee1979ff0f3f5d427";
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .map_err(|e| format!("HTTP client error: {}", e))?;
+
+        // Query the last 100 blocks to catch recent events without overwhelming the RPC.
+        // A production deployment should persist the last-processed block number.
+        let current_block = Self::eth_block_number(rpc_url).await.unwrap_or(0);
+        let from_block = current_block.saturating_sub(100);
+        let from_hex = format!("0x{:x}", from_block);
 
         let body = serde_json::json!({
             "jsonrpc": "2.0",
@@ -575,7 +582,7 @@ impl BridgeOracle {
             "params": [{
                 "address": contract_address,
                 "topics": [lock_topic],
-                "fromBlock": "latest"
+                "fromBlock": from_hex
             }],
             "id": 1
         });

@@ -33,11 +33,11 @@ pub fn add_external_peer(swarm: &mut Swarm<TimechainBehaviour>, peer_addr: &str,
                 log::info!("✅ Dialing external peer at {}", addr);
             },
             Err(e) => {
-                eprintln!("⚠️  Failed to dial peer at '{}': {}", peer_addr, e);
+                log::warn!("Failed to dial peer at '{}': {}", peer_addr, e);
             }
         }
     } else {
-        eprintln!("⚠️  Failed to parse peer address '{}'", peer_addr);
+        log::warn!("Failed to parse peer address '{}'", peer_addr);
     }
 }
 
@@ -215,7 +215,7 @@ pub async fn init_network_with_bootstrap(bootstrap_peers: Vec<String>) -> Result
 
 /// Utility: Check connectivity to bootstrap nodes from config or environment (non-blocking)
 pub fn check_bootstrap_connectivity() {
-    println!("🔍 Checking bootstrap connectivity...");
+    log::info!("Checking bootstrap connectivity...");
     // Spawn async checks to avoid blocking main thread
     tokio::spawn(async {
         let mut nodes_to_check = Vec::new();
@@ -275,13 +275,13 @@ pub fn check_bootstrap_connectivity() {
                     std::time::Duration::from_secs(2),
                     tokio::net::TcpStream::connect(&addr)
                 ).await {
-                    Ok(Ok(_)) => println!("✅ Connected to bootstrap node: {}", addr),
-                    Ok(Err(e)) => println!("⚠️  Could not connect to {}: {}", addr, e),
-                    Err(_) => println!("⚠️  Connection to {} timed out", addr),
+                    Ok(Ok(_)) => log::info!("Connected to bootstrap node: {}", addr),
+                    Ok(Err(e)) => log::warn!("Could not connect to {}: {}", addr, e),
+                    Err(_) => log::warn!("Connection to {} timed out", addr),
                 }
             }
         } else {
-            println!("   ℹ️  No bootstrap nodes configured - using mDNS for local discovery");
+            log::info!("No bootstrap nodes configured - using mDNS for local discovery");
         }
     });
 }

@@ -302,8 +302,8 @@ impl ZkProofSystem {
         fs::write(&params_path, serde_json::to_string_pretty(&params_json).unwrap())
             .map_err(|e| format!("Failed to write params: {}", e))?;
 
-        println!("✓ STARK parameters saved to {}", keys_dir);
-        println!("  ℹ️  No trusted setup required - STARKs are transparent!");
+        log::info!("STARK parameters saved to {}", keys_dir);
+        log::info!("No trusted setup required - STARKs are transparent!");
         Ok(())
     }
 

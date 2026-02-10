@@ -272,7 +272,7 @@ impl VDFBlockHeader {
         hasher.update(timestamp.to_le_bytes());
         let vdf_input = hasher.finalize().to_vec();
         
-        println!("Mining block with VDF...");
+        log::info!("Mining block with VDF...");
         let vdf_proof = vdf.compute(&vdf_input)?;
         
         Ok(Self {
