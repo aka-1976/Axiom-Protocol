@@ -71,7 +71,6 @@ impl NeuralNetwork {
     /// Create a new neural network with random initialization (non-deterministic).
     /// Used for federated learning updates and experimentation.
     pub fn new() -> Self {
-        use rand::Rng;
         let mut rng = rand::thread_rng();
         Self::init_from_rng(&mut rng)
     }

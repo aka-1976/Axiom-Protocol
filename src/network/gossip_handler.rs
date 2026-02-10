@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, trace, warn};
 
 use crate::network::peer_manager::PeerManager;
 

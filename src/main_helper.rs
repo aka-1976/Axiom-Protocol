@@ -166,7 +166,7 @@ mod tests {
         let prev = [0u8; 64];
 
         let h1 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats.clone(), &prev);
-        let h2 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats, &prev);
+        let _h2 = get_network_health(1000, 500_000_000, 12_400_000_000 - 500_000_000, 20, stats, &prev);
 
         // Trust pulse depends on timestamp so we only check structure
         assert_eq!(h1.block_height, 1000);

@@ -170,7 +170,6 @@ impl VDF {
     /// Returns true if `n` is probably prime with error probability < 4^(-rounds).
     /// 20 rounds gives error probability < 2^(-40).
     fn is_probable_prime(n: &BigUint, rounds: u32) -> bool {
-        let zero = BigUint::from(0u32);
         let one = BigUint::one();
         let two = BigUint::from(2u32);
         let three = BigUint::from(3u32);

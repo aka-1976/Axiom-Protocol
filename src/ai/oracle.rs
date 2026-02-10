@@ -3,7 +3,6 @@
 
 use serde::{Serialize, Deserialize};
 use reqwest;
-use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 

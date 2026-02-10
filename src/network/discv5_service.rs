@@ -47,7 +47,7 @@ impl Discv5Service {
     }
     
     pub async fn find_nodes(&self, target: NodeId) -> Vec<Enr<CombinedKey>> {
-        let mut discv5 = self.discv5.write().await;
+        let discv5 = self.discv5.write().await;
         match discv5.find_node(target).await {
             Ok(nodes) => nodes,
             Err(e) => {
