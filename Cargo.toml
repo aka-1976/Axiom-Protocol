@@ -7,7 +7,7 @@ exclude = ["methods", "methods/guest", "axiom-sdk"]
 
 [package]
 name = "axiom-core"
-version = "4.1.0"
+version = "4.2.0"
 edition = "2021"
 authors = ["AXIOM Protocol Team"]
 description = "Decentralized 124M Layer-1 Blockchain with ZK-STARKs, VDF (1800s) Consensus, Blake3 PoW, Guardian AI, and AI Enhancement Module"

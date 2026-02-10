@@ -134,7 +134,6 @@ pub mod openclaw_integration; // NEW: OpenClaw automation integration
 // 2026 Best Practices Modules
 pub mod privacy; // View keys & selective disclosure
 pub mod sustainability; // Energy benchmarking & reporting
-pub mod mobile; // Mobile mining with 1 AXM rewards
 pub mod metrics; // Node metrics collection & monitoring
 
 pub use wallet::Wallet;
