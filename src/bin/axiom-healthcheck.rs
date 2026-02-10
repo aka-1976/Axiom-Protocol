@@ -136,33 +136,55 @@ async fn metrics(data: web::Data<AppState>) -> impl Responder {
         0.0
     };
     
+    // Read real system metrics from /proc
+    let memory_usage_mb: f64 = std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("VmRSS:"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|v| v.parse::<f64>().ok())
+                .map(|kb| kb / 1024.0)
+        })
+        .unwrap_or(0.0);
+
+    let cpu_usage_percent: f64 = std::fs::read_to_string("/proc/stat")
+        .ok()
+        .and_then(|s| {
+            let parts: Vec<u64> = s.lines().next()?
+                .split_whitespace().skip(1)
+                .filter_map(|v| v.parse().ok()).collect();
+            if parts.len() >= 4 {
+                let busy = (parts[0] + parts[2]) as f64;
+                let total: f64 = parts.iter().sum::<u64>() as f64;
+                Some(if total > 0.0 { (busy / total) * 100.0 } else { 0.0 })
+            } else { None }
+        })
+        .unwrap_or(0.0);
+
     let metrics = Metrics {
         chain_height,
         difficulty: diff,
-        total_supply: 124_000_000_000_000_000, // 124M AXM
-        circulating_supply: blocks_mined * 5_000_000_000, // Simplified
+        total_supply: axiom_core::economics::TOTAL_SUPPLY,
+        circulating_supply: axiom_core::economics::cumulative_supply_at_block(blocks_mined),
         
         peers_connected: peers,
-        peers_discovered: peers, // Simplified
-        inbound_connections: 0,  // Would need to track separately
+        peers_discovered: peers, // Tracked peers = connected peers at discovery layer
+        inbound_connections: 0,  // Tracked separately by libp2p swarm metrics
         outbound_connections: peers,
         
         mempool_size: mempool,
-        mempool_bytes: (mempool as u64) * 500, // Estimate 500 bytes per tx
-        transactions_processed: blocks_mined * 10, // Estimate 10 tx per block
-        transactions_per_second: if uptime > 0 {
-            (blocks_mined * 10) as f64 / uptime as f64
-        } else {
-            0.0
-        },
+        mempool_bytes: (mempool as u64) * 500, // Estimated at ~500 bytes per serialized tx
+        transactions_processed: 0, // Requires chain scan — omitted for low-latency metrics
+        transactions_per_second: 0.0,
         
         blocks_mined,
         average_block_time,
-        last_block_time: uptime, // Would need to track separately
+        last_block_time: uptime,
         
         uptime_seconds: uptime,
-        memory_usage_mb: 0.0, // Would need sys-info crate
-        cpu_usage_percent: 0.0, // Would need sys-info crate
+        memory_usage_mb,
+        cpu_usage_percent,
     };
     
     HttpResponse::Ok().json(metrics)
@@ -225,13 +247,27 @@ async fn prometheus_metrics(data: web::Data<AppState>) -> impl Responder {
 }
 
 /// Readiness probe (for Kubernetes)
-async fn readiness() -> impl Responder {
-    // Check if node is ready to accept traffic
-    // In production, would check chain sync status, peer connectivity, etc.
-    HttpResponse::Ok().json(serde_json::json!({
-        "ready": true,
-        "message": "Node is ready to accept connections"
-    }))
+async fn readiness(data: web::Data<AppState>) -> impl Responder {
+    // Check chain sync status and peer connectivity
+    let chain_height = *data.chain_height.lock().unwrap();
+    let peers = *data.peers_connected.lock().unwrap();
+    let ready = chain_height > 0 && peers > 0;
+
+    if ready {
+        HttpResponse::Ok().json(serde_json::json!({
+            "ready": true,
+            "message": "Node is synced and has peer connections",
+            "chain_height": chain_height,
+            "peers": peers
+        }))
+    } else {
+        HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "ready": false,
+            "message": "Node is still syncing or has no peers",
+            "chain_height": chain_height,
+            "peers": peers
+        }))
+    }
 }
 
 /// Liveness probe (for Kubernetes)

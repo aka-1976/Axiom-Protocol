@@ -264,7 +264,7 @@ impl Default for RpcConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            listen_address: "127.0.0.1:8546".to_string(),
+            listen_address: "0.0.0.0:8546".to_string(),
             cors_allowed_origins: vec!["*".to_string()],
             max_connections: 100,
             request_timeout: 30,
@@ -385,5 +385,19 @@ mod tests {
     fn test_config_validation() {
         let config = AxiomConfig::default();
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_rpc_default_listen_address_is_public() {
+        let config = RpcConfig::default();
+        assert_eq!(config.listen_address, "0.0.0.0:8546",
+            "RPC must default to 0.0.0.0 for public observability");
+    }
+
+    #[test]
+    fn test_network_default_listen_address_is_public() {
+        let config = NetworkConfig::default();
+        assert!(config.listen_address.contains("0.0.0.0"),
+            "P2P must default to 0.0.0.0 for public observability");
     }
 }

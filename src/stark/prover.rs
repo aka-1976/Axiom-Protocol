@@ -11,6 +11,11 @@
 
 use serde::{Serialize, Deserialize};
 
+/// Number of blocks between mandatory RISC-V STARK receipt generation.
+/// Every `STARK_PROOF_INTERVAL` blocks the node generates a supply
+/// integrity proof that any peer (or the Ethereum bridge) can verify.
+pub const STARK_PROOF_INTERVAL: u64 = 100;
+
 /// Private transaction data passed into the RISC Zero Guest.
 ///
 /// The Guest enforces `initial_balance >= amount + fee` inside the
@@ -187,8 +192,9 @@ impl StarkProver {
         // `methods/build.rs` when the risc0 toolchain compiles the Guest.
         // They are linked via the `methods` crate dependency.
         //
-        // For now we reference them as external constants; the actual
-        // symbols are provided by the `methods` crate at link time.
+        // These external constants are linked via the `methods` crate
+        // at build time, produced by `methods/build.rs` when the risc0
+        // toolchain compiles the Guest binary.
         extern "Rust" {
             static AXIOM_INTEGRITY_ELF: &'static [u8];
             static AXIOM_INTEGRITY_ID: [u32; 8];
@@ -342,5 +348,10 @@ mod tests {
         };
         let result = StarkProver::generate_proof(&tx);
         assert!(result.is_ok(), "Zero amount should be accepted");
+    }
+
+    #[test]
+    fn test_stark_proof_interval_is_100() {
+        assert_eq!(STARK_PROOF_INTERVAL, 100, "STARK proof interval must be 100 blocks");
     }
 }

@@ -41,7 +41,7 @@
     "moltbook": {
       "enabled": true,
       "base_url": "https://axiom-ceremony.moltbook.ai",
-      "auth_token": "sk_axiom_ceremony_YOUR_TOKEN_HERE",
+      "auth_token": "",
       "skills": [
         "ceremony_master"
       ]

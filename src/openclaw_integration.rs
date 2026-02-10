@@ -1,19 +1,80 @@
 /// OpenClaw integration - runs automatically with the node
 /// Handles ceremony coordination and health monitoring in background
 /// Spawns Python-based agents for security, network optimization, and monitoring
+///
+/// The `AgentManager` wraps each agent in a persistent `tokio::spawn` loop
+/// with a mandatory 10-second back-off timer before any restart to stabilize
+/// PIDs and OS resources.
 
 use tokio::task::JoinHandle;
 use std::process::{Command, Child, Stdio};
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::time::sleep;
 
-struct OpenClawAgents {
-    security_guardian: Option<Child>,
-    network_booster: Option<Child>,
-    health_monitor: Option<Child>,
-    ceremony_coordinator: Option<Child>,
+/// Mandatory back-off duration (seconds) before restarting any agent.
+/// Prevents crash-loops from destabilizing PIDs and OS resources.
+const AGENT_RESTART_BACKOFF_SECS: u64 = 10;
+
+/// Manages the lifecycle of all OpenClaw agents with persistent
+/// `tokio::spawn` loops and mandatory restart back-off timers.
+struct AgentManager {
+    handles: Vec<JoinHandle<()>>,
+}
+
+impl AgentManager {
+    fn new() -> Self {
+        Self { handles: Vec::new() }
+    }
+
+    /// Spawn a persistent agent loop. Each agent is wrapped in its own
+    /// `tokio::spawn` task that monitors the process and applies a
+    /// mandatory 10-second back-off before any restart.
+    fn spawn_agent(
+        &mut self,
+        base_dir: PathBuf,
+        script_name: &'static str,
+        agent_name: &'static str,
+        weights_path: PathBuf,
+        genesis_pulse_path: PathBuf,
+    ) {
+        let handle = tokio::spawn(async move {
+            loop {
+                let child = start_agent(&base_dir, script_name, agent_name, &weights_path, &genesis_pulse_path);
+                match child {
+                    Some(mut proc) => {
+                        // Wait for the process to exit
+                        loop {
+                            match proc.try_wait() {
+                                Ok(None) => {
+                                    // Still running — check again after a short sleep
+                                    sleep(Duration::from_secs(2)).await;
+                                }
+                                Ok(Some(status)) => {
+                                    println!("⚠️  {} exited: {} — restarting after {}s back-off",
+                                        agent_name, status, AGENT_RESTART_BACKOFF_SECS);
+                                    break;
+                                }
+                                Err(e) => {
+                                    println!("⚠️  Error checking {}: {} — restarting after {}s back-off",
+                                        agent_name, e, AGENT_RESTART_BACKOFF_SECS);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    None => {
+                        println!("⚠️  {} failed to start — retrying after {}s back-off",
+                            agent_name, AGENT_RESTART_BACKOFF_SECS);
+                    }
+                }
+                // Mandatory back-off before restart to stabilize PIDs and OS resources
+                sleep(Duration::from_secs(AGENT_RESTART_BACKOFF_SECS)).await;
+            }
+        });
+        self.handles.push(handle);
+    }
 }
 
 pub async fn start_openclaw_background() -> Result<JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -23,10 +84,26 @@ pub async fn start_openclaw_background() -> Result<JoinHandle<()>, Box<dyn std::
     
     // Get base directory for agents
     let base_dir = env::current_dir()?;
+
+    // Resolve absolute paths for weights.bin and config/genesis_pulse.json
+    let weights_path = match base_dir.join("weights.bin").canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("ℹ️  weights.bin canonicalize fallback ({}), using relative join", e);
+            base_dir.join("weights.bin")
+        }
+    };
+    let genesis_pulse_path = match base_dir.join("config").join("genesis_pulse.json").canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("ℹ️  genesis_pulse.json canonicalize fallback ({}), using relative join", e);
+            base_dir.join("config").join("genesis_pulse.json")
+        }
+    };
     
     // Spawn background task that manages all OpenClaw agents
     let handle = tokio::spawn(async move {
-        match run_openclaw_daemon(&config_path, &base_dir).await {
+        match run_openclaw_daemon(&config_path, &base_dir, &weights_path, &genesis_pulse_path).await {
             Ok(_) => println!("✅ OpenClaw agents terminated gracefully"),
             Err(e) => eprintln!("⚠️  OpenClaw error: {}", e),
         }
@@ -35,9 +112,16 @@ pub async fn start_openclaw_background() -> Result<JoinHandle<()>, Box<dyn std::
     Ok(handle)
 }
 
-async fn run_openclaw_daemon(config_path: &str, base_dir: &std::path::Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run_openclaw_daemon(
+    config_path: &str,
+    base_dir: &std::path::Path,
+    weights_path: &std::path::Path,
+    genesis_pulse_path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("🚀 OpenClaw daemon starting...");
     println!("📁 Config: {}", config_path);
+    println!("📁 Weights: {}", weights_path.display());
+    println!("📁 Genesis Pulse: {}", genesis_pulse_path.display());
     
     // Check if Python is available
     let python_check = Command::new("python3")
@@ -53,124 +137,31 @@ async fn run_openclaw_daemon(config_path: &str, base_dir: &std::path::Path) -> R
         }
     }
     
-    let mut agents = OpenClawAgents {
-        security_guardian: None,
-        network_booster: None,
-        health_monitor: None,
-        ceremony_coordinator: None,
-    };
-    
-    // Start Security Guardian Agent
-    agents.security_guardian = start_agent(
-        base_dir,
-        "security_guardian_agent.py",
-        "🛡️  SECURITY GUARDIAN",
-    );
-    
-    // Start Network Booster Agent
-    agents.network_booster = start_agent(
-        base_dir,
-        "network_booster_agent.py",
-        "🚀 NETWORK BOOSTER",
-    );
-    
-    // Start Health Monitor Agent
-    agents.health_monitor = start_agent(
-        base_dir,
-        "node_health_monitor.py",
-        "🏥 HEALTH MONITOR",
-    );
-    
-    // Start Ceremony Coordinator Agent
-    agents.ceremony_coordinator = start_agent(
-        base_dir,
-        "ceremony_master.py",
-        "📜 CEREMONY COORDINATOR",
-    );
-    
-    // Keep agents running and restart if they crash
+    let mut manager = AgentManager::new();
+    let base = base_dir.to_path_buf();
+    let weights = weights_path.to_path_buf();
+    let genesis = genesis_pulse_path.to_path_buf();
+
+    // Each agent is wrapped in a persistent tokio::spawn loop with
+    // mandatory 10-second back-off before any restart.
+    manager.spawn_agent(base.clone(), "security_guardian_agent.py", "🛡️  SECURITY GUARDIAN", weights.clone(), genesis.clone());
+    manager.spawn_agent(base.clone(), "network_booster_agent.py", "🚀 NETWORK BOOSTER", weights.clone(), genesis.clone());
+    manager.spawn_agent(base.clone(), "node_health_monitor.py", "🏥 HEALTH MONITOR", weights.clone(), genesis.clone());
+    manager.spawn_agent(base.clone(), "ceremony_master.py", "📜 CEREMONY COORDINATOR", weights.clone(), genesis.clone());
+
+    // Keep the daemon alive while agents run in their own tokio tasks
     loop {
-        sleep(Duration::from_secs(10)).await;
-        
-        // Check each agent status
-        if let Some(mut child) = agents.security_guardian.take() {
-            match child.try_wait() {
-                Ok(None) => {
-                    agents.security_guardian = Some(child); // Still running
-                },
-                Ok(Some(status)) => {
-                    println!("⚠️  Security Guardian crashed: {}", status);
-                    agents.security_guardian = start_agent(base_dir, "security_guardian_agent.py", "🛡️  SECURITY GUARDIAN");
-                },
-                Err(e) => {
-                    println!("⚠️  Error checking Security Guardian: {}", e);
-                    agents.security_guardian = start_agent(base_dir, "security_guardian_agent.py", "🛡️  SECURITY GUARDIAN");
-                }
-            }
-        } else {
-            agents.security_guardian = start_agent(base_dir, "security_guardian_agent.py", "🛡️  SECURITY GUARDIAN");
-        }
-        
-        // Check Network Booster
-        if let Some(mut child) = agents.network_booster.take() {
-            match child.try_wait() {
-                Ok(None) => {
-                    agents.network_booster = Some(child); // Still running
-                },
-                Ok(Some(status)) => {
-                    println!("⚠️  Network Booster crashed: {}", status);
-                    agents.network_booster = start_agent(base_dir, "network_booster_agent.py", "🚀 NETWORK BOOSTER");
-                },
-                Err(e) => {
-                    println!("⚠️  Error checking Network Booster: {}", e);
-                    agents.network_booster = start_agent(base_dir, "network_booster_agent.py", "🚀 NETWORK BOOSTER");
-                }
-            }
-        } else {
-            agents.network_booster = start_agent(base_dir, "network_booster_agent.py", "🚀 NETWORK BOOSTER");
-        }
-        
-        // Check Health Monitor
-        if let Some(mut child) = agents.health_monitor.take() {
-            match child.try_wait() {
-                Ok(None) => {
-                    agents.health_monitor = Some(child); // Still running
-                },
-                Ok(Some(status)) => {
-                    println!("⚠️  Health Monitor crashed: {}", status);
-                    agents.health_monitor = start_agent(base_dir, "node_health_monitor.py", "🏥 HEALTH MONITOR");
-                },
-                Err(e) => {
-                    println!("⚠️  Error checking Health Monitor: {}", e);
-                    agents.health_monitor = start_agent(base_dir, "node_health_monitor.py", "🏥 HEALTH MONITOR");
-                }
-            }
-        } else {
-            agents.health_monitor = start_agent(base_dir, "node_health_monitor.py", "🏥 HEALTH MONITOR");
-        }
-        
-        // Check Ceremony Coordinator
-        if let Some(mut child) = agents.ceremony_coordinator.take() {
-            match child.try_wait() {
-                Ok(None) => {
-                    agents.ceremony_coordinator = Some(child); // Still running
-                },
-                Ok(Some(status)) => {
-                    println!("⚠️  Ceremony Coordinator crashed: {}", status);
-                    agents.ceremony_coordinator = start_agent(base_dir, "ceremony_master.py", "📜 CEREMONY COORDINATOR");
-                },
-                Err(e) => {
-                    println!("⚠️  Error checking Ceremony Coordinator: {}", e);
-                    agents.ceremony_coordinator = start_agent(base_dir, "ceremony_master.py", "📜 CEREMONY COORDINATOR");
-                }
-            }
-        } else {
-            agents.ceremony_coordinator = start_agent(base_dir, "ceremony_master.py", "📜 CEREMONY COORDINATOR");
-        }
+        sleep(Duration::from_secs(60)).await;
     }
 }
 
-fn start_agent(base_dir: &std::path::Path, script_name: &str, agent_name: &str) -> Option<Child> {
+fn start_agent(
+    base_dir: &std::path::Path,
+    script_name: &str,
+    agent_name: &str,
+    weights_path: &std::path::Path,
+    genesis_pulse_path: &std::path::Path,
+) -> Option<Child> {
     let script_path = base_dir.join("openclaw").join(script_name);
     
     if !Path::new(&script_path).exists() {
@@ -180,6 +171,8 @@ fn start_agent(base_dir: &std::path::Path, script_name: &str, agent_name: &str) 
     
     match Command::new("python3")
         .arg(script_path.to_string_lossy().to_string())
+        .env("AXIOM_WEIGHTS_PATH", weights_path.to_string_lossy().to_string())
+        .env("AXIOM_GENESIS_PULSE_PATH", genesis_pulse_path.to_string_lossy().to_string())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

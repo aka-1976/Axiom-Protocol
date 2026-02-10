@@ -390,27 +390,28 @@ impl MiningPool {
     fn verify_solution(&self, solution: &WorkSolution) -> bool {
         // Find the task
         if let Some(task) = self.active_tasks.iter().find(|t| t.task_id == solution.task_id) {
-            // Verify based on work type
+            // Verify the solution's computation hash commitment.
+            // Each solution includes a SHA-256 hash of (task_id + solution_data);
+            // verification recomputes the hash and checks it matches.
+            use sha2::{Sha256, Digest};
+            let solution_bytes = solution.solution_data.to_string();
+            let mut hasher = Sha256::new();
+            hasher.update(task.task_id.as_bytes());
+            hasher.update(solution_bytes.as_bytes());
+            let expected_hash = hex::encode(hasher.finalize());
+
+            // The computation_hash must match the SHA-256 commitment
+            let hash_valid = solution.computation_hash == expected_hash;
+            // The solution data must be non-empty
+            let data_valid = !solution_bytes.is_empty() && solution_bytes != "null";
+
             match task.work_type {
-                WorkType::ProteinFolding => {
-                    // Verify protein folding solution
-                    true // Simplified verification
-                }
-                WorkType::OptimizationProblem => {
-                    // Verify optimization solution
-                    true
-                }
-                WorkType::MatrixComputation => {
-                    // Verify matrix computation
-                    true
-                }
-                WorkType::PrimeSearch => {
-                    // Verify prime search
-                    true
-                }
+                WorkType::ProteinFolding |
+                WorkType::OptimizationProblem |
+                WorkType::MatrixComputation |
+                WorkType::PrimeSearch |
                 WorkType::MLTraining => {
-                    // Verify ML training
-                    true
+                    hash_valid && data_valid
                 }
             }
         } else {

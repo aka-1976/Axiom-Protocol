@@ -65,9 +65,15 @@ impl Transaction {
             Err(_) => return Err("ZK proof verification failed"),
         }
 
-        // Verify signature (simplified for now)
+        // Verify Ed25519 signature cryptographically
         if self.signature.is_empty() {
             return Err("Missing signature");
+        }
+
+        match crate::wallet::Wallet::verify_transaction_signature(self) {
+            Ok(true) => {},
+            Ok(false) => return Err("Invalid signature"),
+            Err(_) => return Err("Signature verification failed"),
         }
 
         Ok(())

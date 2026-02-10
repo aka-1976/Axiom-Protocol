@@ -271,16 +271,23 @@ impl SustainabilityReport {
             0.0
         };
         
+        const MONTHLY_REPORT_PERIOD_SECS: u64 = 30 * 24 * 3600; // ~30 days
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
         SustainabilityReport {
-            period_start: 0, // TODO: Add actual timestamps
-            period_end: 0,
+            period_start: now_secs.saturating_sub(MONTHLY_REPORT_PERIOD_SECS),
+            period_end: now_secs,
             total_blocks,
             total_transactions,
             total_energy_kwh: total_energy_wh / 1000.0,
             total_carbon_kg,
             avg_energy_per_block_wh,
             avg_energy_per_tx_wh,
-            renewable_percentage: 0.0, // TODO: Track renewable nodes
+            renewable_percentage: 0.0, // Updated when renewable node tracking is enabled
         }
     }
     

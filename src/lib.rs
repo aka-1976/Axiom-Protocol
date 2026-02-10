@@ -86,6 +86,19 @@ pub struct AxiomPulse {
     pub stark_receipt: Option<Vec<u8>>,
 }
 
+impl AxiomPulse {
+    /// Verify the genesis block hash against the hardcoded
+    /// `VERIFIED_GENESIS_ANCHOR_512` constant.
+    ///
+    /// Performs a strict bitwise comparison of the hex-encoded 512-bit
+    /// hash to prevent supply drift or unauthorized chain forks. Returns
+    /// `true` if and only if every byte matches the verified anchor.
+    pub fn verify_genesis(genesis_hash_512: &[u8; 64]) -> bool {
+        let hash_hex = hex::encode(genesis_hash_512);
+        hash_hex == VERIFIED_GENESIS_ANCHOR_512
+    }
+}
+
 // Core modules
 pub mod zk;
 pub mod stark; // RISC Zero zkVM STARK proving (124M supply integrity)
@@ -128,20 +141,28 @@ pub use block::Block;
 // Re-export genesis anchor
 pub use genesis::GENESIS_ANCHOR_512;
 
-/// SHA-256 fingerprint of the production NeuralGuardian `weights.bin`.
+/// Verified 512-bit Genesis Anchor from the genesis block log output.
+///
+/// This is the canonical BLAKE3-512 hash of the immutable genesis block.
+/// `AxiomPulse::verify_genesis()` performs a strict bitwise match against
+/// this constant to prevent supply drift or unauthorized chain forks.
+pub const VERIFIED_GENESIS_ANCHOR_512: &str =
+    "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
+     0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4";
+
+/// SHA-256 fingerprint of the canonical NeuralGuardian genesis model.
+///
+/// The genesis model is deterministically initialised using
+/// [`NeuralNetwork::new_genesis()`] with an RNG seeded from the
+/// Genesis Anchor string, ensuring every node starts with identical
+/// initial weights.
 ///
 /// Every node **must** verify its local model file against this hash at
 /// startup via [`neural_guardian::NeuralGuardian::load_model`].  If the
 /// hashes diverge, the node panics — preventing tampered AI weights from
 /// silently corrupting trust decisions on the 124M network.
-///
-/// To update this constant, compute:
-/// ```text
-/// sha256sum weights.bin
-/// ```
-/// and paste the hex digest below.
 pub const GENESIS_WEIGHTS_HASH: &str =
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    "771987fb80b7e8a2b20abd2625c1c14e8b8f39235df068251994f040152abd60";
 
 /// 512-bit BLAKE3 hash of the Genesis Pulse — the absolute origin of the
 /// tamper-evident pulse chain.
@@ -198,3 +219,39 @@ pub use config::AxiomConfig;
 
 // Note: vdf and main_helper are already public via `pub mod` declarations above
 // No need to re-export them - this caused E0255 duplicate definition errors
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verified_genesis_anchor_512_is_128_hex_chars() {
+        assert_eq!(
+            VERIFIED_GENESIS_ANCHOR_512.len(), 128,
+            "VERIFIED_GENESIS_ANCHOR_512 must be 128 hex chars (512 bits)"
+        );
+    }
+
+    #[test]
+    fn test_verified_genesis_anchor_512_value() {
+        assert_eq!(
+            VERIFIED_GENESIS_ANCHOR_512,
+            "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
+             0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4"
+        );
+    }
+
+    #[test]
+    fn test_verify_genesis_matching_hash() {
+        let hash_bytes = hex::decode(VERIFIED_GENESIS_ANCHOR_512).unwrap();
+        let mut arr = [0u8; 64];
+        arr.copy_from_slice(&hash_bytes);
+        assert!(AxiomPulse::verify_genesis(&arr), "Matching hash must return true");
+    }
+
+    #[test]
+    fn test_verify_genesis_mismatched_hash() {
+        let wrong = [0u8; 64];
+        assert!(!AxiomPulse::verify_genesis(&wrong), "Wrong hash must return false");
+    }
+}

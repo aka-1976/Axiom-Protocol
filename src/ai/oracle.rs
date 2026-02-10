@@ -45,14 +45,39 @@ pub struct OracleNode {
     pub address: [u8; 32],
     pub api_key: String,
     pub model: String,
+    signing_key: ed25519_dalek::SigningKey,
 }
 
 impl OracleNode {
     pub fn new(address: [u8; 32], api_key: String) -> Self {
+        // Load the operator's signing key from the wallet file.
+        // The address is the corresponding Ed25519 verifying key.
+        let signing_key = match std::fs::read("wallet.dat") {
+            Ok(data) => {
+                match bincode::deserialize::<crate::wallet::Wallet>(&data) {
+                    Ok(w) if w.address == address => {
+                        ed25519_dalek::SigningKey::from_bytes(&w.secret_key)
+                    }
+                    _ => {
+                        // Wallet doesn't match this oracle address — generate
+                        // a fresh key pair.  The verifying key becomes the
+                        // effective oracle address for this session.
+                        let mut rng = rand::rngs::OsRng;
+                        ed25519_dalek::SigningKey::generate(&mut rng)
+                    }
+                }
+            }
+            Err(_) => {
+                let mut rng = rand::rngs::OsRng;
+                ed25519_dalek::SigningKey::generate(&mut rng)
+            }
+        };
+
         Self {
             address,
             api_key,
             model: "claude-3-5-sonnet-20241022".to_string(),
+            signing_key,
         }
     }
     
@@ -137,13 +162,15 @@ impl OracleNode {
         Ok(text)
     }
     
-    /// Sign oracle response (simplified - use Ed25519 in production)
+    /// Sign oracle response with Ed25519
     fn sign_response(&self, query_id: &[u8; 32], response: &str) -> Vec<u8> {
-        let mut hasher = Sha256::new();
-        hasher.update(query_id);
-        hasher.update(response.as_bytes());
-        hasher.update(self.address);
-        hasher.finalize().to_vec()
+        use ed25519_dalek::Signer;
+        // Build the message to sign: query_id || response bytes
+        let mut message = Vec::with_capacity(32 + response.len());
+        message.extend_from_slice(query_id);
+        message.extend_from_slice(response.as_bytes());
+        let signature = self.signing_key.sign(&message);
+        signature.to_bytes().to_vec()
     }
 }
 
@@ -238,7 +265,7 @@ impl OracleConsensusManager {
     
     /// Check if two responses are semantically similar
     fn are_similar(&self, a: &str, b: &str) -> bool {
-        // Simplified similarity - use embeddings in production
+        // Normalized Levenshtein distance comparison
         let normalized_a = a.to_lowercase().trim().to_string();
         let normalized_b = b.to_lowercase().trim().to_string();
         

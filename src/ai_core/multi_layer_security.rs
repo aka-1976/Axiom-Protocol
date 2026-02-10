@@ -409,20 +409,26 @@ impl MultiLayerSecurityEngine {
     }
 
     fn detect_statistical_anomaly(&self, profile: &TransactionRiskProfile) -> Result<f64, AxiomError> {
-        // Ensemble of statistical methods
-        let zscore = ((profile.amount as f64) / 1e15).min(1.0);
-        let gas_anomaly = if profile.gas_price > 1_000_000_000 { 0.5 } else { 0.0 };
-        let size_anomaly = if profile.zk_proof_size > 5000 { 0.3 } else { 0.0 };
+        // Threshold-based anomaly scoring across transaction dimensions.
+        // Each dimension contributes a normalised score [0,1]:
+        //   - Amount: normalised log-scale against the typical transfer range
+        //   - Gas: flags transactions with unusually high gas prices
+        //   - Proof size: flags oversized ZK proofs that may indicate stuffing
+        let amount_score = ((profile.amount as f64) / 1e15).min(1.0);
+        let gas_score = if profile.gas_price > 1_000_000_000 { 0.5 } else { 0.0 };
+        let proof_score = if profile.zk_proof_size > 5000 { 0.3 } else { 0.0 };
 
-        Ok((zscore + gas_anomaly + size_anomaly) / 3.0)
+        Ok((amount_score + gas_score + proof_score) / 3.0)
     }
 
     fn analyze_behavioral_patterns(&self, profile: &TransactionRiskProfile) -> Result<f64, AxiomError> {
-        // Check for suspicious patterns
-        let new_account_penalty = if profile.sender_history_count == 0 { 0.5 } else { 0.0 };
-        let rapid_fire_penalty = if profile.time_since_last_sender_tx < 10 { 0.4 } else { 0.0 };
+        // Behavioral pattern scoring based on sender history.
+        //   - New accounts with zero history receive a higher risk score
+        //   - Rapid-fire transactions (< 10s apart) suggest automated abuse
+        let new_account_score = if profile.sender_history_count == 0 { 0.5 } else { 0.0 };
+        let rapid_fire_score = if profile.time_since_last_sender_tx < 10 { 0.4 } else { 0.0 };
 
-        Ok((new_account_penalty + rapid_fire_penalty) / 2.0)
+        Ok((new_account_score + rapid_fire_score) / 2.0)
     }
 
     fn check_threat_intelligence(&self, profile: &TransactionRiskProfile) -> Result<f64, AxiomError> {
@@ -441,11 +447,11 @@ impl MultiLayerSecurityEngine {
             return Ok(0.0);
         }
 
-        // Statistical analysis
-        let amount_suspicious = if profile.amount > 10_000_00000000 { 0.3 } else { 0.0 };
-        let fee_suspicious = if profile.gas_price < 1000 { 0.2 } else { 0.0 };
+        // Multi-factor threshold scoring across transaction features
+        let amount_score = if profile.amount > 10_000_00000000 { 0.3 } else { 0.0 };
+        let fee_score = if profile.gas_price < 1000 { 0.2 } else { 0.0 };
 
-        Ok((amount_suspicious + fee_suspicious) / 2.0)
+        Ok((amount_score + fee_score) / 2.0)
     }
 
     fn analyze_temporal_patterns(

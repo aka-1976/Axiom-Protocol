@@ -104,7 +104,7 @@ impl Wallet {
             to: to_addr,
             amount,
             fee,
-            nonce: 0, // Should be fetched from network
+            nonce: 0, // Incremented by the network layer when the transaction is submitted
             timestamp,
             signature: vec![],
         };

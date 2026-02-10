@@ -64,7 +64,7 @@ impl Wallet {
             fee,
             nonce,
             zk_proof,
-            vec![], // Empty signature for now
+            vec![], // Unsigned — signature is computed and applied below
         );
 
         // Sign the transaction

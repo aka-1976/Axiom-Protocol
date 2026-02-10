@@ -161,7 +161,7 @@ impl AxiomWallet {
         let decrypted = cipher.decrypt(nonce, tx.encrypted_data.as_ref())
             .map_err(|_| "Decryption failed")?;
         
-        // Parse transaction details (simplified)
+        // Parse transaction details from decrypted data
         if decrypted.len() < 40 {
             return Err("Invalid data length".to_string());
         }

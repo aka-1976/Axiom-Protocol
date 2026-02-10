@@ -13,6 +13,7 @@ Features:
 
 import asyncio
 import json
+import os
 import time
 from datetime import datetime
 from typing import Dict, List, Set
@@ -121,7 +122,7 @@ class NetworkBooster:
         peer_count = len(self.peer_latencies)
         if peer_count > self.max_peers * 0.9:
             print(f"   ⚠️  Peer pool near capacity, pruning low-performing peers...")
-            # In production, would disconnect from worst-performing peers
+            # Disconnect from worst-performing peers when near capacity
             self.prune_poor_performers()
 
     async def optimize_bandwidth(self):
@@ -200,28 +201,54 @@ class NetworkBooster:
         return sum(self.throughput_stats.values()) / len(self.throughput_stats)
 
     def calculate_block_rate(self) -> float:
-        """Calculate blocks synced per minute"""
-        # Placeholder: would track actual block sync rate
-        return len(self.peer_latencies) * 0.5  # Estimate
+        """Calculate blocks synced per minute based on peer count and latency.
+
+        Uses average latency (ms) to estimate propagation speed:
+        blocks/min ≈ peers × (1000 ms / avg_latency_ms) × 0.1 scaling factor.
+        """
+        if not self.peer_latencies:
+            return 0.0
+        avg_latency = self.calculate_avg_latency()
+        if avg_latency <= 0:
+            return 0.0
+        return len(self.peer_latencies) * (1000.0 / max(avg_latency, 1.0)) * 0.1
 
     def count_failed_connections(self) -> int:
-        """Count failed connection attempts"""
-        # Placeholder
-        return 0
+        """Count failed connection attempts from metrics history"""
+        return sum(m.failed_connections for m in self.metrics_history[-5:])
 
     def count_successful_connections(self) -> int:
         """Count successful connections"""
         return len(self.peer_latencies)
 
     def get_memory_usage(self) -> float:
-        """Get memory usage percentage"""
-        # Placeholder: would use psutil
-        return 35.0
+        """Get memory usage percentage from the OS"""
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                meminfo = {}
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        meminfo[parts[0].rstrip(':')] = int(parts[1])
+            mem_total = meminfo.get('MemTotal', 0)
+            mem_available = meminfo.get('MemAvailable', 0)
+            if mem_total > 0:
+                return ((mem_total - mem_available) / mem_total) * 100.0
+        except Exception:
+            pass
+        return 0.0
 
     def get_disk_usage(self) -> float:
-        """Get disk usage percentage"""
-        # Placeholder: would use shutil
-        return 28.0
+        """Get disk usage percentage from the OS"""
+        try:
+            stat = os.statvfs('/')
+            total = stat.f_blocks * stat.f_frsize
+            free = stat.f_bfree * stat.f_frsize
+            if total > 0:
+                return ((total - free) / total) * 100.0
+        except Exception:
+            pass
+        return 0.0
 
     def prune_poor_performers(self):
         """Remove low-performing peers"""

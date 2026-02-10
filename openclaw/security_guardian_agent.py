@@ -186,9 +186,7 @@ class SecurityGuardian:
         """Detect VDF (Verifiable Delay Function) manipulation attempts"""
         print("🔍 [VDF Detection] Validating delay function integrity...")
         
-        # In production, would verify VDF proofs cryptographically
-        # For now, check timing anomalies
-        
+        # Check block timing anomalies — VDF should enforce ~30 minutes per block
         for peer_id, reputation in self.peer_reputation.items():
             # VDF should take ~30 minutes (1800 seconds) per block
             # Detect if blocks coming too quickly
