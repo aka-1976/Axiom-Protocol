@@ -3,7 +3,7 @@
 mod security_tests {
     use axiom_core::*;
     use axiom_core::block::Block;
-    use axiom_core::chain::Timechain;
+    use axiom_core::chain::{self, Timechain};
     use axiom_core::genesis;
     use axiom_core::wallet::Wallet;
 
@@ -31,6 +31,7 @@ mod security_tests {
         let block = Block {
             parent: parent_hash,
             slot: current_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
             miner: wallet.address,
             transactions: vec![tx.clone(), tx.clone()], // Same transaction twice!
             vdf_proof,
@@ -41,7 +42,7 @@ mod security_tests {
         // The block should be rejected (or the chain should handle duplicates)
         // This tests the implementation's double-spend protection
         println!("Testing double-spend in same block...");
-        let result = chain.add_block(block, 3600);
+        let result = chain.add_block(block);
         // In production, this should fail or the duplicate should be filtered
         println!("Result: {:?}", result);
     }
@@ -70,6 +71,7 @@ mod security_tests {
         let mut block1 = Block {
             parent: parent_hash,
             slot: current_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
             miner: wallet.address,
             transactions: vec![tx.clone()],
             vdf_proof,
@@ -82,7 +84,7 @@ mod security_tests {
             block1.nonce += 1;
         }
         
-        let result1 = chain.add_block(block1.clone(), 3600);
+        let result1 = chain.add_block(block1.clone());
         println!("Block 1 added: {:?}", result1);
         
         // Try to create another block with the SAME transaction (double-spend attempt)
@@ -95,6 +97,7 @@ mod security_tests {
         let mut block2 = Block {
             parent: parent_hash2,
             slot: current_slot2,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot2,
             miner: wallet.address,
             transactions: vec![tx.clone()], // Same transaction again!
             vdf_proof: vdf_proof2,
@@ -107,7 +110,7 @@ mod security_tests {
             block2.nonce += 1;
         }
         
-        let result2 = chain.add_block(block2, 3600);
+        let result2 = chain.add_block(block2);
         println!("Block 2 (double-spend attempt) result: {:?}", result2);
         
         // This should fail because the transaction was already spent
@@ -164,6 +167,7 @@ mod security_tests {
         let mut block1 = Block {
             parent: parent_hash,
             slot: current_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
             miner: wallet.address,
             transactions: vec![tx1.clone()],
             vdf_proof,
@@ -175,7 +179,7 @@ mod security_tests {
             block1.nonce += 1;
         }
         
-        let _ = chain.add_block(block1, 3600);
+        let _ = chain.add_block(block1);
         println!("Block 1 mined with tx nonce 0");
         
         // Try to replay the same transaction (should be rejected due to nonce)
@@ -262,6 +266,7 @@ mod security_tests {
         let mut block1 = Block {
             parent: parent_hash,
             slot: correct_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * correct_slot,
             miner: wallet.address,
             transactions: vec![],
             vdf_proof,
@@ -273,7 +278,7 @@ mod security_tests {
             block1.nonce += 1;
         }
         
-        let result1 = chain.add_block(block1, 3600);
+        let result1 = chain.add_block(block1);
         println!("Block 1 result: {:?}", result1);
         assert!(result1.is_ok());
         
@@ -287,6 +292,7 @@ mod security_tests {
         let mut block_wrong = Block {
             parent: parent_hash2,
             slot: wrong_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * wrong_slot,
             miner: wallet.address,
             transactions: vec![],
             vdf_proof: vdf_proof2,
@@ -298,7 +304,7 @@ mod security_tests {
             block_wrong.nonce += 1;
         }
         
-        let result_wrong = chain.add_block(block_wrong, 3600);
+        let result_wrong = chain.add_block(block_wrong);
         println!("Wrong slot block result: {:?}", result_wrong);
         // Should fail due to non-sequential slot number
     }
@@ -323,6 +329,7 @@ mod security_tests {
         let mut block = Block {
             parent: wrong_parent,
             slot: current_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
             miner: wallet.address,
             transactions: vec![],
             vdf_proof,
@@ -334,7 +341,7 @@ mod security_tests {
             block.nonce += 1;
         }
         
-        let result = chain.add_block(block, 3600);
+        let result = chain.add_block(block);
         println!("Invalid parent hash result: {:?}", result);
         assert!(result.is_err(), "Block with invalid parent should be rejected");
     }

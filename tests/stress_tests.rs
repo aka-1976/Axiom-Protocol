@@ -3,7 +3,7 @@
 mod stress_tests {
     use axiom_core::*;
     use axiom_core::block::Block;
-    use axiom_core::chain::Timechain;
+    use axiom_core::chain::{self, Timechain};
     use axiom_core::genesis;
     use axiom_core::wallet::Wallet;
     use std::time::Instant;
@@ -37,6 +37,7 @@ mod stress_tests {
                 let block = Block {
                     parent: parent_hash,
                     slot: current_slot,
+                    timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                     miner: wallet.address,
                     transactions: vec![],
                     vdf_proof,
@@ -132,6 +133,7 @@ mod stress_tests {
             let mut block = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -145,7 +147,7 @@ mod stress_tests {
             }
             
             if block.nonce < 50000 {
-                chain.add_block(block, 3600).unwrap();
+                chain.add_block(block).unwrap();
             }
             
             if (i + 1) % 10 == 0 {
@@ -247,6 +249,7 @@ mod stress_tests {
             let mut block = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -268,7 +271,7 @@ mod stress_tests {
         
         let mut added = 0;
         for block in blocks {
-            if chain.add_block(block, 3600).is_ok() {
+            if chain.add_block(block).is_ok() {
                 added += 1;
             }
         }
@@ -310,6 +313,7 @@ mod stress_tests {
             let mut block = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -322,7 +326,7 @@ mod stress_tests {
             }
             
             if block.nonce < 50000 {
-                let _ = chain1.add_block(block, 3600);
+                let _ = chain1.add_block(block);
             }
         }
         
@@ -338,6 +342,7 @@ mod stress_tests {
             let mut block = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -350,7 +355,7 @@ mod stress_tests {
             }
             
             if block.nonce < 100000 {
-                let _ = chain2.add_block(block, 3600);
+                let _ = chain2.add_block(block);
             }
         }
         

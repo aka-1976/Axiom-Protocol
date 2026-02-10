@@ -2,7 +2,7 @@
 mod tests {
     use axiom_core::*;
     use axiom_core::block::Block;
-    use axiom_core::chain::Timechain;
+    use axiom_core::chain::{self, Timechain};
     use axiom_core::genesis;
     use axiom_core::wallet::Wallet;
     use axiom_core::economics::block_reward;
@@ -137,6 +137,7 @@ mod tests {
             let block = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -146,7 +147,7 @@ mod tests {
 
             if block.meets_difficulty(chain.difficulty) {
                 println!("Found valid nonce: {} for difficulty {}", nonce, chain.difficulty);
-                if chain.add_block(block.clone(), 3600).is_ok() {
+                if chain.add_block(block.clone()).is_ok() {
                     println!("Block added successfully!");
                     found = true;
                 } else {
@@ -281,6 +282,7 @@ mod tests {
             let candidate = Block {
                 parent: parent_hash,
                 slot: current_slot,
+                timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
                 miner: wallet.address,
                 transactions: vec![],
                 vdf_proof,
@@ -298,13 +300,14 @@ mod tests {
         let block = Block {
             parent: parent_hash,
             slot: current_slot,
+            timestamp: genesis::GENESIS_TIMESTAMP + chain::TARGET_TIME * current_slot,
             miner: wallet.address,
             transactions: vec![],
             vdf_proof,
             zk_proof: zk_pass.clone(),
             nonce,
         };
-        let result = chain.add_block(block.clone(), 1800);
+        let result = chain.add_block(block.clone());
         assert!(result.is_ok(), "Block must be accepted by chain: {:?}", result.err());
         assert_eq!(chain.blocks.len(), 2);
 
