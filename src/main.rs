@@ -629,14 +629,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 SwarmEvent::ConnectionEstablished { peer_id, endpoint: _, .. } => {
-                    let is_first_peer = connected_peers.is_empty();
                     connected_peers.insert(peer_id);
                     println!("🔗 Peer connected: {} | Total: {}", peer_id, connected_peers.len());
 
                     // When the first peer connects, immediately request
                     // chain sync so the node doesn't have to wait for the
                     // 5-minute periodic sync timer.
-                    if is_first_peer {
+                    if connected_peers.len() == 1 {
                         println!("🔄 First peer connected — requesting chain sync...");
                         let _ = swarm.behaviour_mut().gossipsub.publish(
                             req_topic.clone(), b"REQ_CHAIN".to_vec(),
