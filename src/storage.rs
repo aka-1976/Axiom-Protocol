@@ -11,7 +11,7 @@ pub fn save_chain(blocks: &[Block]) {
     let encoded = match bincode::serialize(blocks) {
         Ok(data) => data,
         Err(e) => {
-            eprintln!("❌ STORAGE ERROR: Serialization failed: {}", e);
+            log::error!("STORAGE: Serialization failed: {}", e);
             return;
         }
     };
@@ -22,10 +22,14 @@ pub fn save_chain(blocks: &[Block]) {
         Ok(mut file) => {
             if file.write_all(&encoded).is_ok() {
                 // Atomic rename: This is the moment the "Self-Healing" is locked in
-                let _ = std::fs::rename(temp_path, DB_PATH);
+                if let Err(e) = std::fs::rename(&temp_path, DB_PATH) {
+                    log::error!("STORAGE: Atomic rename failed: {}", e);
+                }
+            } else {
+                log::error!("STORAGE: Write to temp file failed");
             }
         }
-        Err(e) => eprintln!("❌ STORAGE ERROR: Could not write to disk: {}", e),
+        Err(e) => log::error!("STORAGE: Could not write to disk: {}", e),
     }
 }
 
@@ -50,11 +54,11 @@ pub fn load_chain() -> Option<Vec<Block>> {
     // Deserialize the binary data back into the Block vector
     match bincode::deserialize::<Vec<Block>>(&content) {
         Ok(blocks) => {
-            println!("✅ STORAGE: Loaded {} blocks. Integrity verified.", blocks.len());
+            log::info!("STORAGE: Loaded {} blocks. Integrity verified.", blocks.len());
             Some(blocks)
         },
         Err(e) => {
-            eprintln!("⚠️ STORAGE WARNING: Failed to decode chain ({}). Corruption detected. Starting fresh.", e);
+            log::warn!("STORAGE: Failed to decode chain ({}). Corruption detected. Starting fresh.", e);
             // Delete corrupted file to allow clean self-healing
             let _ = std::fs::remove_file(DB_PATH);
             None

@@ -213,23 +213,35 @@ impl NeuralGuardian {
     }
 
     fn save_false_positive_case(&self) {
-        let mut file = OpenOptions::new()
+        match OpenOptions::new()
             .create(true)
             .append(true)
             .open("ai_training_data.csv")
-            .unwrap();
-        writeln!(file, "{},false_positive,details_here", 
-                 chrono::Utc::now().timestamp()).ok();
+        {
+            Ok(mut file) => {
+                writeln!(file, "{},false_positive,details_here",
+                         chrono::Utc::now().timestamp()).ok();
+            }
+            Err(e) => {
+                log::warn!("Failed to save false positive case: {}", e);
+            }
+        }
     }
 
     pub fn collect_training_sample(&self, msg_rate: f32, history: f32, reputation: f32, is_good: bool) {
         let sample = format!("{},{},{},{}\n", msg_rate, history, reputation, if is_good { 1 } else { 0 });
-        let mut file = OpenOptions::new()
+        match OpenOptions::new()
             .create(true)
             .append(true)
             .open("training_data.csv")
-            .unwrap();
-        write!(file, "{}", sample).ok();
+        {
+            Ok(mut file) => {
+                write!(file, "{}", sample).ok();
+            }
+            Err(e) => {
+                log::warn!("Failed to save training sample: {}", e);
+            }
+        }
     }
 
     pub fn set_threshold(&mut self, threshold: f32) {
