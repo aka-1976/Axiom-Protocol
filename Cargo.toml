@@ -80,6 +80,8 @@ risc0-zkvm = { version = "3.0", optional = true, default-features = false }
 parking_lot = "0.12"
 dashmap = "5.5"
 lru = "0.12"
+crossbeam = "0.8"
+rayon = "1.8"
 
 # Storage
 sled = "0.34"
