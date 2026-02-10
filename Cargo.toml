@@ -31,10 +31,6 @@ onnxruntime = { version = "0.0.14", optional = true }
 ndarray = { version = "0.15", optional = true }
 dirs = "5.0"
 
-# Web server for health/metrics endpoints
-actix-web = "4.4"
-actix-rt = "2.9"
-
 # Public Pulse API (Explorer Bridge)
 warp = "0.3"
 

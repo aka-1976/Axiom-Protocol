@@ -187,9 +187,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("🌐 Node successfully bound to port: {}", current_port);
                 println!("🆔 PeerId: {}", swarm.local_peer_id());
                 println!("🔊 Listening on: {}", addr);
-                println!("🌍 Public connection string: /ip4/[DETECTED_IP]/tcp/{}/p2p/{}", current_port, swarm.local_peer_id());
-                println!("[DIAG] To connect another node, set AXIOM_BOOTSTRAP_PEER=\"{}@/ip4/0.0.0.0/tcp/{}\"",
-                    swarm.local_peer_id(), current_port);
+
+                // Display usable connection strings for other nodes.
+                // Prefer AXIOM_EXTERNAL_IP env var (operator-set), otherwise
+                // guide the operator to set it.
+                let external_ip = std::env::var("AXIOM_EXTERNAL_IP").unwrap_or_default();
+                if !external_ip.is_empty() {
+                    println!("🌍 Public address: /ip4/{}/tcp/{}/p2p/{}", external_ip, current_port, swarm.local_peer_id());
+                    println!("[DIAG] To connect another node, set:");
+                    println!("   AXIOM_BOOTSTRAP_PEERS=/ip4/{}/tcp/{}/p2p/{}", external_ip, current_port, swarm.local_peer_id());
+                } else {
+                    println!("⚠️  AXIOM_EXTERNAL_IP not set — other nodes cannot find you.");
+                    println!("   Set your public IP so peers can connect:");
+                    println!("   export AXIOM_EXTERNAL_IP=<YOUR_PUBLIC_IP>");
+                    println!("   Then share this with peers:");
+                    println!("   AXIOM_BOOTSTRAP_PEERS=/ip4/<YOUR_PUBLIC_IP>/tcp/{}/p2p/{}", current_port, swarm.local_peer_id());
+                }
                 break;
             }
             Err(_e) => {
@@ -522,13 +535,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 let _ = swarm.behaviour_mut().gossipsub.publish(chain_topic.clone(), encoded);
                             }
                         }
-                        // Handle block
+                        // Handle block from peer
                         else if message.topic == blocks_topic.hash() {
                             if let Ok(block) = bincode::deserialize::<Block>(&message.data) {
-                                let elapsed = last_vdf.elapsed().as_secs();
-                                if tc.add_block(block, elapsed).is_ok() {
-                                    println!("✅ Block accepted and added to chain");
+                                // The VDF proof inside the block cryptographically
+                                // guarantees that TARGET_TIME (1800s) of sequential
+                                // work was performed.  add_block() validates the VDF
+                                // proof, so we pass TARGET_TIME for the difficulty
+                                // adjustment — this keeps all nodes' difficulty in
+                                // sync regardless of when they receive the block.
+                                if tc.add_block(block, axiom_core::chain::TARGET_TIME).is_ok() {
+                                    println!("✅ Block accepted from peer. Height: {}", tc.blocks.len());
                                     axiom_core::storage::save_chain(&tc.blocks);
+                                    // Reset VDF timer: the chain just advanced, so
+                                    // start our next mining round from now.
+                                    last_vdf = Instant::now();
                                 }
                             }
                         }
@@ -541,18 +562,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             }
                         }
-                        // Handle full chain
+                        // Handle full chain sync from peer
                         else if message.topic == chain_topic.hash() {
                             if let Ok(peer_blocks) = bincode::deserialize::<Vec<Block>>(&message.data) {
                                 if peer_blocks.len() > tc.blocks.len() {
-                                    // Validate the peer chain before accepting it:
-                                    // rebuild a fresh Timechain from genesis and replay
-                                    // every block through full consensus validation.
+                                    // Validate the peer chain: rebuild a fresh
+                                    // Timechain from genesis and replay every block
+                                    // through full consensus validation (VDF + PoW +
+                                    // ZK).  Each block's VDF proof cryptographically
+                                    // proves TARGET_TIME elapsed, so we pass 1800
+                                    // for all blocks to keep difficulty consistent.
                                     let genesis_block = axiom_core::genesis::genesis();
                                     let mut candidate_chain = Timechain::new(genesis_block);
                                     let mut valid = true;
                                     for b in peer_blocks.iter().skip(1) {
-                                        if candidate_chain.add_block(b.clone(), 1800).is_err() {
+                                        if candidate_chain.add_block(b.clone(), axiom_core::chain::TARGET_TIME).is_err() {
                                             println!("⚠️  Peer chain rejected: invalid block at slot {}", b.slot);
                                             valid = false;
                                             break;
@@ -605,8 +629,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 SwarmEvent::ConnectionEstablished { peer_id, endpoint: _, .. } => {
+                    let is_first_peer = connected_peers.is_empty();
                     connected_peers.insert(peer_id);
                     println!("🔗 Peer connected: {} | Total: {}", peer_id, connected_peers.len());
+
+                    // When the first peer connects, immediately request
+                    // chain sync so the node doesn't have to wait for the
+                    // 5-minute periodic sync timer.
+                    if is_first_peer {
+                        println!("🔄 First peer connected — requesting chain sync...");
+                        let _ = swarm.behaviour_mut().gossipsub.publish(
+                            req_topic.clone(), b"REQ_CHAIN".to_vec(),
+                        );
+                    }
                 }
 
                 SwarmEvent::ConnectionClosed { peer_id, .. } => {
@@ -673,9 +708,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 let ai = ai_guardian.lock().unwrap();
                 let stats = ai.get_stats();
-                println!("🤖 AI Guardian: {} events | {} peers tracked | {} assessments cached | model: {}…",
+                println!("🤖 AI Guardian: {} events | {} peers | {} cached | model: {}…",
                     stats.total_events, stats.unique_peers, stats.cached_assessments,
                     if stats.model_hash.len() >= 12 { &stats.model_hash[..12] } else { &stats.model_hash });
+                if stats.total_events == 0 && connected_peers.is_empty() {
+                    println!("   └─ No peer messages yet — stats populate when peers connect");
+                }
                 println!("------------------------\n");
 
                 // Update Public Pulse API state
