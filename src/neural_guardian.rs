@@ -68,11 +68,30 @@ pub struct NeuralNetwork {
 }
 
 impl NeuralNetwork {
-    /// Create a new neural network with random initialization
+    /// Create a new neural network with random initialization (non-deterministic).
+    /// Used for federated learning updates and experimentation.
     pub fn new() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        
+        Self::init_from_rng(&mut rng)
+    }
+
+    /// Create the canonical genesis neural network with a fixed seed.
+    ///
+    /// Every node in the network starts with the same deterministic initial
+    /// weights so that `GENESIS_WEIGHTS_HASH` can be verified at startup.
+    /// The seed is derived from the Axiom Genesis Anchor string.
+    pub fn new_genesis() -> Self {
+        use rand::SeedableRng;
+        // Deterministic seed derived from Genesis Anchor
+        let seed_bytes: [u8; 32] = *blake3::hash(
+            b"Axiom V4.0.0: Fully Decentralized. Non-Governance. Built for the World."
+        ).as_bytes();
+        let mut rng = rand::rngs::StdRng::from_seed(seed_bytes);
+        Self::init_from_rng(&mut rng)
+    }
+
+    fn init_from_rng<R: rand::Rng>(rng: &mut R) -> Self {
         let input_size = 10;
         let hidden_size = 64;
         let output_size = 6; // 6 threat types (including Benign)
@@ -214,8 +233,8 @@ impl Default for NeuralGuardian {
 
 impl NeuralGuardian {
     pub fn new() -> Self {
-        let model = NeuralNetwork::new();
-        // Compute hash of the freshly-initialised model weights
+        let model = NeuralNetwork::new_genesis();
+        // Compute hash of the deterministic genesis model weights
         let model_hash = Self::hash_model_weights(&model);
         Self {
             model,
@@ -889,24 +908,36 @@ mod tests {
 
     #[test]
     fn test_load_model_accepts_matching_hash() {
-        let mut guardian = NeuralGuardian::new();
-        // Serialize the default model and compute its hash
-        let model = NeuralNetwork::new();
+        // The genesis model is deterministic — verify that load_model
+        // accepts a weights file whose SHA-256 matches GENESIS_WEIGHTS_HASH.
+        let model = NeuralNetwork::new_genesis();
         let data = bincode::serialize(&model).unwrap();
         let hash = hex::encode(sha2::Sha256::digest(&data));
 
-        let tmp = std::env::temp_dir().join("axiom_test_good_weights.bin");
+        // Must match the hardcoded constant
+        assert_eq!(
+            hash,
+            crate::GENESIS_WEIGHTS_HASH,
+            "Deterministic genesis model hash must match GENESIS_WEIGHTS_HASH"
+        );
+
+        // Verify load_model accepts this file
+        let tmp = std::env::temp_dir().join("axiom_test_genesis_weights.bin");
         std::fs::write(&tmp, &data).unwrap();
 
-        // Temporarily check against the file hash (not GENESIS_WEIGHTS_HASH
-        // since the random model won't match the empty-file sentinel).
-        // We verify that load_model *would* pass if GENESIS_WEIGHTS_HASH
-        // equalled the file hash, by directly calling the hash computation.
-        let mut hasher = Sha256::new();
-        hasher.update(&data);
-        let file_hash = hex::encode(hasher.finalize());
-        assert_eq!(file_hash, hash, "SHA-256 must be deterministic");
-
+        let mut guardian = NeuralGuardian::new();
+        let result = guardian.load_model(tmp.clone());
         let _ = std::fs::remove_file(&tmp);
+        assert!(result.is_ok(), "load_model must accept genesis weights file");
+    }
+
+    #[test]
+    fn test_genesis_model_is_deterministic() {
+        // Two calls to new_genesis() must produce identical models
+        let model1 = NeuralNetwork::new_genesis();
+        let model2 = NeuralNetwork::new_genesis();
+        let data1 = bincode::serialize(&model1).unwrap();
+        let data2 = bincode::serialize(&model2).unwrap();
+        assert_eq!(data1, data2, "Genesis model must be deterministic across calls");
     }
 }

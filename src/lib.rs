@@ -150,19 +150,19 @@ pub const VERIFIED_GENESIS_ANCHOR_512: &str =
     "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
      0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4";
 
-/// SHA-256 fingerprint of the production NeuralGuardian `weights.bin`.
+/// SHA-256 fingerprint of the canonical NeuralGuardian genesis model.
+///
+/// The genesis model is deterministically initialised using
+/// [`NeuralNetwork::new_genesis()`] with an RNG seeded from the
+/// Genesis Anchor string, ensuring every node starts with identical
+/// initial weights.
 ///
 /// Every node **must** verify its local model file against this hash at
 /// startup via [`neural_guardian::NeuralGuardian::load_model`].  If the
 /// hashes diverge, the node panics — preventing tampered AI weights from
 /// silently corrupting trust decisions on the 124M network.
-///
-/// The current value is SHA-256 of an empty input, which is the sentinel
-/// value for nodes that have not yet loaded a trained model file.  When
-/// the first production model is trained and distributed, this constant
-/// must be updated to the real `sha256sum weights.bin` digest.
 pub const GENESIS_WEIGHTS_HASH: &str =
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    "771987fb80b7e8a2b20abd2625c1c14e8b8f39235df068251994f040152abd60";
 
 /// 512-bit BLAKE3 hash of the Genesis Pulse — the absolute origin of the
 /// tamper-evident pulse chain.

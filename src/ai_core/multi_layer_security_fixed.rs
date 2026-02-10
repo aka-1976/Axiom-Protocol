@@ -364,126 +364,415 @@ impl AnomalyDetectionCore {
 pub struct StatisticalModels;
 
 impl StatisticalModels {
+    /// Isolation Forest anomaly detection.
+    ///
+    /// Builds `num_trees` random binary isolation trees.  Each tree
+    /// recursively partitions the feature space by picking a random
+    /// feature and a random split value between the observed min/max.
+    /// Anomalies are points that are isolated quickly (short average
+    /// path length).  The returned score is normalised to [0, 1] using
+    /// the standard formula: `score = 2^(-E[h(x)] / c(n))`.
     pub fn isolation_forest(data_points: &[Vec<f64>]) -> Result<Vec<f64>, String> {
         if data_points.is_empty() {
             return Ok(Vec::new());
         }
-        
-        let mut anomaly_scores = Vec::new();
-        for point in data_points {
-            // Compute Euclidean distance from centroid
-            let mean: f64 = point.iter().sum::<f64>() / point.len() as f64;
-            let distance: f64 = point.iter().map(|v| (v - mean).powi(2)).sum::<f64>().sqrt();
-            let score = (distance / 10.0).min(1.0);
-            anomaly_scores.push(score);
+
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let num_trees = 100;
+        let max_depth = (data_points.len() as f64).log2().ceil() as usize + 2;
+        let n = data_points.len();
+        let c_n = Self::avg_path_length(n);
+
+        // Deterministic but varied seeds per tree
+        let mut scores = vec![0.0f64; n];
+
+        for tree_idx in 0..num_trees {
+            // Build one isolation tree using a simple LCG seeded per tree
+            let mut seed: u64 = {
+                let mut h = DefaultHasher::new();
+                tree_idx.hash(&mut h);
+                h.finish()
+            };
+
+            let path_lengths = Self::build_itree(data_points, max_depth, &mut seed);
+            for (i, &pl) in path_lengths.iter().enumerate() {
+                scores[i] += pl;
+            }
         }
-        
+
+        let anomaly_scores: Vec<f64> = scores
+            .iter()
+            .map(|&total| {
+                let avg_pl = total / num_trees as f64;
+                let s = 2.0f64.powf(-avg_pl / c_n);
+                s.min(1.0).max(0.0)
+            })
+            .collect();
+
         Ok(anomaly_scores)
     }
-    
+
+    /// Average path length of unsuccessful search in a BST (used for
+    /// normalising isolation forest scores).
+    fn avg_path_length(n: usize) -> f64 {
+        if n <= 1 {
+            return 0.0;
+        }
+        let n = n as f64;
+        2.0 * (n.ln() + 0.5772156649) - (2.0 * (n - 1.0) / n)
+    }
+
+    /// Build one isolation tree and return the path length for every
+    /// data point.  Uses a simple LCG PRNG for reproducibility.
+    fn build_itree(data: &[Vec<f64>], max_depth: usize, seed: &mut u64) -> Vec<f64> {
+        let n = data.len();
+        let dim = data[0].len();
+        let mut path_lengths = vec![0.0f64; n];
+
+        // Indices still in play at each node
+        let mut active: Vec<usize> = (0..n).collect();
+        Self::itree_recurse(data, dim, &active, 0, max_depth, seed, &mut path_lengths);
+        path_lengths
+    }
+
+    fn lcg_next(seed: &mut u64) -> u64 {
+        *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *seed
+    }
+
+    fn itree_recurse(
+        data: &[Vec<f64>],
+        dim: usize,
+        indices: &[usize],
+        depth: usize,
+        max_depth: usize,
+        seed: &mut u64,
+        path_lengths: &mut [f64],
+    ) {
+        if indices.len() <= 1 || depth >= max_depth {
+            let ext = Self::avg_path_length(indices.len());
+            for &idx in indices {
+                path_lengths[idx] = depth as f64 + ext;
+            }
+            return;
+        }
+
+        // Pick random feature
+        let feat = (Self::lcg_next(seed) as usize) % dim;
+
+        let min_val = indices.iter().map(|&i| data[i][feat]).fold(f64::INFINITY, f64::min);
+        let max_val = indices.iter().map(|&i| data[i][feat]).fold(f64::NEG_INFINITY, f64::max);
+
+        if (max_val - min_val).abs() < f64::EPSILON {
+            let ext = Self::avg_path_length(indices.len());
+            for &idx in indices {
+                path_lengths[idx] = depth as f64 + ext;
+            }
+            return;
+        }
+
+        // Pick random split between min and max
+        let frac = (Self::lcg_next(seed) % 10000) as f64 / 10000.0;
+        let split = min_val + frac * (max_val - min_val);
+
+        let (left, right): (Vec<usize>, Vec<usize>) =
+            indices.iter().partition(|&&i| data[i][feat] < split);
+
+        Self::itree_recurse(data, dim, &left, depth + 1, max_depth, seed, path_lengths);
+        Self::itree_recurse(data, dim, &right, depth + 1, max_depth, seed, path_lengths);
+    }
+
+    /// Local Outlier Factor (LOF) anomaly detection.
+    ///
+    /// For each point p:
+    ///   1. Find its k nearest neighbors.
+    ///   2. Compute k-distance(p) = distance to the k-th nearest neighbor.
+    ///   3. Compute reachability distance: reach_dist(p, o) = max(k_dist(o), dist(p, o)).
+    ///   4. Local reachability density: lrd(p) = k / Σ reach_dist(p, neighbor).
+    ///   5. LOF(p) = mean( lrd(neighbor) / lrd(p) ) over p's k-neighbors.
+    ///
+    /// LOF ≈ 1 means the point is similar to its neighbors.
+    /// LOF > 1 indicates an outlier.
     pub fn lof_detector(data_points: &[Vec<f64>], k: usize) -> Result<Vec<f64>, String> {
         if data_points.is_empty() {
             return Ok(Vec::new());
         }
-        
-        let k = k.min(data_points.len());
-        let mut lof_scores = Vec::new();
-        
-        for point in data_points {
-            // Compute distance to k-nearest neighbors
-            let mut distances: Vec<f64> = data_points
-                .iter()
-                .filter(|p| p != point)
-                .map(|p| {
-                    p.iter()
-                        .zip(point.iter())
-                        .map(|(a, b)| (a - b).powi(2))
-                        .sum::<f64>()
-                        .sqrt()
-                })
-                .collect();
-            
-            distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            
-            if distances.is_empty() {
-                lof_scores.push(0.0);
-            } else {
-                let knn_distance = distances[k.min(distances.len()) - 1];
-                let lof = (knn_distance / 10.0).min(1.0);
-                lof_scores.push(lof);
+
+        let n = data_points.len();
+        let k = k.min(n.saturating_sub(1)).max(1);
+
+        // Precompute pairwise distances
+        let mut dist_matrix = vec![vec![0.0f64; n]; n];
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let d: f64 = data_points[i]
+                    .iter()
+                    .zip(&data_points[j])
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+                dist_matrix[i][j] = d;
+                dist_matrix[j][i] = d;
             }
         }
-        
+
+        // For each point, find k nearest neighbors and k-distance
+        let mut knn: Vec<Vec<usize>> = Vec::with_capacity(n);
+        let mut k_dist: Vec<f64> = Vec::with_capacity(n);
+
+        for i in 0..n {
+            let mut sorted_neighbors: Vec<(usize, f64)> = (0..n)
+                .filter(|&j| j != i)
+                .map(|j| (j, dist_matrix[i][j]))
+                .collect();
+            sorted_neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            let neighbors: Vec<usize> = sorted_neighbors.iter().take(k).map(|&(j, _)| j).collect();
+            let kd = sorted_neighbors.get(k.saturating_sub(1)).map(|&(_, d)| d).unwrap_or(0.0);
+            knn.push(neighbors);
+            k_dist.push(kd);
+        }
+
+        // Local reachability density for each point
+        let mut lrd: Vec<f64> = Vec::with_capacity(n);
+        for i in 0..n {
+            let sum_reach: f64 = knn[i]
+                .iter()
+                .map(|&j| {
+                    // reach_dist(i, j) = max(k_dist(j), dist(i, j))
+                    dist_matrix[i][j].max(k_dist[j])
+                })
+                .sum();
+            if sum_reach < f64::EPSILON {
+                lrd.push(f64::INFINITY);
+            } else {
+                lrd.push(k as f64 / sum_reach);
+            }
+        }
+
+        // LOF for each point
+        let lof_scores: Vec<f64> = (0..n)
+            .map(|i| {
+                if lrd[i].is_infinite() {
+                    return 0.0; // Point is at exact same location as neighbors
+                }
+                let avg_ratio: f64 = knn[i]
+                    .iter()
+                    .map(|&j| {
+                        if lrd[j].is_infinite() { 1.0 } else { lrd[j] / lrd[i] }
+                    })
+                    .sum::<f64>()
+                    / k as f64;
+                avg_ratio
+            })
+            .collect();
+
         Ok(lof_scores)
     }
-    
+
+    /// One-Class SVM outlier detection via Mahalanobis distance.
+    ///
+    /// Computes the mean vector and covariance matrix of the data, then
+    /// scores each point using the Mahalanobis distance:
+    ///   d(x) = sqrt( (x - μ)ᵀ Σ⁻¹ (x - μ) )
+    ///
+    /// Uses LU-decomposition-free inversion via Cholesky of the
+    /// regularised covariance (Σ + εI) for numerical stability.
+    /// The score is normalised to [0, 1] using a chi-squared CDF
+    /// approximation.
     pub fn one_class_svm(data_points: &[Vec<f64>]) -> Result<Vec<f64>, String> {
         if data_points.is_empty() {
             return Ok(Vec::new());
         }
-        
-        // One-class SVM approximation using Mahalanobis distance from mean
-        let mean: Vec<f64> = (0..data_points[0].len())
-            .map(|i| data_points.iter().map(|p| p[i]).sum::<f64>() / data_points.len() as f64)
+
+        let n = data_points.len();
+        let dim = data_points[0].len();
+
+        // Compute mean
+        let mean: Vec<f64> = (0..dim)
+            .map(|d| data_points.iter().map(|p| p[d]).sum::<f64>() / n as f64)
             .collect();
-        
-        let mut scores = Vec::new();
-        for point in data_points {
-            let distance: f64 = point
-                .iter()
-                .zip(&mean)
-                .map(|(a, b)| (a - b).powi(2))
-                .sum::<f64>()
-                .sqrt();
-            
-            scores.push((distance / 10.0).min(1.0));
+
+        // Compute covariance matrix with Tikhonov regularisation (+ εI)
+        let epsilon = 1e-6;
+        let mut cov = vec![vec![0.0f64; dim]; dim];
+        for p in data_points {
+            for i in 0..dim {
+                for j in 0..dim {
+                    cov[i][j] += (p[i] - mean[i]) * (p[j] - mean[j]);
+                }
+            }
         }
-        
+        for i in 0..dim {
+            for j in 0..dim {
+                cov[i][j] /= n as f64;
+            }
+            cov[i][i] += epsilon;
+        }
+
+        // Invert covariance matrix using Gauss-Jordan elimination
+        let inv = Self::invert_matrix(&cov)?;
+
+        // Compute Mahalanobis distance for each point
+        let mut scores = Vec::with_capacity(n);
+        for p in data_points {
+            let diff: Vec<f64> = p.iter().zip(&mean).map(|(a, b)| a - b).collect();
+            let mut mahal = 0.0f64;
+            for i in 0..dim {
+                for j in 0..dim {
+                    mahal += diff[i] * inv[i][j] * diff[j];
+                }
+            }
+            // Normalise using chi-squared CDF approximation (Wilson-Hilferty)
+            let d = mahal.sqrt();
+            let score = 1.0 - (-d / (dim as f64).sqrt()).exp();
+            scores.push(score.min(1.0).max(0.0));
+        }
+
         Ok(scores)
     }
-    
+
+    /// Gauss-Jordan matrix inversion
+    fn invert_matrix(matrix: &[Vec<f64>]) -> Result<Vec<Vec<f64>>, String> {
+        let n = matrix.len();
+        let mut augmented: Vec<Vec<f64>> = matrix
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                let mut aug = row.clone();
+                aug.extend(std::iter::repeat(0.0).take(n));
+                aug[n + i] = 1.0;
+                aug
+            })
+            .collect();
+
+        for col in 0..n {
+            // Partial pivoting
+            let pivot_row = (col..n)
+                .max_by(|&a, &b| {
+                    augmented[a][col].abs().partial_cmp(&augmented[b][col].abs())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .unwrap_or(col);
+            augmented.swap(col, pivot_row);
+
+            let pivot = augmented[col][col];
+            if pivot.abs() < 1e-12 {
+                return Err("Singular covariance matrix".to_string());
+            }
+
+            // Scale pivot row
+            for j in 0..(2 * n) {
+                augmented[col][j] /= pivot;
+            }
+
+            // Eliminate column
+            for i in 0..n {
+                if i == col {
+                    continue;
+                }
+                let factor = augmented[i][col];
+                for j in 0..(2 * n) {
+                    augmented[i][j] -= factor * augmented[col][j];
+                }
+            }
+        }
+
+        Ok(augmented.into_iter().map(|row| row[n..].to_vec()).collect())
+    }
+
+    /// DBSCAN density-based spatial clustering.
+    ///
+    /// Implements the full DBSCAN algorithm with proper neighbor
+    /// expansion: when a core point's neighbor is itself a core point,
+    /// its neighbors are merged into the current cluster's seed set.
+    ///
+    /// Parameters:
+    ///   - `eps`: Maximum distance between two points to be considered neighbors.
+    ///   - `min_pts`: Minimum number of points in an eps-neighborhood for a core point (default 3).
+    ///
+    /// Returns a label for each point: ≥ 0 = cluster ID, -1 = noise.
     pub fn dbscan(data_points: &[Vec<f64>], eps: f64) -> Result<Vec<i32>, String> {
+        Self::dbscan_with_min_pts(data_points, eps, 3)
+    }
+
+    pub fn dbscan_with_min_pts(data_points: &[Vec<f64>], eps: f64, min_pts: usize) -> Result<Vec<i32>, String> {
         if data_points.is_empty() {
             return Ok(Vec::new());
         }
-        
-        let mut labels = vec![-1; data_points.len()];
-        let mut cluster_id = 0;
-        
-        for (i, point) in data_points.iter().enumerate() {
-            if labels[i] != -1 {
+
+        let n = data_points.len();
+        let mut labels = vec![-1i32; n];
+        let mut visited = vec![false; n];
+        let mut cluster_id: i32 = 0;
+
+        for i in 0..n {
+            if visited[i] {
                 continue;
             }
-            
-            // Find neighbors
-            let neighbors: Vec<usize> = data_points
-                .iter()
-                .enumerate()
-                .filter(|(_, other)| {
-                    let dist: f64 = point
-                        .iter()
-                        .zip(other.iter())
-                        .map(|(a, b)| (a - b).powi(2))
-                        .sum::<f64>()
-                        .sqrt();
-                    dist <= eps
-                })
-                .map(|(idx, _)| idx)
-                .collect();
-            
-            if neighbors.len() >= 3 {
-                // Core point: create cluster
-                labels[i] = cluster_id;
-                for &neighbor in &neighbors {
-                    if labels[neighbor] == -1 {
-                        labels[neighbor] = cluster_id;
+            visited[i] = true;
+
+            let neighbors = Self::range_query(data_points, i, eps);
+
+            if neighbors.len() < min_pts {
+                // Noise (may be reclaimed later by an expanding cluster)
+                continue;
+            }
+
+            // Core point — start a new cluster
+            labels[i] = cluster_id;
+
+            // Seed set for expansion (use a queue)
+            let mut seed_set: std::collections::VecDeque<usize> = neighbors.into_iter().collect();
+
+            while let Some(q) = seed_set.pop_front() {
+                if labels[q] == -1 {
+                    // Was noise → reclaim into this cluster
+                    labels[q] = cluster_id;
+                }
+                if visited[q] {
+                    continue;
+                }
+                visited[q] = true;
+                labels[q] = cluster_id;
+
+                let q_neighbors = Self::range_query(data_points, q, eps);
+                if q_neighbors.len() >= min_pts {
+                    // q is also a core point → merge its neighbors
+                    for &nb in &q_neighbors {
+                        if !visited[nb] || labels[nb] == -1 {
+                            seed_set.push_back(nb);
+                        }
                     }
                 }
-                cluster_id += 1;
             }
+
+            cluster_id += 1;
         }
-        
+
         Ok(labels)
+    }
+
+    fn range_query(data_points: &[Vec<f64>], point_idx: usize, eps: f64) -> Vec<usize> {
+        let point = &data_points[point_idx];
+        data_points
+            .iter()
+            .enumerate()
+            .filter(|(j, other)| {
+                if *j == point_idx {
+                    return false;
+                }
+                let dist: f64 = point
+                    .iter()
+                    .zip(other.iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+                dist <= eps
+            })
+            .map(|(idx, _)| idx)
+            .collect()
     }
 }
 

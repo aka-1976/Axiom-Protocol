@@ -80,48 +80,18 @@ pub fn generate_zk_pass(wallet: &Wallet, parent_hash: [u8; 32]) -> Vec<u8> {
 }
 
 /// Generate ZK-STARK proof for a transaction.
+///
 /// Delegates to the Winterfell-based circuit in `zk::generate_transaction_proof`
-/// for full cryptographic privacy.  The 128-byte hash-based format is reserved
-/// for mining proofs only.
+/// for full cryptographic privacy.  If the STARK circuit fails, the error is
+/// propagated — there is **no** silent fallback to non-ZK proofs for
+/// transactions.  (Mining proofs use a separate 128-byte hash-based format.)
 pub fn generate_transaction_proof(
     secret_key: &[u8; 32],
     current_balance: u64,
     transfer_amount: u64,
     fee: u64,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    // Use the production Winterfell ZK-STARK circuit for transaction proofs.
-    // Falls back to a deterministic hash-based proof when the circuit is
-    // unavailable (e.g. constrained environments).
-    match zk::generate_transaction_proof(secret_key, current_balance, transfer_amount, fee) {
-        Ok(proof) => Ok(proof),
-        Err(e) => {
-            eprintln!("⚠️  ZK-STARK circuit unavailable, using hash-based fallback: {}", e);
-            // Deterministic hash-based fallback (128-byte format).
-            // Uses blake3 512-bit XOF for full collision resistance:
-            //   bytes  0..64  — blake3_512(secret_key || balance || amount || fee)
-            //   bytes 64..128 — blake3_512(address    || amount  || fee)  [verifiable]
-            let mut proof_data = vec![0u8; 128];
-
-            // Secret commitment (512-bit)
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(secret_key);
-            hasher.update(&current_balance.to_le_bytes());
-            hasher.update(&transfer_amount.to_le_bytes());
-            hasher.update(&fee.to_le_bytes());
-            hasher.finalize_xof().fill(&mut proof_data[..64]);
-
-            // Public commitment (512-bit) — derive address from secret key
-            let signing_key = ed25519_dalek::SigningKey::from_bytes(secret_key);
-            let address = ed25519_dalek::VerifyingKey::from(&signing_key).to_bytes();
-            let mut hasher = blake3::Hasher::new();
-            hasher.update(&address);
-            hasher.update(&transfer_amount.to_le_bytes());
-            hasher.update(&fee.to_le_bytes());
-            hasher.finalize_xof().fill(&mut proof_data[64..128]);
-
-            Ok(proof_data)
-        }
-    }
+    zk::generate_transaction_proof(secret_key, current_balance, transfer_amount, fee)
 }
 
 /// Verify ZK-STARK proof for a transaction

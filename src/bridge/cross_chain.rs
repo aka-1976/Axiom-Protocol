@@ -377,9 +377,6 @@ impl BridgeOracle {
     }
     
     async fn get_block_number_static(chain: &ChainId) -> Result<u64, String> {
-        // Query the RPC endpoint for the current block number.
-        // For the Axiom native chain, read from local storage.
-        // For external chains, the operator configures their RPC keys.
         match chain {
             ChainId::Axiom => {
                 // Read from local chain storage
@@ -387,14 +384,71 @@ impl BridgeOracle {
                 Ok(blocks.map(|b| b.len() as u64).unwrap_or(1))
             }
             _ => {
-                // External chain query requires configured RPC keys
-                Err(format!(
-                    "External chain {:?} block query requires RPC configuration (set AXIOM_RPC_{})",
-                    chain,
-                    format!("{:?}", chain).to_uppercase()
-                ))
+                // External EVM-compatible chain: issue an eth_blockNumber
+                // JSON-RPC call to the configured endpoint.
+                let rpc_url = Self::resolve_rpc_url(chain)?;
+                Self::eth_block_number(&rpc_url).await
             }
         }
+    }
+
+    /// Resolve the RPC URL for an external chain.
+    ///
+    /// Checks for an operator-supplied override in
+    /// `AXIOM_RPC_<CHAIN>` (e.g. `AXIOM_RPC_ETHEREUM`) first, then
+    /// falls back to the default public endpoint from [`ChainId::rpc_url`].
+    fn resolve_rpc_url(chain: &ChainId) -> Result<String, String> {
+        let env_key = format!("AXIOM_RPC_{}", format!("{:?}", chain).to_uppercase());
+        match std::env::var(&env_key) {
+            Ok(url) if !url.is_empty() => Ok(url),
+            _ => Ok(chain.rpc_url().to_string()),
+        }
+    }
+
+    /// Issue an `eth_blockNumber` JSON-RPC call and parse the hex response.
+    async fn eth_block_number(rpc_url: &str) -> Result<u64, String> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| format!("HTTP client error: {}", e))?;
+
+        let body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "eth_blockNumber",
+            "params": [],
+            "id": 1
+        });
+
+        let resp = client
+            .post(rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("RPC request to {} failed: {}", rpc_url, e))?;
+
+        if !resp.status().is_success() {
+            return Err(format!("RPC endpoint {} returned HTTP {}", rpc_url, resp.status()));
+        }
+
+        let json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse RPC response: {}", e))?;
+
+        // Handle JSON-RPC error
+        if let Some(err) = json.get("error") {
+            return Err(format!("RPC error: {}", err));
+        }
+
+        let hex_str = json
+            .get("result")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing 'result' in RPC response".to_string())?;
+
+        // Parse hex block number (e.g. "0x1234abc")
+        let hex_trimmed = hex_str.trim_start_matches("0x");
+        u64::from_str_radix(hex_trimmed, 16)
+            .map_err(|e| format!("Invalid block number '{}': {}", hex_str, e))
     }
 }
 
