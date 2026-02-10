@@ -11,7 +11,7 @@ pub const MAX_SUPPLY: u64 = 124_000_000_000_000_000; // 124M AXM in smallest uni
 pub const DECIMALS: u32 = 8;
 
 /// THE SOVEREIGN ANCHOR: Updated for V4.2.0 (Block struct now includes timestamp).
-pub const GENESIS_ANCHOR: &str = "39f02302c5a5f79b0b37431f63fef136b98af7b2ddccf519d15022f963749aec";
+pub const GENESIS_ANCHOR: &str = "fa27cb58a0c18701f6340a59ada679a5334f8e6f607dd78d9759c7c3be4718ad";
 
 pub struct Timechain {
     pub blocks: Vec<Block>,
@@ -159,6 +159,10 @@ impl Timechain {
 
         // 8. APPLY BLOCK
         self.seen_hashes.insert(block_hash);
+        // Compute elapsed time from block timestamps.  min(1) prevents
+        // division by zero in adjust_difficulty when two blocks carry the
+        // same second-resolution timestamp (e.g. during testing or when
+        // miners have synchronized clocks).
         let elapsed = block.timestamp.saturating_sub(prev_ts).max(1);
         self.blocks.push(block.clone());
 

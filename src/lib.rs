@@ -148,8 +148,8 @@ pub use genesis::GENESIS_ANCHOR_512;
 /// `AxiomPulse::verify_genesis()` performs a strict bitwise match against
 /// this constant to prevent supply drift or unauthorized chain forks.
 pub const VERIFIED_GENESIS_ANCHOR_512: &str =
-    "39f02302c5a5f79b0b37431f63fef136b98af7b2ddccf519d15022f963749aec\
-     40e5923ccbb17ea6ee079f12323a6673a048cf9ccbbc3b3559792cebf9728293";
+    "fa27cb58a0c18701f6340a59ada679a5334f8e6f607dd78d9759c7c3be4718ad\
+     58c1dad68b653125a06d424d048fa19af5b9edf1effaff04deed2f95694245f3";
 
 /// SHA-256 fingerprint of the canonical NeuralGuardian genesis model.
 ///
@@ -237,8 +237,8 @@ mod tests {
     fn test_verified_genesis_anchor_512_value() {
         assert_eq!(
             VERIFIED_GENESIS_ANCHOR_512,
-            "39f02302c5a5f79b0b37431f63fef136b98af7b2ddccf519d15022f963749aec\
-             40e5923ccbb17ea6ee079f12323a6673a048cf9ccbbc3b3559792cebf9728293"
+            "fa27cb58a0c18701f6340a59ada679a5334f8e6f607dd78d9759c7c3be4718ad\
+             58c1dad68b653125a06d424d048fa19af5b9edf1effaff04deed2f95694245f3"
         );
     }
 

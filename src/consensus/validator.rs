@@ -127,7 +127,7 @@ mod tests {
         Block {
             parent: [0u8; 32],
             slot: 1,
-            timestamp: 1800, // TARGET_TIME after genesis
+            timestamp: crate::genesis::GENESIS_TIMESTAMP + crate::chain::TARGET_TIME,
             miner: [3u8; 32],
             transactions: vec![sample_tx()],
             vdf_proof: [0u8; 32],
