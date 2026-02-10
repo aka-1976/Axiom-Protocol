@@ -59,13 +59,16 @@ pub struct MetricsCollector {
     block_latencies: Arc<RwLock<VecDeque<u64>>>,
     /// Rolling window of transaction validation latencies (microseconds)
     tx_latencies: Arc<RwLock<VecDeque<u64>>>,
-    /// Timestamps of recent transactions for throughput calculation
-    tx_timestamps: Arc<RwLock<VecDeque<Instant>>>,
+    /// (timestamp, count) tuples for throughput calculation
+    tx_timestamps: Arc<RwLock<VecDeque<(Instant, u64)>>>,
+    /// Cached RSS value and last refresh time
+    rss_cache: Arc<RwLock<(u64, Instant)>>,
 }
 
 const MAX_BLOCK_LATENCY_SAMPLES: usize = 100;
 const MAX_TX_LATENCY_SAMPLES: usize = 1000;
 const THROUGHPUT_WINDOW_SECS: u64 = 60;
+const RSS_CACHE_INTERVAL_SECS: u64 = 5;
 
 impl MetricsCollector {
     pub fn new() -> Self {
@@ -75,6 +78,7 @@ impl MetricsCollector {
             block_latencies: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_BLOCK_LATENCY_SAMPLES))),
             tx_latencies: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_TX_LATENCY_SAMPLES))),
             tx_timestamps: Arc::new(RwLock::new(VecDeque::new())),
+            rss_cache: Arc::new(RwLock::new((0, Instant::now()))),
         }
     }
     
@@ -91,15 +95,13 @@ impl MetricsCollector {
         m.transactions_received += count;
         drop(m);
 
-        // Record transaction timestamps for throughput calculation
+        // Record a single (timestamp, count) entry for throughput calculation
         let now = Instant::now();
         let mut ts = self.tx_timestamps.write();
-        for _ in 0..count {
-            ts.push_back(now);
-        }
-        // Prune old timestamps beyond the throughput window
+        ts.push_back((now, count));
+        // Prune old entries beyond the throughput window
         let cutoff = now - std::time::Duration::from_secs(THROUGHPUT_WINDOW_SECS);
-        while ts.front().map_or(false, |&t| t < cutoff) {
+        while ts.front().map_or(false, |(t, _)| *t < cutoff) {
             ts.pop_front();
         }
     }
@@ -164,11 +166,19 @@ impl MetricsCollector {
         let now = Instant::now();
         let cutoff = now - std::time::Duration::from_secs(THROUGHPUT_WINDOW_SECS);
         let ts = self.tx_timestamps.read();
-        let recent_count = ts.iter().filter(|&&t| t >= cutoff).count();
+        let recent_count: u64 = ts.iter()
+            .filter(|(t, _)| *t >= cutoff)
+            .map(|(_, count)| count)
+            .sum();
         metrics.tx_throughput = recent_count as f64 / THROUGHPUT_WINDOW_SECS as f64;
 
-        // Read memory usage from /proc/self/status if available
-        metrics.memory_usage_bytes = read_rss_bytes();
+        // Read memory usage with caching to avoid frequent /proc reads
+        let mut rss = self.rss_cache.write();
+        if rss.1.elapsed().as_secs() >= RSS_CACHE_INTERVAL_SECS {
+            rss.0 = read_rss_bytes();
+            rss.1 = Instant::now();
+        }
+        metrics.memory_usage_bytes = rss.0;
 
         metrics
     }

@@ -219,8 +219,10 @@ impl NeuralGuardian {
             .open("ai_training_data.csv")
         {
             Ok(mut file) => {
-                writeln!(file, "{},false_positive,details_here",
-                         chrono::Utc::now().timestamp()).ok();
+                writeln!(file, "{},false_positive,fp_count={},threshold={:.3}",
+                         chrono::Utc::now().timestamp(),
+                         self.stats.false_positives,
+                         self.confidence_threshold).ok();
             }
             Err(e) => {
                 log::warn!("Failed to save false positive case: {}", e);

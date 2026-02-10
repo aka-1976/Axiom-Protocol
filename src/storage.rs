@@ -23,10 +23,11 @@ pub fn save_chain(blocks: &[Block]) {
             if file.write_all(&encoded).is_ok() {
                 // Atomic rename: This is the moment the "Self-Healing" is locked in
                 if let Err(e) = std::fs::rename(&temp_path, DB_PATH) {
-                    log::error!("STORAGE: Atomic rename failed: {}", e);
+                    log::error!("STORAGE: Atomic rename failed, temp file left at {}: {}", temp_path, e);
                 }
             } else {
-                log::error!("STORAGE: Write to temp file failed");
+                log::error!("STORAGE: Write to temp file failed, removing partial file");
+                let _ = std::fs::remove_file(&temp_path);
             }
         }
         Err(e) => log::error!("STORAGE: Could not write to disk: {}", e),
