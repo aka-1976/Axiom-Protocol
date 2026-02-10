@@ -17,8 +17,8 @@ pub const GENESIS_TIMESTAMP: u64 = 1737331200;
 /// Every node verifies this anchor on startup. A node with a different
 /// genesis hash is automatically rejected by the Discv5 discovery layer.
 pub const GENESIS_ANCHOR_512: &str =
-    "fa27cb58a0c18701f6340a59ada679a5334f8e6f607dd78d9759c7c3be4718ad\
-     58c1dad68b653125a06d424d048fa19af5b9edf1effaff04deed2f95694245f3";
+    "2b3ef0c4f235645a868eb66de324756e2dc91e7d2df99e54cc58bbed3a6e4070\
+     79b6445fdcafc3fc9127164756f0e7c1509e65e2977a4c01559e69725dbf16a5";
 
 /// The "Gatekeeper" function for the decentralized network.
 /// Verifies a mining proof by checking its format and the deterministic
@@ -139,6 +139,7 @@ impl Block {
         // Manual Feed to maintain strict control over the protocol format
         hasher.update(&self.parent);
         hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.timestamp.to_be_bytes());
         hasher.update(&self.miner);
         hasher.update(&self.vdf_proof);
         hasher.update(&self.zk_proof);
@@ -159,6 +160,7 @@ impl Block {
 
         hasher.update(&self.parent);
         hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.timestamp.to_be_bytes());
         hasher.update(&self.miner);
         hasher.update(&self.vdf_proof);
         hasher.update(&self.zk_proof);

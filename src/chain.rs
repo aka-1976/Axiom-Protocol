@@ -11,7 +11,7 @@ pub const MAX_SUPPLY: u64 = 124_000_000_000_000_000; // 124M AXM in smallest uni
 pub const DECIMALS: u32 = 8;
 
 /// THE SOVEREIGN ANCHOR: Updated for V4.2.0 (Block struct now includes timestamp).
-pub const GENESIS_ANCHOR: &str = "fa27cb58a0c18701f6340a59ada679a5334f8e6f607dd78d9759c7c3be4718ad";
+pub const GENESIS_ANCHOR: &str = "2b3ef0c4f235645a868eb66de324756e2dc91e7d2df99e54cc58bbed3a6e4070";
 
 pub struct Timechain {
     pub blocks: Vec<Block>,

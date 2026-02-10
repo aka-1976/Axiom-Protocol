@@ -217,13 +217,24 @@ mod security_tests {
             }
         } else {
             println!("Wallet has zero balance, creating transaction with fake balance");
-            // Simulate having balance for testing
+            // Try to create a transaction that exceeds the declared balance.
+            // create_transaction itself should reject this.
             let fake_balance = 100_000_000;
-            let tx = wallet.create_transaction(to_address, fake_balance + 50_000_000, fee, 0, fake_balance).unwrap();
+            let tx_result = wallet.create_transaction(to_address, fake_balance + 50_000_000, fee, 0, fake_balance);
             
-            // Validation should fail because actual balance is less
-            let validation = chain.validate_transaction(&tx);
-            println!("Validation with fake balance: {:?}", validation);
+            // Either creation fails (amount+fee > balance) or validation fails
+            match tx_result {
+                Err(e) => {
+                    println!("Transaction correctly rejected at creation: {}", e);
+                    // This is the expected path — insufficient balance caught at creation
+                }
+                Ok(tx) => {
+                    // If creation somehow succeeded, chain validation must reject it
+                    let validation = chain.validate_transaction(&tx);
+                    println!("Validation with fake balance: {:?}", validation);
+                    assert!(validation.is_err(), "Transaction with insufficient balance should be rejected");
+                }
+            }
         }
     }
 
