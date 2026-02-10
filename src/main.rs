@@ -774,7 +774,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     // search the same nonce space — essential for real multi-node mining.
                     let nonce_start: u64 = rand::random();
                     let mut nonce = nonce_start;
-                    let max_attempts = 100_000u64;
+                    // Scale nonce search budget to difficulty.  At difficulty D the
+                    // expected number of hashes to find a valid nonce is D, so we
+                    // budget 10× that (minimum 100K) to give a >99.99% success
+                    // probability per VDF round.
+                    let max_attempts = (tc.difficulty.saturating_mul(10)).max(100_000);
 
                     let mut attempts = 0u64;
                     while attempts < max_attempts {

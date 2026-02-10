@@ -165,14 +165,31 @@ impl Timechain {
         Ok(())
     }
 
-    /// Adjust difficulty based on block time
+    /// Adjust difficulty based on block time using proportional adjustment.
+    ///
+    /// The ratio `TARGET_TIME / elapsed` tells us how much faster or slower
+    /// the last block was compared to the 30-minute target:
+    ///   - ratio > 1.0 → block was too fast  → increase difficulty
+    ///   - ratio < 1.0 → block was too slow  → decrease difficulty
+    ///   - ratio = 1.0 → block was on target → no change
+    ///
+    /// The adjustment is clamped to ±25% per block to prevent sudden jumps
+    /// from outlier block times while still responding meaningfully to
+    /// sustained hashrate changes.
     fn adjust_difficulty(&mut self, elapsed: u64) {
-        // Simple difficulty adjustment
-        if elapsed < TARGET_TIME {
-            self.difficulty = self.difficulty.saturating_add(1);
-        } else if elapsed > TARGET_TIME {
-            self.difficulty = self.difficulty.saturating_sub(1).max(1);
-        }
+        // Avoid division by zero; treat instant blocks as minimum 1 second
+        let elapsed = elapsed.max(1);
+
+        // Proportional ratio: how far off from target?
+        let ratio = TARGET_TIME as f64 / elapsed as f64;
+
+        // Clamp to [0.75, 1.25] — at most 25% change per block
+        let clamped = ratio.max(0.75).min(1.25);
+
+        let new_difficulty = (self.difficulty as f64 * clamped) as u64;
+
+        // Enforce minimum difficulty of 1
+        self.difficulty = new_difficulty.max(1);
     }
 
     /// Get current balance for address
