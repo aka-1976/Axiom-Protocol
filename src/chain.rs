@@ -10,8 +10,8 @@ pub const INITIAL_REWARD: u64 = 50_000_000_000; // 500 AXM (8 decimals)
 pub const MAX_SUPPLY: u64 = 124_000_000_000_000_000; // 124M AXM in smallest units
 pub const DECIMALS: u32 = 8;
 
-/// THE SOVEREIGN ANCHOR: Hardcoded from your 2026-01-11 solo mine.
-pub const GENESIS_ANCHOR: &str = "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c";
+/// THE SOVEREIGN ANCHOR: Updated for V4.2.0 (Block struct now includes timestamp).
+pub const GENESIS_ANCHOR: &str = "39f02302c5a5f79b0b37431f63fef136b98af7b2ddccf519d15022f963749aec";
 
 pub struct Timechain {
     pub blocks: Vec<Block>,
@@ -100,7 +100,7 @@ impl Timechain {
     }
 
     /// The Core Consensus Logic: VDF + PoW + Self-Healing
-    pub fn add_block(&mut self, block: Block, elapsed: u64) -> Result<(), &'static str> {
+    pub fn add_block(&mut self, block: Block) -> Result<(), &'static str> {
         // 1. DUPLICATE & INJECTION PROTECTION
         let block_hash = block.calculate_hash();
         if self.seen_hashes.contains(&block_hash) {
@@ -108,7 +108,8 @@ impl Timechain {
         }
 
         // 2. VALIDATE BLOCK STRUCTURE
-        if block.parent != self.blocks.last().unwrap().hash() {
+        let prev_block = self.blocks.last().unwrap();
+        if block.parent != prev_block.hash() {
             return Err("Invalid parent hash");
         }
 
@@ -116,7 +117,22 @@ impl Timechain {
             return Err("Invalid block slot");
         }
 
-        // 3. VALIDATE VDF PROOF
+        // 3. VALIDATE TIMESTAMP
+        // Block timestamp must be ≥ parent's timestamp (no time travel).
+        // Allow up to 2 minutes in the future to tolerate clock skew.
+        let prev_ts = prev_block.timestamp;
+        if block.timestamp < prev_ts {
+            return Err("Block timestamp before parent");
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if block.timestamp > now + 120 {
+            return Err("Block timestamp too far in the future");
+        }
+
+        // 4. VALIDATE VDF PROOF
         let expected_vdf = crate::main_helper::compute_vdf(
             crate::vdf::evaluate(block.parent, block.slot),
             self.difficulty as u32
@@ -125,27 +141,28 @@ impl Timechain {
             return Err("Invalid VDF proof");
         }
 
-        // 4. VALIDATE POW
+        // 5. VALIDATE POW
         if !block.meets_difficulty(self.difficulty) {
             return Err("Block doesn't meet difficulty requirement");
         }
 
-        // 5. VALIDATE TRANSACTIONS
+        // 6. VALIDATE TRANSACTIONS
         for tx in &block.transactions {
             let sender_balance = self.state.balance(&tx.from);
             tx.validate(sender_balance)?;
         }
 
-        // 6. VALIDATE ZK PASS FOR MINER
+        // 7. VALIDATE ZK PASS FOR MINER
         if !crate::genesis::verify_zk_pass(&block.miner, &block.parent, &block.zk_proof) {
             return Err("Invalid miner ZK pass");
         }
 
-        // 7. APPLY BLOCK
+        // 8. APPLY BLOCK
         self.seen_hashes.insert(block_hash);
+        let elapsed = block.timestamp.saturating_sub(prev_ts).max(1);
         self.blocks.push(block.clone());
 
-        // 8. UPDATE STATE
+        // 9. UPDATE STATE
         let reward = economics::block_reward(block.slot, self.total_issued);
         if reward > 0 && block.miner != [0u8; 32] {
             self.state.credit(block.miner, reward);
@@ -154,12 +171,11 @@ impl Timechain {
 
         for tx in &block.transactions {
             if self.state.apply_tx(tx).is_err() {
-                // This shouldn't happen since we validated above
                 return Err("Transaction application failed");
             }
         }
 
-        // 9. ADJUST DIFFICULTY
+        // 10. ADJUST DIFFICULTY based on actual block time
         self.adjust_difficulty(elapsed);
 
         Ok(())

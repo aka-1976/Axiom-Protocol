@@ -53,6 +53,7 @@ use crate::transaction::{Transaction, Address};
 pub struct Block {
     pub parent: [u8; 32],
     pub slot: u64,
+    pub timestamp: u64, // UNIX seconds — miner's wall-clock at block creation
     pub miner: Address,
     pub transactions: Vec<Transaction>,
     pub vdf_proof: [u8; 32],
@@ -119,9 +120,14 @@ impl Block {
         zk_proof: Vec<u8>,
         nonce: u64,
     ) -> Self {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
         Self {
             parent,
             slot,
+            timestamp,
             miner,
             transactions,
             vdf_proof,

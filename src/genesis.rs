@@ -17,8 +17,8 @@ pub const GENESIS_TIMESTAMP: u64 = 1737331200;
 /// Every node verifies this anchor on startup. A node with a different
 /// genesis hash is automatically rejected by the Discv5 discovery layer.
 pub const GENESIS_ANCHOR_512: &str =
-    "87da3627016686eda1df67317238cfd88dbb631f541811d84e9018bfb508cddb\
-     2a8fa192bdf16c4bb5f191154d0165cd6b6acb22918353b786b5c100be7e89dc";
+    "39f02302c5a5f79b0b37431f63fef136b98af7b2ddccf519d15022f963749aec\
+     40e5923ccbb17ea6ee079f12323a6673a048cf9ccbbc3b3559792cebf9728293";
 
 /// The "Gatekeeper" function for the decentralized network.
 /// Verifies a mining proof by checking its format and the deterministic
@@ -113,6 +113,7 @@ pub fn genesis() -> Block {
     let gen_block = Block {
         parent: [0u8; 32],
         slot: 0,
+        timestamp: 0, // Genesis epoch
         miner: [0u8; 32],
         transactions: vec![],
         vdf_proof: [0u8; 32],

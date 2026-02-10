@@ -538,13 +538,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         // Handle block from peer
                         else if message.topic == blocks_topic.hash() {
                             if let Ok(block) = bincode::deserialize::<Block>(&message.data) {
-                                // The VDF proof inside the block cryptographically
-                                // guarantees that TARGET_TIME (1800s) of sequential
-                                // work was performed.  add_block() validates the VDF
-                                // proof, so we pass TARGET_TIME for the difficulty
-                                // adjustment — this keeps all nodes' difficulty in
-                                // sync regardless of when they receive the block.
-                                if tc.add_block(block, axiom_core::chain::TARGET_TIME).is_ok() {
+                                // add_block() validates the block's embedded
+                                // timestamp and computes elapsed time from the
+                                // previous block — no external timing needed.
+                                if tc.add_block(block).is_ok() {
                                     println!("✅ Block accepted from peer. Height: {}", tc.blocks.len());
                                     axiom_core::storage::save_chain(&tc.blocks);
                                     // Reset VDF timer: the chain just advanced, so
@@ -569,14 +566,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     // Validate the peer chain: rebuild a fresh
                                     // Timechain from genesis and replay every block
                                     // through full consensus validation (VDF + PoW +
-                                    // ZK).  Each block's VDF proof cryptographically
-                                    // proves TARGET_TIME elapsed, so we pass 1800
-                                    // for all blocks to keep difficulty consistent.
+                                    // ZK + timestamp).  Each block carries its own
+                                    // timestamp; add_block() uses the delta between
+                                    // consecutive timestamps for difficulty adjustment.
                                     let genesis_block = axiom_core::genesis::genesis();
                                     let mut candidate_chain = Timechain::new(genesis_block);
                                     let mut valid = true;
                                     for b in peer_blocks.iter().skip(1) {
-                                        if candidate_chain.add_block(b.clone(), axiom_core::chain::TARGET_TIME).is_err() {
+                                        if candidate_chain.add_block(b.clone()).is_err() {
                                             println!("⚠️  Peer chain rejected: invalid block at slot {}", b.slot);
                                             valid = false;
                                             break;
@@ -807,6 +804,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let vdf_proof = axiom_core::main_helper::compute_vdf(vdf_seed, tc.difficulty as u32);
                     let zk_pass = axiom_core::genesis::generate_zk_pass(&wallet, parent_hash);
 
+                    // Current wall-clock timestamp for the new block
+                    let block_timestamp = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+
                     // Randomize nonce start so competing miners don't all
                     // search the same nonce space — essential for real multi-node mining.
                     let nonce_start: u64 = rand::random();
@@ -824,6 +827,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let candidate = Block {
                             parent: parent_hash,
                             slot: current_slot,
+                            timestamp: block_timestamp,
                             miner: wallet.address,
                             transactions: vec![],
                             vdf_proof,
@@ -831,7 +835,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             nonce,
                         };
 
-                        if candidate.meets_difficulty(tc.difficulty) && tc.add_block(candidate.clone(), elapsed).is_ok() {
+                        if candidate.meets_difficulty(tc.difficulty) && tc.add_block(candidate.clone()).is_ok() {
                             println!("✨ MINED: H-{} | Nonce: {}", tc.blocks.len(), nonce);
                             let encoded = bincode::serialize(&candidate).unwrap();
                             let _ = swarm.behaviour_mut().gossipsub.publish(blocks_topic.clone(), encoded);
