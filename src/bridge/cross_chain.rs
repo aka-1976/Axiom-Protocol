@@ -398,7 +398,17 @@ impl BridgeOracle {
     /// `AXIOM_RPC_<CHAIN>` (e.g. `AXIOM_RPC_ETHEREUM`) first, then
     /// falls back to the default public endpoint from [`ChainId::rpc_url`].
     fn resolve_rpc_url(chain: &ChainId) -> Result<String, String> {
-        let env_key = format!("AXIOM_RPC_{}", format!("{:?}", chain).to_uppercase());
+        let chain_name = match chain {
+            ChainId::Ethereum => "ETHEREUM",
+            ChainId::BSC => "BSC",
+            ChainId::Polygon => "POLYGON",
+            ChainId::Arbitrum => "ARBITRUM",
+            ChainId::Optimism => "OPTIMISM",
+            ChainId::Avalanche => "AVALANCHE",
+            ChainId::Fantom => "FANTOM",
+            ChainId::Axiom => "AXIOM",
+        };
+        let env_key = format!("AXIOM_RPC_{}", chain_name);
         match std::env::var(&env_key) {
             Ok(url) if !url.is_empty() => Ok(url),
             _ => Ok(chain.rpc_url().to_string()),

@@ -527,7 +527,9 @@ impl StatisticalModels {
                 .filter(|&j| j != i)
                 .map(|j| (j, dist_matrix[i][j]))
                 .collect();
-            sorted_neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+            sorted_neighbors.sort_by(|a, b| {
+                a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
             let neighbors: Vec<usize> = sorted_neighbors.iter().take(k).map(|&(j, _)| j).collect();
             let kd = sorted_neighbors.get(k.saturating_sub(1)).map(|&(_, d)| d).unwrap_or(0.0);
             knn.push(neighbors);
@@ -648,13 +650,13 @@ impl StatisticalModels {
             .collect();
 
         for col in 0..n {
-            // Partial pivoting
+            // Partial pivoting — range is non-empty so unwrap is safe
             let pivot_row = (col..n)
                 .max_by(|&a, &b| {
                     augmented[a][col].abs().partial_cmp(&augmented[b][col].abs())
                         .unwrap_or(std::cmp::Ordering::Equal)
                 })
-                .unwrap_or(col);
+                .unwrap();
             augmented.swap(col, pivot_row);
 
             let pivot = augmented[col][col];

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./AxiomStatelessBridge.sol";  // IRiscZeroVerifier interface
+import "./AxiomStatelessBridge.sol";  // IRiscZeroVerifier interface defined here
 
 /**
  * @title AxiomVerifier
