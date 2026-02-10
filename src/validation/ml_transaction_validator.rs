@@ -29,6 +29,7 @@ use crate::transaction::Transaction;
 ///   7. tx_size         – serialised transaction size (zk_proof + signature)
 ///   8. nonce_norm      – normalised nonce
 ///   9. proof_ratio     – ratio of zk_proof length to (signature length + 1)
+#[derive(Clone)]
 pub struct TransactionFeatureExtractor {
     amount_mean: f64,
     amount_m2: f64,
@@ -207,21 +208,14 @@ impl MLTransactionValidator {
         // Update running statistics for every transaction in the block
         {
             let mut extractor = self.feature_extractor.write();
-            let ext_read;
             let mut buffer = self.normal_tx_buffer.write();
             for tx in &block.transactions {
                 extractor.update_statistics(tx);
             }
-            // Re-read after stats update for feature extraction
-            ext_read = TransactionFeatureExtractor {
-                amount_mean: extractor.amount_mean,
-                amount_m2: extractor.amount_m2,
-                fee_mean: extractor.fee_mean,
-                fee_m2: extractor.fee_m2,
-                count: extractor.count,
-            };
+            // Clone after stats update for feature extraction
+            let ext_snapshot = extractor.clone();
             for tx in &block.transactions {
-                let features = ext_read.extract_features(tx);
+                let features = ext_snapshot.extract_features(tx);
                 if buffer.len() >= self.buffer_capacity {
                     buffer.pop_front();
                 }

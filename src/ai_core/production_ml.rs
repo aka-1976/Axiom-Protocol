@@ -474,8 +474,7 @@ impl OneClassSVM {
             .map(|t| euclidean_distance(t, &self.center))
             .collect();
         distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let idx_95 = ((distances.len() as f64) * 0.95).ceil() as usize;
-        let idx_95 = idx_95.min(distances.len().saturating_sub(1));
+        let idx_95 = ((distances.len() as f64) * 0.95).ceil().min(distances.len().saturating_sub(1) as f64) as usize;
         self.radius = distances[idx_95].max(1e-10);
 
         self.trained = true;
