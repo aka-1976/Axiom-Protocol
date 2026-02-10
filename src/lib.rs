@@ -109,6 +109,7 @@ pub mod ai; // AI Oracle network
 pub mod guardian; // Immutable safety manifest
 pub mod ai_core; // Multi-layer security engine
 pub mod guardian_enhancement; // AI-Guardian bridge
+pub mod validation; // ML-powered transaction validation
 // Re-export modules and wallet so they can be used by bin crates
 pub mod transaction;
 pub mod main_helper;
@@ -133,7 +134,7 @@ pub mod openclaw_integration; // NEW: OpenClaw automation integration
 // 2026 Best Practices Modules
 pub mod privacy; // View keys & selective disclosure
 pub mod sustainability; // Energy benchmarking & reporting
-pub mod mobile; // Mobile mining with 1 AXM rewards
+pub mod metrics; // Node metrics collection & monitoring
 
 pub use wallet::Wallet;
 pub use block::Block;
@@ -147,8 +148,8 @@ pub use genesis::GENESIS_ANCHOR_512;
 /// `AxiomPulse::verify_genesis()` performs a strict bitwise match against
 /// this constant to prevent supply drift or unauthorized chain forks.
 pub const VERIFIED_GENESIS_ANCHOR_512: &str =
-    "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
-     0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4";
+    "2b3ef0c4f235645a868eb66de324756e2dc91e7d2df99e54cc58bbed3a6e4070\
+     79b6445fdcafc3fc9127164756f0e7c1509e65e2977a4c01559e69725dbf16a5";
 
 /// SHA-256 fingerprint of the canonical NeuralGuardian genesis model.
 ///
@@ -236,8 +237,8 @@ mod tests {
     fn test_verified_genesis_anchor_512_value() {
         assert_eq!(
             VERIFIED_GENESIS_ANCHOR_512,
-            "7876d9aac11b1197474167b7485626bf535e551a21865c6264f07f614281298c\
-             0a0d10ce0434182dfd765e752dfc9619001323c10c394dda0bcaac1407ae9db4"
+            "2b3ef0c4f235645a868eb66de324756e2dc91e7d2df99e54cc58bbed3a6e4070\
+             79b6445fdcafc3fc9127164756f0e7c1509e65e2977a4c01559e69725dbf16a5"
         );
     }
 

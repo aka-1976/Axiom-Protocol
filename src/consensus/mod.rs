@@ -1,6 +1,7 @@
 // src/consensus/mod.rs - Consensus mechanisms
 pub mod vdf;
 pub mod lwma;
+pub mod validator;
 
 pub use vdf::{VDF, VDFProof, VDFBlockHeader};
 pub use lwma::{

@@ -261,12 +261,19 @@ pub fn evaluate(parent_hash: [u8; 32], slot: u64) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-/// VERIFY: Recomputes the sequential chain to ensure the time-lock was respected.
-/// This is the "Self-Healing" heart: any node can verify that time has passed
-/// without trusting the miner.
-#[allow(dead_code)]
+/// VERIFY: Recomputes the sequential SHA-256 hash chain used for block-level
+/// VDF proofs.  This is the chain-integrated time-lock verification path
+/// that every node runs during `add_block()`.
+///
+/// The proof is valid if and only if re-running the sequential chain from
+/// `seed` for `iterations` steps produces the same 32-byte output.
+///
+/// Note: The heavyweight Wesolowski algebraic VDF (see `wesolowski_*`
+/// functions above and `consensus::vdf::VDF`) provides faster verification
+/// via a compact proof and is used for extended time-lock proofs.  The
+/// hash-chain VDF here is simpler and deterministic, used directly in the
+/// block consensus pipeline.
 pub fn verify_vdf(seed: [u8; 32], iterations: u32, proof: [u8; 32]) -> bool {
-    // The main_helper contains the actual sequential hashing loop
     let expected = crate::main_helper::compute_vdf(seed, iterations);
     expected == proof
 }

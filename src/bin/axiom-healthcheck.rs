@@ -1,341 +1,89 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+/// Axiom Health Check Client
+///
+/// Queries the running axiom-node's built-in API to check health status.
+/// The node exposes /v1/status and /v1/health/check endpoints — this
+/// binary is a lightweight CLI probe suitable for systemd watchdogs,
+/// Kubernetes liveness probes, and operator scripts.
+///
+/// Usage:
+///   axiom-healthcheck                       # default: http://127.0.0.1:3030
+///   axiom-healthcheck http://10.0.0.1:3030  # custom node address
+///   AXIOM_API_URL=http://10.0.0.1:3030 axiom-healthcheck
 
-/// Health status response
-#[derive(Serialize, Deserialize)]
-struct HealthStatus {
-    status: String,
-    timestamp: u64,
-    version: String,
-    chain_height: u64,
-    peers_connected: u32,
-    mempool_size: u32,
-    uptime_seconds: u64,
-}
+use std::process;
 
-/// Metrics response
-#[derive(Serialize, Deserialize)]
-struct Metrics {
-    // Chain metrics
-    chain_height: u64,
-    difficulty: u32,
-    total_supply: u64,
-    circulating_supply: u64,
-    
-    // Network metrics
-    peers_connected: u32,
-    peers_discovered: u32,
-    inbound_connections: u32,
-    outbound_connections: u32,
-    
-    // Transaction metrics
-    mempool_size: u32,
-    mempool_bytes: u64,
-    transactions_processed: u64,
-    transactions_per_second: f64,
-    
-    // Block metrics
-    blocks_mined: u64,
-    average_block_time: f64,
-    last_block_time: u64,
-    
-    // System metrics
-    uptime_seconds: u64,
-    memory_usage_mb: f64,
-    cpu_usage_percent: f64,
-}
+#[tokio::main]
+async fn main() {
+    let default_url = "http://127.0.0.1:3030".to_string();
+    let base_url = std::env::args()
+        .nth(1)
+        .or_else(|| std::env::var("AXIOM_API_URL").ok())
+        .unwrap_or(default_url);
 
-/// Prometheus-compatible metrics
-#[allow(dead_code)]
-#[derive(Serialize)]
-struct PrometheusMetrics {
-    metrics: Vec<PrometheusMetric>,
-}
+    println!("🏥 Axiom Health Check");
+    println!("   Node API: {}", base_url);
+    println!();
 
-#[allow(dead_code)]
-#[derive(Serialize)]
-struct PrometheusMetric {
-    name: String,
-    value: f64,
-    labels: std::collections::HashMap<String, String>,
-    help: String,
-    metric_type: String, // "gauge", "counter", "histogram"
-}
+    // 1. Liveness: can we reach the node at all?
+    let status_url = format!("{}/v1/status", base_url);
+    let health_url = format!("{}/v1/health/check", base_url);
 
-/// Shared application state
-struct AppState {
-    start_time: SystemTime,
-    chain_height: Arc<Mutex<u64>>,
-    peers_connected: Arc<Mutex<u32>>,
-    mempool_size: Arc<Mutex<u32>>,
-    difficulty: Arc<Mutex<u32>>,
-}
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_else(|e| {
+            eprintln!("❌ Failed to create HTTP client: {}", e);
+            process::exit(1);
+        });
 
-/// Health check endpoint
-async fn health_check(data: web::Data<AppState>) -> impl Responder {
-    let uptime = SystemTime::now()
-        .duration_since(data.start_time)
-        .unwrap()
-        .as_secs();
-    
-    let chain_height = *data.chain_height.lock().unwrap();
-    let peers = *data.peers_connected.lock().unwrap();
-    let mempool = *data.mempool_size.lock().unwrap();
-    
-    // Determine health status
-    let status = if peers > 0 && chain_height > 0 {
-        "healthy"
-    } else if chain_height > 0 {
-        "degraded" // Chain working but no peers
-    } else {
-        "unhealthy"
-    };
-    
-    let health = HealthStatus {
-        status: status.to_string(),
-        timestamp: SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        chain_height,
-        peers_connected: peers,
-        mempool_size: mempool,
-        uptime_seconds: uptime,
-    };
-    
-    let status_code = match status {
-        "healthy" => 200,
-        "degraded" => 200, // Still return 200 but with degraded status
-        _ => 503,
-    };
-    
-    HttpResponse::build(actix_web::http::StatusCode::from_u16(status_code).unwrap())
-        .json(health)
-}
-
-/// Metrics endpoint (JSON format)
-async fn metrics(data: web::Data<AppState>) -> impl Responder {
-    let uptime = SystemTime::now()
-        .duration_since(data.start_time)
-        .unwrap()
-        .as_secs();
-    
-    let chain_height = *data.chain_height.lock().unwrap();
-    let peers = *data.peers_connected.lock().unwrap();
-    let mempool = *data.mempool_size.lock().unwrap();
-    let diff = *data.difficulty.lock().unwrap();
-    
-    // Calculate some derived metrics
-    let blocks_mined = chain_height.saturating_sub(1); // Exclude genesis
-    let average_block_time = if blocks_mined > 0 {
-        uptime as f64 / blocks_mined as f64
-    } else {
-        0.0
-    };
-    
-    // Read real system metrics from /proc
-    let memory_usage_mb: f64 = std::fs::read_to_string("/proc/self/status")
-        .ok()
-        .and_then(|s| {
-            s.lines()
-                .find(|l| l.starts_with("VmRSS:"))
-                .and_then(|l| l.split_whitespace().nth(1))
-                .and_then(|v| v.parse::<f64>().ok())
-                .map(|kb| kb / 1024.0)
-        })
-        .unwrap_or(0.0);
-
-    let cpu_usage_percent: f64 = std::fs::read_to_string("/proc/stat")
-        .ok()
-        .and_then(|s| {
-            let parts: Vec<u64> = s.lines().next()?
-                .split_whitespace().skip(1)
-                .filter_map(|v| v.parse().ok()).collect();
-            if parts.len() >= 4 {
-                let busy = (parts[0] + parts[2]) as f64;
-                let total: f64 = parts.iter().sum::<u64>() as f64;
-                Some(if total > 0.0 { (busy / total) * 100.0 } else { 0.0 })
-            } else { None }
-        })
-        .unwrap_or(0.0);
-
-    let metrics = Metrics {
-        chain_height,
-        difficulty: diff,
-        total_supply: axiom_core::economics::TOTAL_SUPPLY,
-        circulating_supply: axiom_core::economics::cumulative_supply_at_block(blocks_mined),
-        
-        peers_connected: peers,
-        peers_discovered: peers, // Tracked peers = connected peers at discovery layer
-        inbound_connections: 0,  // Tracked separately by libp2p swarm metrics
-        outbound_connections: peers,
-        
-        mempool_size: mempool,
-        mempool_bytes: (mempool as u64) * 500, // Estimated at ~500 bytes per serialized tx
-        transactions_processed: 0, // Requires chain scan — omitted for low-latency metrics
-        transactions_per_second: 0.0,
-        
-        blocks_mined,
-        average_block_time,
-        last_block_time: uptime,
-        
-        uptime_seconds: uptime,
-        memory_usage_mb,
-        cpu_usage_percent,
-    };
-    
-    HttpResponse::Ok().json(metrics)
-}
-
-/// Prometheus-compatible metrics endpoint
-async fn prometheus_metrics(data: web::Data<AppState>) -> impl Responder {
-    let uptime = SystemTime::now()
-        .duration_since(data.start_time)
-        .unwrap()
-        .as_secs();
-    
-    let chain_height = *data.chain_height.lock().unwrap();
-    let peers = *data.peers_connected.lock().unwrap();
-    let mempool = *data.mempool_size.lock().unwrap();
-    let diff = *data.difficulty.lock().unwrap();
-    
-    // Generate Prometheus format
-    let mut output = String::new();
-    
-    // Chain metrics
-    output.push_str("# HELP axiom_chain_height Current blockchain height\n");
-    output.push_str("# TYPE axiom_chain_height gauge\n");
-    output.push_str(&format!("axiom_chain_height {}\n", chain_height));
-    
-    output.push_str("# HELP axiom_difficulty Current mining difficulty\n");
-    output.push_str("# TYPE axiom_difficulty gauge\n");
-    output.push_str(&format!("axiom_difficulty {}\n", diff));
-    
-    // Network metrics
-    output.push_str("# HELP axiom_peers_connected Number of connected peers\n");
-    output.push_str("# TYPE axiom_peers_connected gauge\n");
-    output.push_str(&format!("axiom_peers_connected {}\n", peers));
-    
-    // Transaction metrics
-    output.push_str("# HELP axiom_mempool_size Number of transactions in mempool\n");
-    output.push_str("# TYPE axiom_mempool_size gauge\n");
-    output.push_str(&format!("axiom_mempool_size {}\n", mempool));
-    
-    // Block metrics
-    let blocks_mined = chain_height.saturating_sub(1);
-    output.push_str("# HELP axiom_blocks_mined_total Total blocks mined\n");
-    output.push_str("# TYPE axiom_blocks_mined_total counter\n");
-    output.push_str(&format!("axiom_blocks_mined_total {}\n", blocks_mined));
-    
-    // System metrics
-    output.push_str("# HELP axiom_uptime_seconds Node uptime in seconds\n");
-    output.push_str("# TYPE axiom_uptime_seconds counter\n");
-    output.push_str(&format!("axiom_uptime_seconds {}\n", uptime));
-    
-    // Supply metrics
-    let circulating = blocks_mined * 5_000_000_000;
-    output.push_str("# HELP axiom_circulating_supply Circulating supply in smallest units\n");
-    output.push_str("# TYPE axiom_circulating_supply gauge\n");
-    output.push_str(&format!("axiom_circulating_supply {}\n", circulating));
-    
-    HttpResponse::Ok()
-        .content_type("text/plain; version=0.0.4")
-        .body(output)
-}
-
-/// Readiness probe (for Kubernetes)
-async fn readiness(data: web::Data<AppState>) -> impl Responder {
-    // Check chain sync status and peer connectivity
-    let chain_height = *data.chain_height.lock().unwrap();
-    let peers = *data.peers_connected.lock().unwrap();
-    let ready = chain_height > 0 && peers > 0;
-
-    if ready {
-        HttpResponse::Ok().json(serde_json::json!({
-            "ready": true,
-            "message": "Node is synced and has peer connections",
-            "chain_height": chain_height,
-            "peers": peers
-        }))
-    } else {
-        HttpResponse::ServiceUnavailable().json(serde_json::json!({
-            "ready": false,
-            "message": "Node is still syncing or has no peers",
-            "chain_height": chain_height,
-            "peers": peers
-        }))
-    }
-}
-
-/// Liveness probe (for Kubernetes)
-async fn liveness() -> impl Responder {
-    // Simple check that the process is alive
-    HttpResponse::Ok().json(serde_json::json!({
-        "alive": true,
-        "timestamp": SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    }))
-}
-
-/// Info endpoint with detailed node information
-async fn info(data: web::Data<AppState>) -> impl Responder {
-    let chain_height = *data.chain_height.lock().unwrap();
-    let peers = *data.peers_connected.lock().unwrap();
-    
-    HttpResponse::Ok().json(serde_json::json!({
-        "name": "AXIOM Protocol Node",
-        "version": env!("CARGO_PKG_VERSION"),
-        "description": "AXIOM Protocol - 124M Sovereign Scarcity Engine",
-        "chain_height": chain_height,
-        "peers": peers,
-        "network": "mainnet",
-        "consensus": "VDF+PoW Hybrid",
-        "privacy": "ZK-STARK",
-        "supply": {
-            "total": 84_000_000,
-            "unit": "AXM"
+    // Check /v1/health/check (simple liveness)
+    match client.get(&health_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            println!("✅ Liveness: ALIVE ({})", health_url);
         }
-    }))
-}
+        Ok(resp) => {
+            eprintln!("⚠️  Liveness: DEGRADED (HTTP {})", resp.status());
+        }
+        Err(e) => {
+            eprintln!("❌ Liveness: UNREACHABLE — {}", e);
+            eprintln!("   Is axiom-node running? Check with: ps aux | grep axiom-node");
+            process::exit(1);
+        }
+    }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    println!("🏥 Starting Axiom Health & Metrics Server...");
-    
-    let state = web::Data::new(AppState {
-        start_time: SystemTime::now(),
-        chain_height: Arc::new(Mutex::new(0)),
-        peers_connected: Arc::new(Mutex::new(0)),
-        mempool_size: Arc::new(Mutex::new(0)),
-        difficulty: Arc::new(Mutex::new(1000)),
-    });
-    
-    let bind_address = "0.0.0.0:9090";
-    println!("🌐 Listening on http://{}", bind_address);
-    println!("📊 Endpoints:");
-    println!("   GET /health         - Health check (JSON)");
-    println!("   GET /metrics        - Metrics (JSON)");
-    println!("   GET /metrics/prometheus - Prometheus format");
-    println!("   GET /readiness      - Readiness probe");
-    println!("   GET /liveness       - Liveness probe");
-    println!("   GET /info           - Node information");
-    
-    HttpServer::new(move || {
-        App::new()
-            .app_data(state.clone())
-            .route("/health", web::get().to(health_check))
-            .route("/metrics", web::get().to(metrics))
-            .route("/metrics/prometheus", web::get().to(prometheus_metrics))
-            .route("/readiness", web::get().to(readiness))
-            .route("/liveness", web::get().to(liveness))
-            .route("/info", web::get().to(info))
-    })
-    .bind(bind_address)?
-    .run()
-    .await
+    // Check /v1/status (detailed metrics)
+    match client.get(&status_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            match resp.json::<serde_json::Value>().await {
+                Ok(status) => {
+                    println!("✅ Status: CONNECTED");
+                    if let Some(height) = status.get("current_height") {
+                        println!("   ⛓️  Chain height: {}", height);
+                    }
+                    if let Some(remaining) = status.get("supply_remaining_axm") {
+                        println!("   💰 Supply remaining: {} AXM", remaining);
+                    }
+                    if let Some(pulse) = status.get("trust_pulse").and_then(|v| v.as_str()) {
+                        if !pulse.is_empty() {
+                            println!("   🔐 Trust pulse: {}…", &pulse[..pulse.len().min(24)]);
+                        }
+                    }
+                    println!();
+                    println!("🟢 Node is healthy");
+                }
+                Err(e) => {
+                    eprintln!("⚠️  Status: Response parse error — {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Ok(resp) => {
+            eprintln!("⚠️  Status: HTTP {}", resp.status());
+            process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("❌ Status: Failed — {}", e);
+            process::exit(1);
+        }
+    }
 }

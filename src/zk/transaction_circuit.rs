@@ -4,7 +4,7 @@
 
 use serde::{Serialize, Deserialize};
 use winterfell::{
-    math::{fields::f128::BaseElement, FieldElement, StarkField, ToElements},
+    math::{fields::f128::BaseElement, FieldElement, ToElements},
     crypto::{hashers::Blake3_256, DefaultRandomCoin},
     Air, AirContext, Assertion, EvaluationFrame, FieldExtension,
     ProofOptions, TraceInfo, TransitionConstraintDegree,

@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.0] - 2026-02-10
+
+### 🧹 Production Audit & Stub Removal
+- **Removed mobile mining module** (`src/mobile/`): Conceptual stub with no real PoW, no blockchain integration, hardcoded hashrate estimates. Not compatible with actual mining on any hardware.
+- **Removed ai_monitor binary** (`src/bin/ai_monitor.rs`): Minimal placeholder that only read a hardcoded JSON file. Use `axiom-healthcheck` for real monitoring.
+- **Removed dead ai_logic.rs**: Unreferenced module with non-existent `Block.depth` field.
+- **Removed dead _fixed files**: `multi_layer_security_fixed.rs` and `ai_guardian_bridge_fixed.rs` (never imported).
+
+### 📊 Production Metrics Expansion
+- Expanded `metrics/mod.rs` from basic 5-field stub to full production collector
+- Added block/transaction latency tracking (rolling windows of 100/1000 samples)
+- Added TPS throughput calculation (60-second rolling window with batch-aware timestamps)
+- Added RSS memory monitoring from `/proc/self/status` with 5-second cache
+- Added chain height, mempool size, blocks mined, rewards earned tracking
+
+### 🔧 Hardened I/O & Logging
+- Replaced all `println!`/`eprintln!` in library code with structured `log::` macros
+- Files fixed: storage.rs, ai_engine.rs, neural_guardian.rs, consensus/vdf.rs, genesis.rs, block.rs, zk/circuit.rs, network_legacy.rs, discv5_service.rs, time.rs
+- Replaced `unwrap()` panics on file operations with proper error handling
+- Added error context for atomic rename in storage layer
+
+### 🌉 Bridge Improvements
+- Real `eth_getLogs` RPC polling for lock events (replaced no-op stub)
+- Proper confirmation tracking via `lock_block` field on `BridgeTransaction`
+- `update_confirmations()` now computes from `current_block - lock_block`
+- `execute_minting()` now updates status to Minted/Failed
+
+### 🤖 Production ML Stack
+- Added KD-Tree spatial indexing for O(k log n) neighbor searches
+- Isolation Forest with subsampling (256 samples/tree) for constant-time anomaly detection
+- One-Class SVM with Random Fourier Features (200-dim) for kernel approximation
+- LOF (Local Outlier Factor) using KD-Tree for density-based detection
+- DBSCAN clustering using KD-Tree range queries
+- Weighted ensemble: 0.35×IF + 0.30×SVM + 0.25×LOF + 0.10×DBSCAN
+
+### 🛡️ Guardian Sentinel Improvements
+- `perform_health_check()` now returns `Result<(), GuardianError>` on memory limit exceeded
+- AI Oracle fallback logs warning with query hash for operator diagnostics
+
 ## [4.1.0] - 2026-02-08
 
 ### 🔐 512-Bit Security Upgrade

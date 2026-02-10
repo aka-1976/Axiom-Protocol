@@ -16,7 +16,7 @@ use winterfell::{
     crypto::{hashers::Blake3_256, DefaultRandomCoin},
     Air, AirContext, Assertion, EvaluationFrame, FieldExtension,
     ProofOptions, TraceInfo, TransitionConstraintDegree,
-    Proof, Prover, Trace, TraceTable,
+    Proof, Prover, TraceTable,
     DefaultTraceLde, DefaultConstraintEvaluator,
     AcceptableOptions, matrix::ColMatrix, StarkDomain, TracePolyTable,
     AuxRandElements, ConstraintCompositionCoefficients,
@@ -302,8 +302,8 @@ impl ZkProofSystem {
         fs::write(&params_path, serde_json::to_string_pretty(&params_json).unwrap())
             .map_err(|e| format!("Failed to write params: {}", e))?;
 
-        println!("✓ STARK parameters saved to {}", keys_dir);
-        println!("  ℹ️  No trusted setup required - STARKs are transparent!");
+        log::info!("STARK parameters saved to {}", keys_dir);
+        log::info!("No trusted setup required - STARKs are transparent!");
         Ok(())
     }
 
@@ -418,7 +418,7 @@ impl ZkProofSystem {
 
 /// Convert bytes to a field element
 pub fn bytes_to_field(bytes: &[u8]) -> BaseElement {
-    let mut hash = Sha256::digest(bytes);
+    let hash = Sha256::digest(bytes);
     // Take first 16 bytes for 128-bit field element
     let mut buf = [0u8; 16];
     buf.copy_from_slice(&hash[..16]);

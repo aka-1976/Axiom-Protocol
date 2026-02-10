@@ -87,7 +87,7 @@ impl SovereignGuardian {
                     // Determine mode based on idle time
                     if idle_duration < self.deep_sleep_threshold {
                         self.mode = SentinelMode::Active;
-                        self.emit_active_heartbeat(&idle_duration);
+                        self.emit_active_heartbeat(&idle_duration)?;
                     } else {
                         self.mode = SentinelMode::DeepSleep;
                     }
@@ -122,7 +122,7 @@ impl SovereignGuardian {
     }
     
     /// Emit active heartbeat during normal operation
-    fn emit_active_heartbeat(&self, idle_duration: &Duration) {
+    fn emit_active_heartbeat(&self, idle_duration: &Duration) -> Result<(), GuardianError> {
         // Query real supply from chain state
         let supply_display = match crate::storage::load_chain() {
             Some(blocks) => {
@@ -141,7 +141,7 @@ impl SovereignGuardian {
         );
         
         // During active periods, perform quick health checks
-        self.perform_health_check();
+        self.perform_health_check()
     }
     
     /// Emit deep sleep heartbeat during silent periods
@@ -158,7 +158,7 @@ impl SovereignGuardian {
     }
     
     /// Perform lightweight health checks
-    fn perform_health_check(&self) {
+    fn perform_health_check(&self) -> Result<(), GuardianError> {
         // Memory limit in KB — configurable via AXIOM_MEMORY_LIMIT_KB env var
         let mem_limit_kb: u64 = std::env::var("AXIOM_MEMORY_LIMIT_KB")
             .ok()
@@ -182,9 +182,14 @@ impl SovereignGuardian {
 
         if mem_ok {
             log::debug!("💚 Health check: OK");
+            Ok(())
         } else {
-            log::warn!("⚠️  Health check: memory usage exceeds {} MB threshold",
-                mem_limit_kb / 1024);
+            let msg = format!(
+                "memory usage exceeds {} MB threshold",
+                mem_limit_kb / 1024
+            );
+            log::error!("⚠️  Health check FAILED: {}", msg);
+            Err(GuardianError::VerificationFailed(msg))
         }
     }
     

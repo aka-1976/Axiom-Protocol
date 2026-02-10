@@ -17,8 +17,8 @@ pub const GENESIS_TIMESTAMP: u64 = 1737331200;
 /// Every node verifies this anchor on startup. A node with a different
 /// genesis hash is automatically rejected by the Discv5 discovery layer.
 pub const GENESIS_ANCHOR_512: &str =
-    "87da3627016686eda1df67317238cfd88dbb631f541811d84e9018bfb508cddb\
-     2a8fa192bdf16c4bb5f191154d0165cd6b6acb22918353b786b5c100be7e89dc";
+    "2b3ef0c4f235645a868eb66de324756e2dc91e7d2df99e54cc58bbed3a6e4070\
+     79b6445fdcafc3fc9127164756f0e7c1509e65e2977a4c01559e69725dbf16a5";
 
 /// The "Gatekeeper" function for the decentralized network.
 /// Verifies a mining proof by checking its format and the deterministic
@@ -113,6 +113,7 @@ pub fn genesis() -> Block {
     let gen_block = Block {
         parent: [0u8; 32],
         slot: 0,
+        timestamp: GENESIS_TIMESTAMP, // January 20, 2025 00:00:00 UTC
         miner: [0u8; 32],
         transactions: vec![],
         vdf_proof: [0u8; 32],
@@ -121,11 +122,10 @@ pub fn genesis() -> Block {
     };
 
     GENESIS_PRINT.call_once(|| {
-        println!("\n--- AXIOM GENESIS ANCHOR (512-bit) ---");
-        println!("HASH-256: {}", hex::encode(gen_block.calculate_hash()));
-        println!("HASH-512: {}", hex::encode(gen_block.calculate_hash_512()));
-        println!("ANCHOR:   {}", GENESIS_ANCHOR_512);
-        println!("--------------------------------------\n");
+        log::info!("--- AXIOM GENESIS ANCHOR (512-bit) ---");
+        log::info!("HASH-256: {}", hex::encode(gen_block.calculate_hash()));
+        log::info!("HASH-512: {}", hex::encode(gen_block.calculate_hash_512()));
+        log::info!("ANCHOR:   {}", GENESIS_ANCHOR_512);
     });
 
     gen_block
@@ -139,6 +139,7 @@ impl Block {
         // Manual Feed to maintain strict control over the protocol format
         hasher.update(&self.parent);
         hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.timestamp.to_be_bytes());
         hasher.update(&self.miner);
         hasher.update(&self.vdf_proof);
         hasher.update(&self.zk_proof);
@@ -159,6 +160,7 @@ impl Block {
 
         hasher.update(&self.parent);
         hasher.update(&self.slot.to_be_bytes());
+        hasher.update(&self.timestamp.to_be_bytes());
         hasher.update(&self.miner);
         hasher.update(&self.vdf_proof);
         hasher.update(&self.zk_proof);

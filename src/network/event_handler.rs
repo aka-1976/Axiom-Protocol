@@ -53,7 +53,7 @@ impl EventHandler {
             AxiomEvent::Gossipsub(gossip_event) => {
                 use libp2p::gossipsub::Event;
                 match gossip_event {
-                    Event::Message { propagation_source, message_id, message } => {
+                    Event::Message { propagation_source, message_id, message: _ } => {
                         debug!("📡 Received gossipsub message {} from {}", message_id, propagation_source);
                         self.peer_manager.record_message_received(&propagation_source);
                         self.peer_manager.update_peer_activity(&propagation_source);

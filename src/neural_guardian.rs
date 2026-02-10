@@ -71,7 +71,6 @@ impl NeuralNetwork {
     /// Create a new neural network with random initialization (non-deterministic).
     /// Used for federated learning updates and experimentation.
     pub fn new() -> Self {
-        use rand::Rng;
         let mut rng = rand::thread_rng();
         Self::init_from_rng(&mut rng)
     }
@@ -455,8 +454,8 @@ impl NeuralGuardian {
             }
         }
 
-        println!(
-            "📊 Aggregated {} updates ({} samples): avg_loss={:.6}, lr_scale={:.4}",
+        log::info!(
+            "Aggregated {} updates ({} samples): avg_loss={:.6}, lr_scale={:.4}",
             updates.len(),
             total_samples,
             weighted_loss,
@@ -664,7 +663,7 @@ fn current_timestamp() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or_else(|e| {
-            eprintln!("⚠️  Failed to get current timestamp: {}", e);
+            log::warn!("Failed to get current timestamp: {}", e);
             0
         })
 }
