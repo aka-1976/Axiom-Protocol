@@ -776,9 +776,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let mut nonce = nonce_start;
                     // Scale nonce search budget to difficulty.  At difficulty D the
                     // expected number of hashes to find a valid nonce is D, so we
-                    // budget 10× that (minimum 100K) to give a >99.99% success
-                    // probability per VDF round.
-                    let max_attempts = (tc.difficulty.saturating_mul(10)).max(100_000);
+                    // budget NONCE_SEARCH_MULTIPLIER × D (minimum MIN_NONCE_ATTEMPTS)
+                    // to give a >99.99% success probability per VDF round.
+                    const NONCE_SEARCH_MULTIPLIER: u64 = 10;
+                    const MIN_NONCE_ATTEMPTS: u64 = 100_000;
+                    let max_attempts = tc.difficulty.saturating_mul(NONCE_SEARCH_MULTIPLIER).max(MIN_NONCE_ATTEMPTS);
 
                     let mut attempts = 0u64;
                     while attempts < max_attempts {
